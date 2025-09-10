@@ -6,6 +6,8 @@ import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { SyncNow } from '@/components/SyncNow';
+import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { TrendingUp, DollarSign, FileText } from 'lucide-react';
 
 type ChangeType = 'positive' | 'negative' | 'neutral';
@@ -21,6 +23,12 @@ interface DashboardCard {
 
 interface Tenant {
   name: string;
+  id: string;
+}
+
+interface WidgetData {
+  payload: { amount: number; currency: string };
+  freshness_seconds: number;
 }
 
 const DashboardContent = () => {
@@ -30,6 +38,32 @@ const DashboardContent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
+  const [widgetData, setWidgetData] = useState<WidgetData | null>(null);
+
+  const fetchWidgetData = async (tenantId: string) => {
+    try {
+      const { data: wd, error } = await (supabase as any)
+        .from('widget_data')
+        .select('payload, freshness_seconds')
+        .eq('tenant_id', tenantId)
+        .eq('key', 'cash_balance')
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching widget data:', error);
+      } else {
+        setWidgetData(wd);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching widget data:', err);
+    }
+  };
+
+  const handleSyncComplete = () => {
+    if (tenant?.id) {
+      fetchWidgetData(tenant.id);
+    }
+  };
 
   useEffect(() => {
     async function getSessionAndAuthorize() {
@@ -50,7 +84,7 @@ const DashboardContent = () => {
         // Then, get the tenant information
         const { data: tenantData, error: tenantError } = await (supabase as any)
           .from('tenants')
-          .select('slug, name')
+          .select('id, slug, name')
           .eq('id', profileData.tenant_id)
           .single();
 
@@ -65,7 +99,10 @@ const DashboardContent = () => {
         }
 
         // If authorized, set the tenant data
-        setTenant({ name: tenantData.name });
+        setTenant({ name: tenantData.name, id: tenantData.id });
+        
+        // Fetch widget data
+        await fetchWidgetData(tenantData.id);
       } catch (err: any) {
         if (err.message === 'FORBIDDEN') {
           setUnauthorized(true);
@@ -117,7 +154,9 @@ const DashboardContent = () => {
     {
       title: 'Tesorería',
       description: 'Estado actual de caja y bancos',
-      value: '€125.430,50',
+      value: widgetData ? 
+        `€${widgetData.payload.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}` : 
+        'Sin datos',
       change: '+2.1%',
       changeType: 'positive',
       icon: DollarSign,
@@ -149,12 +188,22 @@ const DashboardContent = () => {
         
         <main className="p-6">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground mb-2">
-              Dashboard Principal
-            </h2>
-            <p className="text-muted-foreground">
-              Resumen financiero de {tenant.name}
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-foreground mb-2">
+                  Dashboard Principal
+                </h2>
+                <p className="text-muted-foreground">
+                  Resumen financiero de {tenant.name}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                {widgetData && (
+                  <FreshnessBadge seconds={widgetData.freshness_seconds} />
+                )}
+                <SyncNow slug={tenantSlug!} onSyncComplete={handleSyncComplete} />
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
