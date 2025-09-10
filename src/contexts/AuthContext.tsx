@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string) => void;
   logout: () => void;
-  user: { email: string } | null;
+  user: User | null;
+  session: Session | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,36 +21,41 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<{ email: string } | null>(null);
 
   useEffect(() => {
-    const savedAuth = localStorage.getItem('financial-portal-auth');
-    if (savedAuth) {
-      const authData = JSON.parse(savedAuth);
-      setIsAuthenticated(true);
-      setUser(authData.user);
-    }
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsAuthenticated(!!session);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsAuthenticated(!!session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = (email: string) => {
-    const authData = {
-      user: { email },
-      timestamp: Date.now(),
-    };
-    localStorage.setItem('financial-portal-auth', JSON.stringify(authData));
-    setIsAuthenticated(true);
-    setUser({ email });
+    // This method is kept for compatibility but actual login is handled in Login component
+    console.warn('Use Supabase auth methods directly instead of this login function');
   };
 
-  const logout = () => {
-    localStorage.removeItem('financial-portal-auth');
-    setIsAuthenticated(false);
-    setUser(null);
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, user }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, user, session }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,30 +4,121 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
 import { Building2 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function Login() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
 
-  const from = location.state?.from?.pathname || '/young-minds/dashboard';
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || !password.trim()) return;
 
     setIsLoading(true);
     
-    // Simulate auth delay
-    setTimeout(() => {
-      login(email);
-      navigate(from, { replace: true });
+    try {
+      let result;
+      
+      if (isSignUp) {
+        const redirectUrl = `${window.location.origin}/`;
+        result = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: redirectUrl
+          }
+        });
+      } else {
+        result = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+      }
+
+      const { data, error } = result;
+      
+      if (error) {
+        toast({
+          title: "Error de autenticación",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (isSignUp) {
+        toast({
+          title: "Registro exitoso",
+          description: "Revisa tu email para confirmar tu cuenta",
+        });
+        return;
+      }
+
+      // Tras login, descubre su tenant y redirige
+      if (data.user) {
+        // Use direct fetch instead of typed client due to type issues
+        const profileResponse = await fetch(
+          `https://dtmrywilxpilpzokxxif.supabase.co/rest/v1/profiles?user_id=eq.${data.user.id}&select=tenant_id`,
+          {
+            headers: {
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bXJ5d2lseHBpbHB6b2t4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MTQ3NDcsImV4cCI6MjA3MzA5MDc0N30.2oV-SA1DS-nM72udb-I_IGYM1vIRxRp66np3N_ZVYbY',
+              'Authorization': `Bearer ${data.session?.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        const profiles = await profileResponse.json();
+        
+        if (!profiles || profiles.length === 0) {
+          toast({
+            title: "Error",
+            description: "Perfil sin tenant asignado",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const tenantResponse = await fetch(
+          `https://dtmrywilxpilpzokxxif.supabase.co/rest/v1/tenants?id=eq.${profiles[0].tenant_id}&select=slug`,
+          {
+            headers: {
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bXJ5d2lseHBpbHB6b2t4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MTQ3NDcsImV4cCI6MjA3MzA5MDc0N30.2oV-SA1DS-nM72udb-I_IGYM1vIRxRp66np3N_ZVYbY',
+              'Authorization': `Bearer ${data.session?.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        const tenants = await tenantResponse.json();
+          
+        if (tenants && tenants.length > 0 && tenants[0].slug) {
+          navigate(`/${tenants[0].slug}/dashboard`, { replace: true });
+        } else {
+          toast({
+            title: "Error",
+            description: "Tenant no encontrado",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Error de conexión",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -46,38 +137,105 @@ export default function Login() {
         </CardHeader>
         
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Correo electrónico
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="tu@empresa.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-11"
-                aria-describedby="email-description"
-              />
-              <p id="email-description" className="text-xs text-muted-foreground">
-                Introduce tu email para acceder al portal
-              </p>
-            </div>
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login" onClick={() => setIsSignUp(false)}>
+                Iniciar Sesión
+              </TabsTrigger>
+              <TabsTrigger value="signup" onClick={() => setIsSignUp(true)}>
+                Registrarse
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="login" className="space-y-4 mt-6">
+              <form onSubmit={handleAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    Correo electrónico
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="tu@empresa.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                </div>
 
-            <Button
-              type="submit"
-              className="w-full h-11 bg-gradient-primary hover:opacity-90 transition-opacity"
-              disabled={isLoading || !email.trim()}
-            >
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Contraseña
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Tu contraseña"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-gradient-primary hover:opacity-90 transition-opacity"
+                  disabled={isLoading || !email.trim() || !password.trim()}
+                >
+                  {isLoading ? 'Entrando...' : 'Iniciar Sesión'}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="signup" className="space-y-4 mt-6">
+              <form onSubmit={handleAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email" className="text-sm font-medium">
+                    Correo electrónico
+                  </Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="tu@empresa.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password" className="text-sm font-medium">
+                    Contraseña
+                  </Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-11"
+                    minLength={6}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-gradient-primary hover:opacity-90 transition-opacity"
+                  disabled={isLoading || !email.trim() || !password.trim()}
+                >
+                  {isLoading ? 'Registrando...' : 'Crear Cuenta'}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
 
           <div className="mt-6 pt-6 border-t border-border">
             <p className="text-xs text-muted-foreground text-center">
-              Entorno de demostración - Cualquier email es válido
+              Autenticación con Supabase
             </p>
           </div>
         </CardContent>
