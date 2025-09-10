@@ -12,6 +12,133 @@ function serverClient() {
   )
 }
 
+// Odoo RPC Client
+type JsonRpcPayload = {
+  jsonrpc: '2.0';
+  method: 'call';
+  params: any;
+  id: number;
+};
+
+const ODOO_BASE_URL = Deno.env.get('ODOO_BASE_URL')!;
+const ODOO_DB = Deno.env.get('ODOO_DB')!;
+const ODOO_USERNAME = Deno.env.get('ODOO_USERNAME')!;
+const ODOO_PASSWORD = Deno.env.get('ODOO_PASSWORD')!;
+
+let rpcId = 1;
+
+async function rpcCall<T>(params: any): Promise<T> {
+  const payload: JsonRpcPayload = {
+    jsonrpc: '2.0',
+    method: 'call',
+    params,
+    id: rpcId++,
+  };
+
+  const res = await fetch(`${ODOO_BASE_URL}/jsonrpc`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Odoo HTTP ${res.status} ${txt}`);
+  }
+  const json = await res.json();
+  if (json.error) {
+    const msg =
+      json.error?.data?.message ||
+      json.error?.message ||
+      JSON.stringify(json.error);
+    throw new Error(`Odoo RPC error: ${msg}`);
+  }
+  return json.result as T;
+}
+
+async function odooLogin(): Promise<number> {
+  // service: common.login(db, username, password) -> uid
+  const params = {
+    service: 'common',
+    method: 'login',
+    args: [ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD],
+  };
+  const uid = await rpcCall<number>(params);
+  if (!uid) throw new Error('Login Odoo fallido: uid vacío');
+  return uid;
+}
+
+async function executeKw<T>(
+  uid: number,
+  model: string,
+  method: string,
+  args: any[] = [],
+  kwargs: Record<string, any> = {}
+): Promise<T> {
+  // service: object.execute_kw(db, uid, password, model, method, args, kwargs)
+  const params = {
+    service: 'object',
+    method: 'execute_kw',
+    args: [ODOO_DB, uid, ODOO_PASSWORD, model, method, args, kwargs],
+  };
+  return await rpcCall<T>(params);
+}
+
+type Invoice = {
+  id: number;
+  name: string;
+  move_type: 'out_invoice' | 'in_invoice' | string;
+  amount_total: number;
+  invoice_date: string | null;
+  currency_id: [number, string] | number[]; // [id, name]
+  state: string;
+};
+
+async function fetchMonthInvoicesByCompany(
+  companyId: number,
+  y: number,
+  m: number
+) {
+  const uid = await odooLogin();
+
+  // Primer día del mes (incl.) y primer día del siguiente (excl.)
+  const start = new Date(Date.UTC(y, m - 1, 1));
+  const end = new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1));
+
+  const startISO = start.toISOString().slice(0, 10);
+  const endISO = end.toISOString().slice(0, 10);
+
+  // Dominio: facturas posteadas del mes, por compañía, ventas o compras
+  const domain = [
+    ['company_id', '=', companyId],
+    ['state', '=', 'posted'],
+    ['move_type', 'in', ['out_invoice', 'in_invoice']],
+    ['invoice_date', '>=', startISO],
+    ['invoice_date', '<', endISO],
+  ];
+
+  // search_read
+  const fields = [
+    'id',
+    'name',
+    'move_type',
+    'amount_total',
+    'invoice_date',
+    'currency_id',
+    'state',
+  ];
+
+  const res = await executeKw<Invoice[]>(
+    uid,
+    'account.move',
+    'search_read',
+    [domain],
+    { fields, limit: 1000 } // ajusta si hace falta
+  );
+
+  return res;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
