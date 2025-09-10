@@ -139,6 +139,13 @@ async function fetchMonthInvoicesByCompany(
   return res;
 }
 
+function monthParts(d = new Date()) {
+  // Europe/Madrid no afecta al corte si usamos YYYY-MM y comparamos por fecha (no hora).
+  const y = d.getUTCFullYear()
+  const m = d.getUTCMonth() + 1
+  return { y, m }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -168,7 +175,7 @@ Deno.serve(async (req) => {
     // 1) Resolver tenant
     const { data: tenant, error: tErr } = await supabase
       .from('tenants')
-      .select('id, odoo_company_id')
+      .select('id, odoo_company_id, currency')
       .eq('slug', tenantSlug)
       .single();
     
@@ -200,24 +207,55 @@ Deno.serve(async (req) => {
     console.log(`Created sync run: ${run.id}`);
 
     try {
-      // 3) MOCK: aquí iría tu lectura real a Odoo filtrando por company_id
-      //    const invoices = await odooFetchInvoices(tenant.odoo_company_id, since)
-      //    const cash = computeCashBalance(invoices, ...)
-      const cash = 125430.5; // mock €
+      const { y, m } = monthParts();
+      
+      // 3) Llamada real a Odoo (JSON-RPC) filtrada por company_id
+      console.log(`Fetching invoices for company ${tenant.odoo_company_id}, month ${y}-${m}`);
+      const invoices = await fetchMonthInvoicesByCompany(tenant.odoo_company_id, y, m);
+      
+      console.log(`Retrieved ${invoices.length} invoices from Odoo`);
+
+      // 4) KPIs: ingresos del mes y gastos del mes (suma de amount_total)
+      const revenue = invoices
+        .filter(i => i.move_type === 'out_invoice')
+        .reduce((acc, i) => acc + (i.amount_total || 0), 0);
+
+      const expenses = invoices
+        .filter(i => i.move_type === 'in_invoice')
+        .reduce((acc, i) => acc + (i.amount_total || 0), 0);
+
       const freshness = 30 * 60;
 
-      console.log(`Computed cash balance: ${cash}`);
+      console.log(`Calculated revenue: ${revenue}, expenses: ${expenses}`);
 
-      // 4) Upsert widget_data (ejemplo: tesorería)
+      // 5) Upserts de widget_data
+      const upserts = [
+        {
+          tenant_id: tenant.id,
+          key: 'revenue_month',
+          payload: { amount: revenue, currency: tenant.currency || 'EUR' },
+          freshness_seconds: freshness,
+          computed_at: new Date().toISOString(),
+        },
+        {
+          tenant_id: tenant.id,
+          key: 'expenses_month',
+          payload: { amount: expenses, currency: tenant.currency || 'EUR' },
+          freshness_seconds: freshness,
+          computed_at: new Date().toISOString(),
+        },
+        {
+          tenant_id: tenant.id,
+          key: 'invoices_month_count',
+          payload: { count: invoices.length },
+          freshness_seconds: freshness,
+          computed_at: new Date().toISOString(),
+        },
+      ];
+
       const { error: wErr } = await supabase
         .from('widget_data')
-        .upsert({
-          tenant_id: tenant.id,
-          key: 'cash_balance',
-          payload: { amount: cash, currency: 'EUR' },
-          freshness_seconds: freshness,
-          computed_at: new Date().toISOString()
-        }, { onConflict: 'tenant_id,key' });
+        .upsert(upserts, { onConflict: 'tenant_id,key' });
       
       if (wErr) {
         console.error('Error upserting widget data:', wErr);
@@ -226,19 +264,19 @@ Deno.serve(async (req) => {
 
       console.log('Widget data updated successfully');
 
-      // 5) Cerrar sync_run OK
+      // 6) Cerrar sync_run OK
       await supabase
         .from('sync_runs')
         .update({ 
           status: 'ok', 
           finished_at: new Date().toISOString(), 
-          stats: { widgets_updated: 1 } 
+          stats: { invoices: invoices.length } 
         })
         .eq('id', run.id);
 
       console.log('Sync run completed successfully');
 
-      return new Response(JSON.stringify({ ok: true }), {
+      return new Response(JSON.stringify({ ok: true, invoices: invoices.length }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
 
