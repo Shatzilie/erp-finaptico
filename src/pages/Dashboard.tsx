@@ -1,10 +1,11 @@
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { TrendingUp, DollarSign, FileText } from 'lucide-react';
 
 type ChangeType = 'positive' | 'negative' | 'neutral';
@@ -24,46 +25,61 @@ interface Tenant {
 
 const DashboardContent = () => {
   const { tenant: tenantSlug } = useParams<{ tenant: string }>();
+  const { user } = useAuth();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   useEffect(() => {
-    async function fetchTenant() {
-      if (!tenantSlug) return;
+    async function getSessionAndAuthorize() {
+      if (!tenantSlug || !user) return;
       
       try {
-        const response = await fetch(
-          `https://dtmrywilxpilpzokxxif.supabase.co/rest/v1/tenants?slug=eq.${tenantSlug}&select=name`,
-          {
-            headers: {
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bXJ5d2lseHBpbHB6b2t4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MTQ3NDcsImV4cCI6MjA3MzA5MDc0N30.2oV-SA1DS-nM72udb-I_IGYM1vIRxRp66np3N_ZVYbY',
-              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bXJ5d2lseHBpbHB6b2t4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MTQ3NDcsImV4cCI6MjA3MzA5MDc0N30.2oV-SA1DS-nM72udb-I_IGYM1vIRxRp66np3N_ZVYbY',
-              'Content-Type': 'application/json'
-            }
-          }
-        );
+        // First, get the user's profile and tenant_id
+        const { data: profileData, error: profileError } = await (supabase as any)
+          .from('profiles')
+          .select('tenant_id')
+          .eq('user_id', user.id)
+          .single();
 
-        if (!response.ok) {
-          throw new Error('Error en la consulta');
+        if (profileError || !profileData) {
+          throw new Error('PROFILE_NOT_FOUND');
         }
 
-        const data = await response.json();
-        
-        if (data && data.length > 0) {
-          setTenant(data[0]);
+        // Then, get the tenant information
+        const { data: tenantData, error: tenantError } = await (supabase as any)
+          .from('tenants')
+          .select('slug, name')
+          .eq('id', profileData.tenant_id)
+          .single();
+
+        if (tenantError || !tenantData) {
+          throw new Error('TENANT_NOT_FOUND');
+        }
+
+        // Verify user belongs to the requested tenant
+        if (tenantData.slug !== tenantSlug) {
+          setUnauthorized(true);
+          throw new Error('FORBIDDEN');
+        }
+
+        // If authorized, set the tenant data
+        setTenant({ name: tenantData.name });
+      } catch (err: any) {
+        if (err.message === 'FORBIDDEN') {
+          setUnauthorized(true);
+          setError('No tienes acceso a este tenant');
         } else {
-          setError(`Tenant "${tenantSlug}" no encontrado`);
+          setError('Error al verificar permisos');
         }
-      } catch (err) {
-        setError('Error al cargar el tenant');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchTenant();
-  }, [tenantSlug]);
+    getSessionAndAuthorize();
+  }, [tenantSlug, user]);
 
   if (loading) {
     return (
@@ -71,11 +87,15 @@ const DashboardContent = () => {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Cargando...</CardTitle>
-            <CardDescription>Obteniendo información del tenant</CardDescription>
+            <CardDescription>Verificando permisos y obteniendo información del tenant</CardDescription>
           </CardHeader>
         </Card>
       </div>
     );
+  }
+
+  if (unauthorized) {
+    return <Navigate to="/login" replace />;
   }
 
   if (error || !tenant) {
@@ -83,9 +103,9 @@ const DashboardContent = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Tenant no encontrado</CardTitle>
+            <CardTitle>Acceso denegado</CardTitle>
             <CardDescription>
-              {error || `El tenant "${tenantSlug}" no existe o no está disponible.`}
+              {error || `No tienes permisos para acceder al tenant "${tenantSlug}".`}
             </CardDescription>
           </CardHeader>
         </Card>
