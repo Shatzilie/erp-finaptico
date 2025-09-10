@@ -1,9 +1,10 @@
 import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { getTenant } from '@/utils/tenants';
+import { supabase } from '@/integrations/supabase/client';
 import { TrendingUp, DollarSign, FileText } from 'lucide-react';
 
 type ChangeType = 'positive' | 'negative' | 'neutral';
@@ -17,18 +18,74 @@ interface DashboardCard {
   icon: any;
 }
 
+interface Tenant {
+  name: string;
+}
+
 const DashboardContent = () => {
   const { tenant: tenantSlug } = useParams<{ tenant: string }>();
-  const tenant = getTenant(tenantSlug || '');
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!tenant) {
+  useEffect(() => {
+    async function fetchTenant() {
+      if (!tenantSlug) return;
+      
+      try {
+        const response = await fetch(
+          `https://dtmrywilxpilpzokxxif.supabase.co/rest/v1/tenants?slug=eq.${tenantSlug}&select=name`,
+          {
+            headers: {
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bXJ5d2lseHBpbHB6b2t4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MTQ3NDcsImV4cCI6MjA3MzA5MDc0N30.2oV-SA1DS-nM72udb-I_IGYM1vIRxRp66np3N_ZVYbY',
+              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bXJ5d2lseHBpbHB6b2t4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MTQ3NDcsImV4cCI6MjA3MzA5MDc0N30.2oV-SA1DS-nM72udb-I_IGYM1vIRxRp66np3N_ZVYbY',
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Error en la consulta');
+        }
+
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          setTenant(data[0]);
+        } else {
+          setError(`Tenant "${tenantSlug}" no encontrado`);
+        }
+      } catch (err) {
+        setError('Error al cargar el tenant');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTenant();
+  }, [tenantSlug]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Cargando...</CardTitle>
+            <CardDescription>Obteniendo información del tenant</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !tenant) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Tenant no encontrado</CardTitle>
             <CardDescription>
-              El tenant "{tenantSlug}" no existe o no está disponible.
+              {error || `El tenant "${tenantSlug}" no existe o no está disponible.`}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -76,7 +133,7 @@ const DashboardContent = () => {
               Dashboard Principal
             </h2>
             <p className="text-muted-foreground">
-              Resumen financiero de {tenant.fullName}
+              Resumen financiero de {tenant.name}
             </p>
           </div>
 
