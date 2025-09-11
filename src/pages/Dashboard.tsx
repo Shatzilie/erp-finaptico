@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SyncNow } from '@/components/SyncNow';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { TrendingUp, DollarSign, FileText } from 'lucide-react';
+import KpiBoard from '@/components/dashboard/KpiBoard';
 
 type ChangeType = 'positive' | 'negative' | 'neutral';
 
@@ -252,72 +253,7 @@ const DashboardContent = () => {
         <DashboardHeader />
         
         <main className="p-6">
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-3xl font-bold text-foreground mb-2">
-                  Dashboard Principal
-                </h2>
-                <p className="text-muted-foreground">
-                  Resumen financiero de {tenant.name}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                {widgetData && (
-                  <FreshnessBadge seconds={widgetData.freshness_seconds} />
-                )}
-                <button
-                  onClick={handleSyncNow}
-                  disabled={syncing}
-                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                >
-                  {syncing ? "Sincronizando..." : "Sincronizar ahora"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {cards.map((card, index) => {
-              const Icon = card.icon;
-              return (
-                <Card key={index} className="bg-gradient-card shadow-card hover:shadow-elevated transition-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      {card.title}
-                    </CardTitle>
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-foreground mb-1">
-                      {card.value}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span
-                        className={`text-xs font-medium ${
-                          card.changeType === 'positive'
-                            ? 'text-profit'
-                            : card.changeType === 'negative'
-                            ? 'text-loss'
-                            : 'text-muted-foreground'
-                        }`}
-                      >
-                        {card.change}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {card.changeType !== 'neutral' 
-                          ? 'vs mes anterior'
-                          : ''}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {card.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <KpiBoard />
         </main>
       </div>
     </div>
