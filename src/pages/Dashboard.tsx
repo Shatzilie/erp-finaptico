@@ -1,184 +1,333 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Navigate } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DashboardHeader } from '@/components/DashboardHeader';
+import { DashboardSidebar } from '@/components/DashboardSidebar';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { SyncNow } from '@/components/SyncNow';
+import { FreshnessBadge } from '@/components/FreshnessBadge';
+import { TrendingUp, DollarSign, FileText } from 'lucide-react';
+
+type ChangeType = 'positive' | 'negative' | 'neutral';
+
+interface DashboardCard {
+  title: string;
+  description: string;
+  value: string;
+  change: string;
+  changeType: ChangeType;
+  icon: any;
+}
+
+interface Tenant {
+  name: string;
+  id: string;
+}
+
+interface WidgetData {
+  payload: { amount: number; currency: string };
+  freshness_seconds: number;
+}
 
 type KPIData = {
-  revenue: number;
-  expenses: number;
-  invoicesIssued: number;
-  invoicesReceived: number;
+  revenue?: number;
+  expenses?: number;
+  invoices?: number;
 };
 
-export default function DashboardPage() {
-  const { tenantSlug } = useParams();
-  const slug = useMemo(() => String(tenantSlug || ""), [tenantSlug]);
-
-  const [kpi, setKpi] = useState<KPIData>({
-    revenue: 0,
-    expenses: 0,
-    invoicesIssued: 0,
-    invoicesReceived: 0,
-  });
-  const [loading, setLoading] = useState(false);
+const DashboardContent = () => {
+  const { tenant: tenantSlug } = useParams<{ tenant: string }>();
+  const { user } = useAuth();
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [widgetData, setWidgetData] = useState<WidgetData | null>(null);
+  const [kpi, setKpi] = useState<KPIData>({});
   const [syncing, setSyncing] = useState(false);
 
-  async function fetchKPIs() {
-    if (!slug) return;
-    setLoading(true);
-
-    // 1) tenant
-    const { data: tenant, error: terr } = await (supabase as any)
-      .from("tenants")
-      .select("id, currency")
-      .eq("slug", slug)
-      .single();
-
-    if (terr || !tenant) {
-      console.error("Tenant not found", terr);
-      setLoading(false);
-      return;
+  const fetchWidgetData = async (tenantId: string) => {
+    try {
+      const { data: wd, error } = await (supabase as any)
+        .from('widget_data')
+        .select('payload, freshness_seconds')
+        .eq('tenant_id', tenantId)
+        .eq('key', 'cash_balance')
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching widget data:', error);
+      } else {
+        setWidgetData(wd);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching widget data:', err);
     }
+  };
 
-    // 2) widgets
-    const { data: widgets, error: werr } = await (supabase as any)
-      .from("widget_data")
-      .select("key, payload")
-      .eq("tenant_id", tenant.id)
-      .in("key", [
-        "revenue_month",
-        "expenses_month",
-        "invoices_month_count",             // emitidas
-        "invoices_received_month_count",    // recibidas
-      ]);
+  const fetchKPIs = async (tenantId: string) => {
+    try {
+      // Get the 3 KPI widgets
+      const { data: widgets, error: werr } = await (supabase as any)
+        .from("widget_data")
+        .select("key, payload")
+        .eq("tenant_id", tenantId)
+        .in("key", ["revenue_month", "expenses_month", "invoices_month_count"]);
 
-    if (werr) {
-      console.error("widget_data error", werr);
-      setLoading(false);
-      return;
+      if (werr) {
+        console.error("widget_data error", werr);
+        return;
+      }
+
+      // Map to state
+      const revenue = widgets?.find((w: any) => w.key === "revenue_month")?.payload?.amount ?? 0;
+      const expenses = widgets?.find((w: any) => w.key === "expenses_month")?.payload?.amount ?? 0;
+      const invoices = widgets?.find((w: any) => w.key === "invoices_month_count")?.payload?.count ?? 0;
+
+      setKpi({ revenue, expenses, invoices });
+    } catch (err) {
+      console.error('Unexpected error fetching KPIs:', err);
     }
+  };
 
-    const revenue =
-      widgets?.find((w: any) => w.key === "revenue_month")?.payload?.amount ?? 0;
-    const expenses =
-      widgets?.find((w: any) => w.key === "expenses_month")?.payload?.amount ?? 0;
-    const invoicesIssued =
-      widgets?.find((w: any) => w.key === "invoices_month_count")?.payload?.count ??
-      0;
-    const invoicesReceived =
-      widgets?.find((w: any) => w.key === "invoices_received_month_count")?.payload
-        ?.count ?? 0;
+  const handleSyncComplete = () => {
+    if (tenant?.id) {
+      fetchWidgetData(tenant.id);
+      fetchKPIs(tenant.id);
+    }
+  };
 
-    setKpi({ revenue, expenses, invoicesIssued, invoicesReceived });
-    setLoading(false);
-  }
-
-  async function handleSyncNow() {
-    if (!slug) return;
+  const handleSyncNow = async () => {
+    if (!tenantSlug) return;
     setSyncing(true);
 
-    // Invoca la edge function (el SDK añade las cabeceras)
-    const { data, error } = await supabase.functions.invoke("odoo-sync", {
-      body: { tenant: slug },
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke("odoo-sync", {
+        body: { tenant: tenantSlug },
+      });
 
-    if (error) console.error("sync error", error);
-    else console.log("sync ok", data);
-
-    await fetchKPIs();
-    setSyncing(false);
-  }
+      if (error) {
+        console.error("sync error", error);
+      } else {
+        console.log("sync ok", data);
+        // Refresh KPIs
+        if (tenant?.id) {
+          await fetchKPIs(tenant.id);
+          await fetchWidgetData(tenant.id);
+        }
+      }
+    } catch (err) {
+      console.error("Sync error:", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    fetchKPIs();
-  }, [slug]);
+    async function getSessionAndAuthorize() {
+      if (!tenantSlug || !user) return;
+      
+      try {
+        // First, get the user's profile and tenant_id
+        const { data: profileData, error: profileError } = await (supabase as any)
+          .from('profiles')
+          .select('tenant_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError || !profileData) {
+          throw new Error('PROFILE_NOT_FOUND');
+        }
+
+        // Then, get the tenant information
+        const { data: tenantData, error: tenantError } = await (supabase as any)
+          .from('tenants')
+          .select('id, slug, name')
+          .eq('id', profileData.tenant_id)
+          .single();
+
+        if (tenantError || !tenantData) {
+          throw new Error('TENANT_NOT_FOUND');
+        }
+
+        // Verify user belongs to the requested tenant
+        if (tenantData.slug !== tenantSlug) {
+          setUnauthorized(true);
+          throw new Error('FORBIDDEN');
+        }
+
+        // If authorized, set the tenant data
+        setTenant({ name: tenantData.name, id: tenantData.id });
+        
+        // Fetch widget data
+        await fetchWidgetData(tenantData.id);
+        await fetchKPIs(tenantData.id);
+      } catch (err: any) {
+        if (err.message === 'FORBIDDEN') {
+          setUnauthorized(true);
+          setError('No tienes acceso a este tenant');
+        } else {
+          setError('Error al verificar permisos');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    getSessionAndAuthorize();
+  }, [tenantSlug, user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Cargando...</CardTitle>
+            <CardDescription>Verificando permisos y obteniendo información del tenant</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (unauthorized) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (error || !tenant) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Acceso denegado</CardTitle>
+            <CardDescription>
+              {error || `No tienes permisos para acceder al tenant "${tenantSlug}".`}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  const cards: DashboardCard[] = [
+    {
+      title: 'Ingresos (mes)',
+      description: 'Ingresos del mes actual',
+      value: kpi.revenue !== undefined ? 
+        `€${kpi.revenue.toLocaleString('es-ES', { minimumFractionDigits: 2 })}` : 
+        'Sin datos',
+      change: 'mes en curso',
+      changeType: 'positive',
+      icon: TrendingUp,
+    },
+    {
+      title: 'Gastos (mes)',
+      description: 'Gastos del mes actual',
+      value: kpi.expenses !== undefined ? 
+        `€${kpi.expenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}` : 
+        'Sin datos',
+      change: 'mes en curso',
+      changeType: 'neutral',
+      icon: DollarSign,
+    },
+    {
+      title: 'Nº Facturas (mes)',
+      description: 'Facturas emitidas este mes',
+      value: kpi.invoices !== undefined ? 
+        kpi.invoices.toString() : 
+        'Sin datos',
+      change: 'mes en curso',
+      changeType: 'neutral',
+      icon: FileText,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header + botón */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Dashboard Principal</h1>
-          <p className="text-sm text-muted-foreground">
-            Resumen financiero
-          </p>
-        </div>
-        <button
-          onClick={handleSyncNow}
-          disabled={syncing}
-          className="px-4 py-2 rounded-xl bg-black text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {syncing ? "Sincronizando..." : "Sincronizar ahora"}
-        </button>
-      </div>
+    <div className="flex min-h-screen bg-background">
+      <DashboardSidebar />
+      
+      <div className="flex-1">
+        <DashboardHeader />
+        
+        <main className="p-6">
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-foreground mb-2">
+                  Dashboard Principal
+                </h2>
+                <p className="text-muted-foreground">
+                  Resumen financiero de {tenant.name}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                {widgetData && (
+                  <FreshnessBadge seconds={widgetData.freshness_seconds} />
+                )}
+                <button
+                  onClick={handleSyncNow}
+                  disabled={syncing}
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {syncing ? "Sincronizando..." : "Sincronizar ahora"}
+                </button>
+              </div>
+            </div>
+          </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KpiMoney
-          title="Ingresos (mes)"
-          value={kpi.revenue}
-          loading={loading}
-          positive
-        />
-        <KpiMoney title="Gastos (mes)" value={kpi.expenses} loading={loading} />
-        <KpiCount
-          title="Nº Facturas emitidas (mes)"
-          value={kpi.invoicesIssued}
-          loading={loading}
-        />
-        <KpiCount
-          title="Nº Facturas recibidas (mes)"
-          value={kpi.invoicesReceived}
-          loading={loading}
-        />
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {cards.map((card, index) => {
+              const Icon = card.icon;
+              return (
+                <Card key={index} className="bg-gradient-card shadow-card hover:shadow-elevated transition-shadow">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      {card.title}
+                    </CardTitle>
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground mb-1">
+                      {card.value}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={`text-xs font-medium ${
+                          card.changeType === 'positive'
+                            ? 'text-profit'
+                            : card.changeType === 'negative'
+                            ? 'text-loss'
+                            : 'text-muted-foreground'
+                        }`}
+                      >
+                        {card.change}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {card.changeType !== 'neutral' 
+                          ? 'vs mes anterior'
+                          : ''}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {card.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </main>
       </div>
     </div>
   );
-}
+};
 
-/* ---------- Cards ---------- */
-
-function KpiMoney({
-  title,
-  value,
-  loading,
-  positive = false,
-}: {
-  title: string;
-  value: number;
-  loading?: boolean;
-  positive?: boolean;
-}) {
+export default function Dashboard() {
   return (
-    <div className="rounded-2xl border p-4 shadow-sm">
-      <div className="text-sm text-muted-foreground">{title}</div>
-      <div className={`mt-2 text-2xl font-semibold ${positive ? "text-emerald-600" : ""}`}>
-        {loading ? "—" : formatEUR(value)}
-      </div>
-      <div className="text-xs text-muted-foreground mt-1">mes en curso</div>
-    </div>
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
-}
-
-function KpiCount({
-  title,
-  value,
-  loading,
-}: {
-  title: string;
-  value: number;
-  loading?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border p-4 shadow-sm">
-      <div className="text-sm text-muted-foreground">{title}</div>
-      <div className="mt-2 text-2xl font-semibold">
-        {loading ? "—" : Intl.NumberFormat("es-ES").format(value)}
-      </div>
-      <div className="text-xs text-muted-foreground mt-1">mes en curso</div>
-    </div>
-  );
-}
-
-function formatEUR(n: number) {
-  return Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n ?? 0);
 }
