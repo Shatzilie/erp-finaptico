@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 
 export type TenantFeatures = {
   tenant_id: string;
@@ -36,7 +36,7 @@ export function useTenantFeatures() {
     (async () => {
       setLoading(true);
 
-      const { data: tenant, error: terr } = await supabase
+      const { data: tenant, error: terr } = await (supabase as any)
         .from("tenants")
         .select("id")
         .eq("slug", slug)
@@ -49,7 +49,7 @@ export function useTenantFeatures() {
       }
       setTenantId(tenant.id);
 
-      const { data: feat, error: ferr } = await supabase
+      const { data: feat, error: ferr } = await (supabase as any)
         .from("tenant_features")
         .select("*")
         .eq("tenant_id", tenant.id)
