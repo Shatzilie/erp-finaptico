@@ -10,6 +10,7 @@ import { SyncNow } from '@/components/SyncNow';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { TrendingUp, DollarSign, FileText } from 'lucide-react';
 import KpiBoard from '@/components/dashboard/KpiBoard';
+import StubPage from '@/pages/stubs/StubPage';
 
 type ChangeType = 'positive' | 'negative' | 'neutral';
 
@@ -39,7 +40,7 @@ type KPIData = {
 };
 
 const DashboardContent = () => {
-  const { tenant: tenantSlug } = useParams<{ tenant: string }>();
+  const { tenant: tenantSlug, section } = useParams<{ tenant: string; section?: string }>();
   const { user } = useAuth();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
@@ -245,6 +246,46 @@ const DashboardContent = () => {
     },
   ];
 
+  const getSectionTitle = (section?: string) => {
+    switch (section) {
+      case 'dashboard':
+        return 'Dashboard Principal';
+      case 'treasury':
+        return 'Tesorería';
+      case 'invoicing':
+        return 'Facturación';
+      case 'expenses':
+        return 'Gastos';
+      case 'vat':
+        return 'IVA';
+      case 'irpf':
+        return 'IRPF';
+      case 'is':
+        return 'Impuesto de Sociedades';
+      case 'calendar':
+        return 'Calendario Fiscal';
+      case 'docs':
+        return 'Documentación';
+      case 'advisory':
+        return 'Asesoría';
+      case 'company':
+        return 'Mi Empresa';
+      default:
+        return 'Dashboard Principal';
+    }
+  };
+
+  const renderMainContent = () => {
+    // Default to dashboard if no section specified
+    const currentSection = section || 'dashboard';
+    
+    if (currentSection === 'dashboard') {
+      return <KpiBoard />;
+    }
+    
+    return <StubPage title={getSectionTitle(currentSection)} />;
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
       <DashboardSidebar />
@@ -253,7 +294,7 @@ const DashboardContent = () => {
         <DashboardHeader />
         
         <main className="p-6">
-          <KpiBoard />
+          {renderMainContent()}
         </main>
       </div>
     </div>
