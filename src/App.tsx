@@ -7,7 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
-import StubPage from "./pages/stubs/StubPage";
+import StubPageWithLayout from "./pages/stubs/StubPageWithLayout";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +22,16 @@ const App = () => (
             <Route path="/" element={<Navigate to="/young-minds/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/:tenant/dashboard" element={<Dashboard />} />
+            <Route path="/:tenant/treasury" element={<StubPageWithLayout title="Tesorería" />} />
+            <Route path="/:tenant/invoicing" element={<StubPageWithLayout title="Facturación" />} />
+            <Route path="/:tenant/expenses" element={<StubPageWithLayout title="Gastos" />} />
+            <Route path="/:tenant/vat" element={<StubPageWithLayout title="IVA" />} />
+            <Route path="/:tenant/irpf" element={<StubPageWithLayout title="IRPF" />} />
+            <Route path="/:tenant/is" element={<StubPageWithLayout title="Impuesto de Sociedades" />} />
+            <Route path="/:tenant/calendar" element={<StubPageWithLayout title="Calendario fiscal" />} />
+            <Route path="/:tenant/docs" element={<StubPageWithLayout title="Documentación" />} />
+            <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
+            <Route path="/:tenant/company" element={<StubPageWithLayout title="Mi empresa" />} />
             <Route path="/:tenant/:section" element={<Dashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
