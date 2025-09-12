@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import StubPageWithLayout from "./pages/stubs/StubPageWithLayout";
+import TreasuryPageWithLayout from "./pages/TreasuryPageWithLayout";
 
 const queryClient = new QueryClient();
 
@@ -22,7 +23,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/young-minds/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/:tenant/dashboard" element={<Dashboard />} />
-            <Route path="/:tenant/treasury" element={<StubPageWithLayout title="Tesorería" />} />
+            <Route path="/:tenant/treasury" element={<TreasuryPageWithLayout />} />
             <Route path="/:tenant/invoicing" element={<StubPageWithLayout title="Facturación" />} />
             <Route path="/:tenant/expenses" element={<StubPageWithLayout title="Gastos" />} />
             <Route path="/:tenant/vat" element={<StubPageWithLayout title="IVA" />} />
