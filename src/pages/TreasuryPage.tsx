@@ -74,11 +74,6 @@ export default function TreasuryPage() {
     console.log('All movements:', movs);
     console.log('Movements length:', movs.length);
     
-    if (selectedAccountId === -1) {
-      console.log('Showing all movements (first 5)');
-      return movs.slice(0, 5); // Todos los movimientos, máximo 5
-    }
-    
     const filtered = filterMovementsByAccount(selectedAccountId).slice(0, 5);
     console.log(`Filtered movements for account ${selectedAccountId}:`, filtered);
     console.log('Filtered length:', filtered.length);
@@ -90,8 +85,7 @@ export default function TreasuryPage() {
     { id: 40, name: "BBVA YMBI" },
     { id: 31, name: "Caixa Enginyers" },
     { id: 39, name: "Mercury Bank" },
-    { id: 32, name: "BBVA" },
-    { id: -1, name: "Todos" }
+    { id: 32, name: "BBVA" }
   ];
 
   async function fetchData() {
