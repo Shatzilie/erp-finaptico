@@ -14,17 +14,23 @@ export function SyncNow({ slug, onSyncComplete }: SyncNowProps) {
   const handleSync = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('odoo-sync', {
-        body: {
+      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
           baseUrl: 'https://young-minds-big-ideas-sl.odoo.com',
           db: 'young-minds-big-ideas-sl',
           username: 'finances@ymbi.eu',
           password: '@77313325kK@'
-        }
+        })
       });
-      
-      if (error) {
-        console.error('Sync error:', error);
+
+      const data = await response.json();
+      if (!data.ok) {
+        console.error('Sync error:', data.error);
         alert('Error en la sincronización');
       } else {
         console.log('Sync completed successfully');

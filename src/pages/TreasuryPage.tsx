@@ -102,21 +102,28 @@ export default function TreasuryPage() {
   async function handleSync() {
     if (!slug) return;
     setSyncing(true);
-    const { data, error } = await supabase.functions.invoke("odoo-sync", {
-      body: {
+    const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+      },
+      body: JSON.stringify({
         baseUrl: 'https://young-minds-big-ideas-sl.odoo.com',
         db: 'young-minds-big-ideas-sl',
         username: 'finances@ymbi.eu',
         password: '@77313325kK@'
-      }
+      })
     });
+
+    const data = await response.json();
     
     // Debug logs
     console.log('Raw response from odoo-sync:', data);
     console.log('Accounts array:', data?.widget_data?.treasury_balance?.payload?.accounts);
     
-    if (error) {
-      console.error("sync error", error);
+    if (!data.ok) {
+      console.error("sync error", data.error);
     } else {
       console.log("sync ok", data);
       
