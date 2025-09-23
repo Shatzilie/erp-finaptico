@@ -20,6 +20,14 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const getTenantId = (tenant: string) => {
+  const tenantMap: Record<string, string> = {
+    'young-minds': 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
+    'blacktar': 'otro-uuid-aqui' // Add real UUID when available
+  };
+  return tenantMap[tenant] || tenant;
+};
+
 export default function ExpensesPage() {
   const { tenant } = useParams<{ tenant: string }>();
   const [data, setData] = useState<ExpensesData | null>(null);
@@ -51,7 +59,7 @@ export default function ExpensesPage() {
           'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
         },
         body: JSON.stringify({
-          tenant_slug: tenant
+          tenant_slug: getTenantId(tenant || '')
         })
       });
 
