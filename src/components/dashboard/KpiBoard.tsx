@@ -90,7 +90,12 @@ export default function KpiBoard() {
 
     // Invoca la Edge Function (el SDK ya mete apikey y auth)
     const { data, error } = await supabase.functions.invoke("odoo-sync", {
-      body: { tenant_slug: slug },
+      body: {
+        baseUrl: 'https://young-minds-big-ideas-sl.odoo.com',
+        db: 'young-minds-big-ideas-sl',
+        username: 'finances@ymbi.eu',
+        password: '@77313325kK@'
+      }
     });
 
     if (error) console.error("sync error", error);
