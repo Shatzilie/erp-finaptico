@@ -107,7 +107,7 @@ const DashboardContent = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("odoo-sync", {
-        body: { tenant: tenantSlug },
+        body: { tenant_slug: tenantSlug },
       });
 
       if (error) {

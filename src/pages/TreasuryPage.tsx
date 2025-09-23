@@ -103,7 +103,7 @@ export default function TreasuryPage() {
     if (!slug) return;
     setSyncing(true);
     const { data, error } = await supabase.functions.invoke("odoo-sync", {
-      body: { tenant: slug },
+      body: { tenant_slug: slug },
     });
     if (error) console.error("sync error", error);
     else console.log("sync ok", data);

@@ -90,7 +90,7 @@ export default function KpiBoard() {
 
     // Invoca la Edge Function (el SDK ya mete apikey y auth)
     const { data, error } = await supabase.functions.invoke("odoo-sync", {
-      body: { tenant: slug },
+      body: { tenant_slug: slug },
     });
 
     if (error) console.error("sync error", error);

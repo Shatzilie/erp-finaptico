@@ -15,7 +15,7 @@ export function SyncNow({ slug, onSyncComplete }: SyncNowProps) {
     setLoading(true);
     try {
       const { error } = await supabase.functions.invoke('odoo-sync', {
-        body: { tenant: slug },
+        body: { tenant_slug: slug },
       });
       
       if (error) {
