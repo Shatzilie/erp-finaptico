@@ -6,13 +6,13 @@ type TreasuryBalance = {
   total: number;
   currency: string;
   accounts: Array<{
-    journal_id: number;
-    journal_name: string;
-    iban?: string | null;
-    account_id: number;
+    id: number;
     account_code?: string;
     account_name?: string;
+    name?: string;
+    currency: string;
     balance: number;
+    iban?: string | null;
   }>;
 };
 
@@ -105,9 +105,29 @@ export default function TreasuryPage() {
     const { data, error } = await supabase.functions.invoke("odoo-sync", {
       body: { tenant_slug: slug },
     });
-    if (error) console.error("sync error", error);
-    else console.log("sync ok", data);
-    await fetchData();
+    
+    // Debug logs
+    console.log('Raw response from odoo-sync:', data);
+    console.log('Accounts array:', data?.widget_data?.treasury_balance?.payload?.accounts);
+    
+    if (error) {
+      console.error("sync error", error);
+    } else {
+      console.log("sync ok", data);
+      
+      // Process treasury data directly from function response
+      if (data?.widget_data?.treasury_balance?.payload) {
+        const treasuryData = data.widget_data.treasury_balance.payload;
+        console.log('Component state after sync:', treasuryData);
+        setBalance(treasuryData);
+      }
+      
+      // Also fetch movements if available
+      if (data?.widget_data?.treasury_movements_30d?.payload?.items) {
+        setMovs(data.widget_data.treasury_movements_30d.payload.items);
+      }
+    }
+    
     setSyncing(false);
   }
 
@@ -156,8 +176,8 @@ export default function TreasuryPage() {
           ) : (
             <div className="grid gap-3">
               {balance!.accounts.map((account) => (
-                <div key={account.account_id} className="rounded-xl border p-3 bg-gray-50">
-                  <h3 className="font-medium text-sm">{account.account_name || account.journal_name}</h3>
+                <div key={account.id} className="rounded-xl border p-3 bg-gray-50">
+                  <h3 className="font-medium text-sm">{account.account_name || account.name}</h3>
                   <p className="text-lg font-semibold mt-1">
                     {formatEUR(account.balance, currency)}
                   </p>
