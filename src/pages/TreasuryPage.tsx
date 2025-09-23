@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
+const ALLOWED_ACCOUNTS_BY_TENANT: Record<string, number[]> = {
+  'young-minds': [32, 40, 31, 39], // 4 cuentas específicas
+  'blacktar': [], // Por ahora vacío, más adelante tendrá su cuenta
+  // Futuros clientes aquí
+};
+
 type TreasuryBalance = {
   total: number;
   currency: string;
@@ -85,7 +91,15 @@ export default function TreasuryPage() {
       .single();
 
     if (!e1 && w1?.payload) {
-      setBalance(w1.payload as TreasuryBalance);
+      const balance = w1.payload as TreasuryBalance;
+      const allowedAccountIds = ALLOWED_ACCOUNTS_BY_TENANT[slug] || [];
+      const filteredAccounts = balance.accounts?.filter(account => allowedAccountIds.includes(account.id)) || [];
+      
+      setBalance({
+        ...balance,
+        accounts: filteredAccounts,
+        total: filteredAccounts.reduce((sum, account) => sum + account.balance, 0)
+      });
     } else {
       setBalance(null);
     }
@@ -130,8 +144,17 @@ export default function TreasuryPage() {
       // Process treasury data directly from function response
       if (data?.widget_data?.treasury_balance?.payload) {
         const treasuryData = data.widget_data.treasury_balance.payload;
-        console.log('Component state after sync:', treasuryData);
-        setBalance(treasuryData);
+        const allowedAccountIds = ALLOWED_ACCOUNTS_BY_TENANT[slug] || [];
+        const filteredAccounts = treasuryData.accounts?.filter(account => allowedAccountIds.includes(account.id)) || [];
+        
+        const filteredTreasuryData = {
+          ...treasuryData,
+          accounts: filteredAccounts,
+          total: filteredAccounts.reduce((sum, account) => sum + account.balance, 0)
+        };
+        
+        console.log('Component state after sync:', filteredTreasuryData);
+        setBalance(filteredTreasuryData);
       }
       
       // Also fetch movements if available
