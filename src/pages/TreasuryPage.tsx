@@ -83,9 +83,7 @@ export default function TreasuryPage() {
 
   const accountButtons = [
     { id: 40, name: "BBVA YMBI" },
-    { id: 31, name: "Caixa Enginyers" },
-    { id: 39, name: "Mercury Bank" },
-    { id: 32, name: "BBVA" }
+    { id: 31, name: "Caixa Enginyers" }
   ];
 
   async function fetchData() {
