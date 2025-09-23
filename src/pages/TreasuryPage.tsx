@@ -148,38 +148,24 @@ export default function TreasuryPage() {
 
         {/* Detalle por cuenta */}
         <div className="md:col-span-2 rounded-2xl border p-4 shadow-sm bg-white">
-          <div className="text-sm font-medium mb-2">Cuentas / Bancos</div>
+          <div className="text-sm font-medium mb-4">Cuentas / Bancos</div>
           {loading ? (
             <div className="text-sm text-muted-foreground">Cargando…</div>
           ) : (balance?.accounts?.length ?? 0) === 0 ? (
             <div className="text-sm text-muted-foreground">Sin cuentas disponibles.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-muted-foreground">
-                  <tr>
-                    <th className="py-2 pr-4">Banco / Journal</th>
-                    <th className="py-2 pr-4">Cuenta</th>
-                    <th className="py-2 pr-4">IBAN</th>
-                    <th className="py-2 pr-4 text-right">Saldo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {balance!.accounts.map((a) => (
-                    <tr key={a.account_id} className="border-t">
-                      <td className="py-2 pr-4">{a.journal_name}</td>
-                      <td className="py-2 pr-4">
-                        {a.account_code ? `${a.account_code} — ` : ""}
-                        {a.account_name || "-"}
-                      </td>
-                      <td className="py-2 pr-4">{a.iban || "-"}</td>
-                      <td className="py-2 pr-4 text-right">
-                        {formatEUR(a.balance, currency)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid gap-3">
+              {balance!.accounts.map((account) => (
+                <div key={account.account_id} className="rounded-xl border p-3 bg-gray-50">
+                  <h3 className="font-medium text-sm">{account.account_name || account.journal_name}</h3>
+                  <p className="text-lg font-semibold mt-1">
+                    {formatEUR(account.balance, currency)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    IBAN: {account.iban || "No disponible"}
+                  </p>
+                </div>
+              ))}
             </div>
           )}
         </div>
