@@ -60,14 +60,30 @@ export default function TreasuryPage() {
   const currency = useMemo(() => balance?.currency || "EUR", [balance]);
 
   const filterMovementsByAccount = (accountId: number) => {
-    return movs.filter(movement => movement.journal_id && movement.journal_id[0] === accountId);
+    console.log(`Filtering movements for account ID: ${accountId}`);
+    const filtered = movs.filter(movement => {
+      console.log('Movement journal_id:', movement.journal_id, 'Looking for:', accountId);
+      return movement.journal_id && movement.journal_id[0] === accountId;
+    });
+    console.log(`Found ${filtered.length} movements for account ${accountId}`);
+    return filtered;
   };
 
   const filteredMovements = useMemo(() => {
+    console.log('Selected account ID:', selectedAccountId);
+    console.log('All movements:', movs);
+    console.log('Movements length:', movs.length);
+    
     if (selectedAccountId === -1) {
+      console.log('Showing all movements (first 5)');
       return movs.slice(0, 5); // Todos los movimientos, máximo 5
     }
-    return filterMovementsByAccount(selectedAccountId).slice(0, 5);
+    
+    const filtered = filterMovementsByAccount(selectedAccountId).slice(0, 5);
+    console.log(`Filtered movements for account ${selectedAccountId}:`, filtered);
+    console.log('Filtered length:', filtered.length);
+    
+    return filtered;
   }, [movs, selectedAccountId]);
 
   const accountButtons = [
@@ -135,8 +151,10 @@ export default function TreasuryPage() {
     }
 
     if (!e2 && w2?.payload?.items) {
+      console.log('Movements from fetchData:', w2.payload.items);
       setMovs(w2.payload.items as Movement[]);
     } else {
+      console.log('No movements found in fetchData:', e2, w2?.payload);
       setMovs([]);
     }
 
@@ -171,6 +189,11 @@ export default function TreasuryPage() {
     } else {
       console.log("sync ok", data);
       
+      // Debug logs para movimientos
+      console.log('Raw treasury data:', data?.widget_data?.treasury_balance?.payload);
+      console.log('Movements from API:', data?.widget_data?.treasury_movements_30d?.payload?.items);
+      console.log('Treasury movements in payload:', data?.widget_data?.treasury_balance?.payload?.movements);
+      
       // Process treasury data directly from function response
       if (data?.widget_data?.treasury_balance?.payload) {
         const treasuryData = data.widget_data.treasury_balance.payload;
@@ -198,7 +221,15 @@ export default function TreasuryPage() {
       
       // Also fetch movements if available
       if (data?.widget_data?.treasury_movements_30d?.payload?.items) {
+        console.log('Setting movements from sync response:', data.widget_data.treasury_movements_30d.payload.items);
         setMovs(data.widget_data.treasury_movements_30d.payload.items);
+      } else {
+        console.log('No movements in sync response treasury_movements_30d');
+        console.log('Checking other possible movement locations...');
+        if (data?.widget_data?.treasury_balance?.payload?.movements) {
+          console.log('Found movements in treasury_balance:', data.widget_data.treasury_balance.payload.movements);
+          setMovs(data.widget_data.treasury_balance.payload.movements);
+        }
       }
     }
     
@@ -206,6 +237,7 @@ export default function TreasuryPage() {
   }
 
   useEffect(() => {
+    console.log('TreasuryPage useEffect - fetchData called');
     fetchData();
   }, [slug]);
 
@@ -294,7 +326,10 @@ export default function TreasuryPage() {
         {loading ? (
           <div className="text-sm text-muted-foreground">Cargando…</div>
         ) : filteredMovements.length === 0 ? (
-          <div className="text-sm text-muted-foreground">Sin movimientos para esta cuenta.</div>
+          <div className="text-sm text-muted-foreground">
+            No hay movimientos para esta cuenta (Debug: {movs?.length || 0} movimientos totales, 
+            Account ID: {selectedAccountId})
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
