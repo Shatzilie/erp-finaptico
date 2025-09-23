@@ -158,17 +158,14 @@ export default function TreasuryPage() {
   async function handleSync() {
     if (!slug) return;
     setSyncing(true);
-    const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync', {
+    const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync-v2', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
       },
       body: JSON.stringify({
-        baseUrl: 'https://young-minds-big-ideas-sl.odoo.com',
-        db: 'young-minds-big-ideas-sl',
-        username: 'finances@ymbi.eu',
-        password: '@77313325kK@'
+        tenant_slug: slug  // Usar tenant_slug en lugar de credenciales hardcodeadas
       })
     });
 
