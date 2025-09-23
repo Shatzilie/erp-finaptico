@@ -27,6 +27,7 @@ type Movement = {
   concept: string;
   partner?: string | null;
   amount: number; // + entrada / - salida
+  journal_id?: [number, string]; // [id, name] del journal/cuenta
 };
 
 function useTenantSlug() {
@@ -54,8 +55,28 @@ export default function TreasuryPage() {
   const [syncing, setSyncing] = useState(false);
   const [balance, setBalance] = useState<TreasuryBalance | null>(null);
   const [movs, setMovs] = useState<Movement[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<number>(40); // BBVA YMBI por defecto
 
   const currency = useMemo(() => balance?.currency || "EUR", [balance]);
+
+  const filterMovementsByAccount = (accountId: number) => {
+    return movs.filter(movement => movement.journal_id && movement.journal_id[0] === accountId);
+  };
+
+  const filteredMovements = useMemo(() => {
+    if (selectedAccountId === -1) {
+      return movs.slice(0, 5); // Todos los movimientos, máximo 5
+    }
+    return filterMovementsByAccount(selectedAccountId).slice(0, 5);
+  }, [movs, selectedAccountId]);
+
+  const accountButtons = [
+    { id: 40, name: "BBVA YMBI" },
+    { id: 31, name: "Caixa Enginyers" },
+    { id: 39, name: "Mercury Bank" },
+    { id: 32, name: "BBVA" },
+    { id: -1, name: "Todos" }
+  ];
 
   async function fetchData() {
     if (!slug) return;
@@ -246,19 +267,36 @@ export default function TreasuryPage() {
 
       {/* Movimientos 30 días */}
       <div className="rounded-2xl border p-4 shadow-sm bg-white">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-medium">Movimientos últimos 30 días</div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm font-medium">Movimientos por cuenta (últimos 5)</div>
           <div className="text-xs text-muted-foreground">
-            {loading ? "" : `${movs.length} movimientos`}
+            {loading ? "" : `${filteredMovements.length} de ${movs.length} movimientos`}
           </div>
         </div>
 
+        {/* Botones de filtro */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {accountButtons.map((account) => (
+            <button
+              key={account.id}
+              onClick={() => setSelectedAccountId(account.id)}
+              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                selectedAccountId === account.id
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-foreground border-border hover:bg-accent'
+              }`}
+            >
+              {account.name}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
-          <div className="text-sm text-muted-foreground mt-2">Cargando…</div>
-        ) : movs.length === 0 ? (
-          <div className="text-sm text-muted-foreground mt-2">Sin movimientos.</div>
+          <div className="text-sm text-muted-foreground">Cargando…</div>
+        ) : filteredMovements.length === 0 ? (
+          <div className="text-sm text-muted-foreground">Sin movimientos para esta cuenta.</div>
         ) : (
-          <div className="overflow-x-auto mt-2">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
                 <tr>
@@ -269,7 +307,7 @@ export default function TreasuryPage() {
                 </tr>
               </thead>
               <tbody>
-                {movs.map((m, idx) => (
+                {filteredMovements.map((m, idx) => (
                   <tr key={`${m.date}-${idx}`} className="border-t">
                     <td className="py-2 pr-4">
                       {new Date(m.date).toLocaleDateString("es-ES")}
