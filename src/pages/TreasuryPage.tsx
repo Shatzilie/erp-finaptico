@@ -92,8 +92,17 @@ export default function TreasuryPage() {
 
     if (!e1 && w1?.payload) {
       const balance = w1.payload as TreasuryBalance;
-      const allowedAccountIds = ALLOWED_ACCOUNTS_BY_TENANT[slug] || [];
-      const filteredAccounts = balance.accounts?.filter(account => allowedAccountIds.includes(account.id)) || [];
+      const accounts = balance.accounts || [];
+      
+      // Debug logs
+      console.log('Todas las cuentas antes del filtro:', accounts);
+      console.log('IDs de cuentas encontradas:', accounts.map(acc => acc.id));
+      
+      const allowedAccountIds = [32, 40, 31, 39]; // IDs específicos para young-minds
+      const filteredAccounts = accounts.filter(account => allowedAccountIds.includes(account.id));
+      
+      console.log('Cuentas después del filtro:', filteredAccounts);
+      console.log('IDs filtrados:', filteredAccounts.map(acc => acc.id));
       
       setBalance({
         ...balance,
@@ -144,8 +153,17 @@ export default function TreasuryPage() {
       // Process treasury data directly from function response
       if (data?.widget_data?.treasury_balance?.payload) {
         const treasuryData = data.widget_data.treasury_balance.payload;
-        const allowedAccountIds = ALLOWED_ACCOUNTS_BY_TENANT[slug] || [];
-        const filteredAccounts = treasuryData.accounts?.filter(account => allowedAccountIds.includes(account.id)) || [];
+        const accounts = treasuryData.accounts || [];
+        
+        // Debug logs
+        console.log('Todas las cuentas antes del filtro:', accounts);
+        console.log('IDs de cuentas encontradas:', accounts.map(acc => acc.id));
+        
+        const allowedAccountIds = [32, 40, 31, 39]; // IDs específicos para young-minds
+        const filteredAccounts = accounts.filter(account => allowedAccountIds.includes(account.id));
+        
+        console.log('Cuentas después del filtro:', filteredAccounts);
+        console.log('IDs filtrados:', filteredAccounts.map(acc => acc.id));
         
         const filteredTreasuryData = {
           ...treasuryData,
