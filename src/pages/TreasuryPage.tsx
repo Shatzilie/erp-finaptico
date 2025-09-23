@@ -86,6 +86,59 @@ export default function TreasuryPage() {
     { id: 31, name: "Caixa Enginyers" }
   ];
 
+  const fetchTreasuryData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/functions/v1/odoo-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          tenant_slug: slug
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Treasury API Response:', result);
+
+      if (result.ok && result.widget_data?.treasury_balance?.payload) {
+        const treasuryData = result.widget_data.treasury_balance.payload;
+        const accounts = treasuryData.accounts || [];
+        
+        // Filter accounts for young-minds tenant
+        const allowedAccountIds = [32, 40, 31, 39];
+        const filteredAccounts = accounts.filter(account => allowedAccountIds.includes(account.id));
+        
+        setBalance({
+          ...treasuryData,
+          accounts: filteredAccounts,
+          total: filteredAccounts.reduce((sum, account) => sum + account.balance, 0)
+        });
+
+        // Set movements if available
+        if (result.widget_data?.treasury_movements_30d?.payload?.items) {
+          setMovs(result.widget_data.treasury_movements_30d.payload.items);
+        } else if (treasuryData.movements) {
+          setMovs(treasuryData.movements);
+        }
+      } else {
+        throw new Error(result.error || 'Invalid response format');
+      }
+    } catch (error) {
+      console.error('Error fetching treasury data:', error);
+      setBalance(null);
+      setMovs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   async function fetchData() {
     if (!slug) return;
     setLoading(true);
