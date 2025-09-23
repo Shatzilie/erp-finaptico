@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import StubPageWithLayout from "./pages/stubs/StubPageWithLayout";
 import TreasuryPageWithLayout from "./pages/TreasuryPageWithLayout";
 import InvoicingPageWithLayout from "./pages/InvoicingPageWithLayout";
+import ExpensesPageWithLayout from "./pages/ExpensesPageWithLayout";
 
 const queryClient = new QueryClient();
 
@@ -26,7 +27,7 @@ const App = () => (
             <Route path="/:tenant/dashboard" element={<Dashboard />} />
             <Route path="/:tenant/treasury" element={<TreasuryPageWithLayout />} />
             <Route path="/:tenant/invoicing" element={<InvoicingPageWithLayout />} />
-            <Route path="/:tenant/expenses" element={<StubPageWithLayout title="Gastos" />} />
+            <Route path="/:tenant/expenses" element={<ExpensesPageWithLayout />} />
             <Route path="/:tenant/vat" element={<StubPageWithLayout title="IVA" />} />
             <Route path="/:tenant/irpf" element={<StubPageWithLayout title="IRPF" />} />
             <Route path="/:tenant/is" element={<StubPageWithLayout title="Impuesto de Sociedades" />} />
