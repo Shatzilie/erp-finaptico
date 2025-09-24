@@ -23,6 +23,14 @@ interface SociedadesData {
     date_from: string;
     date_to: string;
   };
+  prevision?: {
+    es_prevision: boolean;
+    progreso_anual: number;
+    ingresos_proyectados: number;
+    resultado_proyectado: number;
+    cuota_integra_proyectada: number;
+    dias_transcurridos: number;
+  };
 }
 
 // Utilidad para formatear moneda
@@ -58,7 +66,7 @@ export default function SociedadesPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const { slug } = useTenantFeatures();
 
-  const fetchSociedadesData = async (year?: number) => {
+const fetchSociedadesData = async (year?: number) => {
     console.log(`🎯 fetchSociedadesData llamada con: ${year}`);
     
     const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades', {
@@ -80,7 +88,7 @@ export default function SociedadesPage() {
     }
     
     const result = await response.json();
-    console.log('🔍 Respuesta de la API Sociedades:', result);
+    console.log('🔍 Respuesta API Sociedades:', result);
     return result.widget_data.sociedades.payload;
   };
 
@@ -93,7 +101,7 @@ export default function SociedadesPage() {
       setData(newData);
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('❌ Error actualizando datos Sociedades:', error);
+      console.error('❌ Error actualizando datos:', error);
     } finally {
       setLoading(false);
     }
@@ -108,7 +116,7 @@ export default function SociedadesPage() {
         setLoading(false);
       })
       .catch(error => {
-        console.error('❌ Error initial load:', error);
+        console.error('❌ Error carga inicial:', error);
         setLoading(false);
       });
   }, []); // Solo en mount inicial
@@ -160,14 +168,14 @@ export default function SociedadesPage() {
         <CardContent className="space-y-4">
           <div className="flex flex-col space-y-2">
             <label className="text-sm font-medium">Año</label>
-            <Select 
-              value={selectedYear.toString()} 
-              onValueChange={(value) => {
-                const newYear = parseInt(value);
-                setSelectedYear(newYear);
-                handleYearChange(newYear);
-              }}
-            >
+              <Select 
+                value={selectedYear.toString()} 
+                onValueChange={(value) => {
+                  const newYear = parseInt(value);
+                  setSelectedYear(newYear);
+                  handleYearChange(newYear);
+                }}
+              >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Seleccionar año" />
               </SelectTrigger>
@@ -264,6 +272,38 @@ export default function SociedadesPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Sección de previsión */}
+      {data?.prevision?.es_prevision && (
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="text-lg font-semibold text-blue-800 mb-3">
+            📊 Previsión Anual ({data.prevision.progreso_anual}% completado)
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-gray-600">Ingresos Proyectados</p>
+              <p className="text-lg font-bold text-blue-700">
+                {data.prevision.ingresos_proyectados.toLocaleString('es-ES')}€
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Resultado Proyectado</p>
+              <p className="text-lg font-bold text-blue-700">
+                {data.prevision.resultado_proyectado.toLocaleString('es-ES')}€
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Impuesto Estimado</p>
+              <p className="text-lg font-bold text-blue-700">
+                {data.prevision.cuota_integra_proyectada.toLocaleString('es-ES')}€
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            * Proyección basada en {data.prevision.dias_transcurridos} días de actividad
+          </p>
+        </div>
       )}
 
       {/* Resumen detallado */}
