@@ -76,6 +76,7 @@ export default function VatPage() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const fetchIVAData = async (quarter?: number, year?: number) => {
+    console.log(`🎯 fetchIVAData llamada con: Q${quarter} ${year}`);
     setLoading(true);
     try {
       const response = await fetch('/functions/v1/odoo-iva', {
@@ -91,73 +92,55 @@ export default function VatPage() {
         })
       });
       
-      const result = await response.json();
-      setIvaData(result.widget_data.iva.payload);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('Error fetching IVA data:', error);
-      // Fallback data for development
-      setIvaData({
-        iva_repercutido: 2520,
-        iva_soportado: 754.26,
-        iva_diferencia: 1765.74,
-        status: 'A INGRESAR',
-        period: {
-          quarter: selectedQuarter,
-          year: selectedYear
-        }
-      });
-      setLastUpdated(new Date());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchIVAData(selectedQuarter, selectedYear);
-  }, [tenant, selectedQuarter, selectedYear]);
-
-  const handleRefresh = () => {
-    fetchIVAData(selectedQuarter, selectedYear);
-  };
-
-  // When changing period, call API with new values
-  const handlePeriodChange = async (newQuarter: number, newYear: number) => {
-    setLoading(true);
-    try {
-      const response = await fetch('/functions/v1/odoo-iva', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-        },
-        body: JSON.stringify({
-          tenant_slug: getTenantId(tenant || ''),
-          quarter: newQuarter,
-          year: newYear
-        })
-      });
+      console.log('🔍 Respuesta de la API:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       const result = await response.json();
+      console.log('📊 Datos parseados:', result);
       setIvaData(result.widget_data.iva.payload);
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Error updating IVA data:', error);
+      console.error('❌ Error fetching IVA data:', error);
       // Fallback data for development
-      setIvaData({
+      const fallbackData = {
         iva_repercutido: 2520,
         iva_soportado: 754.26,
         iva_diferencia: 1765.74,
         status: 'A INGRESAR',
         period: {
-          quarter: newQuarter,
-          year: newYear
-        }
-      });
+          quarter: quarter || selectedQuarter,
+          year: year || selectedYear
+        },
+        sales_invoices_count: 15,
+        purchase_invoices_count: 8
+      };
+      console.log('📦 Usando datos de fallback:', fallbackData);
+      setIvaData(fallbackData);
       setLastUpdated(new Date());
     } finally {
       setLoading(false);
     }
+  };
+
+  // Remove the duplicate useEffect as fetchIVAData will be called correctly
+  useEffect(() => {
+    console.log(`🔄 useEffect triggered for Q${selectedQuarter} ${selectedYear}`);
+    fetchIVAData(selectedQuarter, selectedYear);
+  }, [tenant]);
+
+  const handleRefresh = () => {
+    console.log('🔄 Manual refresh triggered');
+    fetchIVAData(selectedQuarter, selectedYear);
+  };
+
+  // When changing period, call fetchIVAData with new values
+  const handlePeriodChange = async (newQuarter: number, newYear: number) => {
+    console.log(`🔄 Cambiando a Q${newQuarter} ${newYear}`);
+    console.log('📡 Llamando a fetchIVAData con nuevos parámetros...');
+    await fetchIVAData(newQuarter, newYear);
   };
 
   const getStatusColor = (status: string) => {
@@ -207,6 +190,7 @@ export default function VatPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Trimestre</label>
               <Select value={selectedQuarter.toString()} onValueChange={(value) => {
+                console.log(`🎯 Selector trimestre cambiado a: ${value}`);
                 const newQuarter = parseInt(value);
                 setSelectedQuarter(newQuarter);
                 handlePeriodChange(newQuarter, selectedYear);
@@ -226,6 +210,7 @@ export default function VatPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Año</label>
               <Select value={selectedYear.toString()} onValueChange={(value) => {
+                console.log(`📅 Selector año cambiado a: ${value}`);
                 const newYear = parseInt(value);
                 setSelectedYear(newYear);
                 handlePeriodChange(selectedQuarter, newYear);
