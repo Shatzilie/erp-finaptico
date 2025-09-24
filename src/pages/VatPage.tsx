@@ -79,7 +79,7 @@ export default function VatPage() {
     console.log(`🎯 fetchIVAData llamada con: Q${quarter} ${year}`);
     setLoading(true);
     try {
-      const response = await fetch('/functions/v1/odoo-iva', {
+      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,7 +95,9 @@ export default function VatPage() {
       console.log('🔍 Respuesta de la API:', response.status, response.statusText);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
       
       const result = await response.json();
@@ -104,22 +106,7 @@ export default function VatPage() {
       setLastUpdated(new Date());
     } catch (error) {
       console.error('❌ Error fetching IVA data:', error);
-      // Fallback data for development
-      const fallbackData = {
-        iva_repercutido: 2520,
-        iva_soportado: 754.26,
-        iva_diferencia: 1765.74,
-        status: 'A INGRESAR',
-        period: {
-          quarter: quarter || selectedQuarter,
-          year: year || selectedYear
-        },
-        sales_invoices_count: 15,
-        purchase_invoices_count: 8
-      };
-      console.log('📦 Usando datos de fallback:', fallbackData);
-      setIvaData(fallbackData);
-      setLastUpdated(new Date());
+      setIvaData(null);
     } finally {
       setLoading(false);
     }
