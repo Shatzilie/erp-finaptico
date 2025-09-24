@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Building, TrendingUp, TrendingDown, Calculator, Percent, Euro, RefreshCw, Loader2 } from 'lucide-react';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SyncNow } from '@/components/SyncNow';
@@ -203,7 +204,12 @@ const fetchSociedadesData = async (year?: number) => {
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
-                formatCurrency(data?.resultado_ejercicio || 0)
+                <span className={data?.resultado_ejercicio < 0 ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}>
+                  {data?.resultado_ejercicio < 0 ? 
+                    `-${Math.abs(data?.resultado_ejercicio || 0).toFixed(2)}€` : 
+                    `${(data?.resultado_ejercicio || 0).toFixed(2)}€`
+                  }
+                </span>
               )}
             </div>
           </CardContent>
@@ -259,6 +265,25 @@ const fetchSociedadesData = async (year?: number) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Alertas informativas para pérdidas */}
+      {!loading && data && data.resultado_ejercicio < 0 && (
+        <Alert className="bg-blue-50 border-blue-200">
+          <AlertDescription className="text-blue-800">
+            💡 Las pérdidas pueden compensarse con beneficios de ejercicios futuros (hasta 10 años)
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Explicación para pérdidas con estado neutro */}
+      {!loading && data && data.status === "NEUTRO" && data.resultado_ejercicio < 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md">
+          <p className="text-yellow-800 text-sm">
+            <strong>Pérdidas fiscales:</strong> Al tener pérdidas ({data.resultado_ejercicio.toFixed(2)}€), no hay beneficios que tributar. 
+            No se debe pagar Impuesto de Sociedades este ejercicio.
+          </p>
+        </div>
+      )}
 
       {/* Avisos para períodos futuros */}
       {isInFuture && (
@@ -345,6 +370,17 @@ const fetchSociedadesData = async (year?: number) => {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Año fiscal:</span>
                   <span className="font-medium">{data.period?.year}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Situación fiscal:</span>
+                  <span className={`font-medium ${data.resultado_ejercicio < 0 ? 'text-green-600' : data.status === 'A PAGAR' ? 'text-red-600' : 'text-green-600'}`}>
+                    {data.resultado_ejercicio < 0 ? 'Sin obligación de pago' : 
+                     data.status === 'A PAGAR' ? 'Pendiente de pago' : 'Sin obligación de pago'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Próxima declaración:</span>
+                  <span className="font-medium">Julio {data.period?.year + 1} (ejercicio {data.period?.year})</span>
                 </div>
               </div>
             </div>
