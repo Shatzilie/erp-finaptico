@@ -81,7 +81,7 @@ export default function IRPFPage() {
     console.log(`🎯 fetchIRPFData llamada con: Q${quarter} ${year}`);
     setLoading(true);
     try {
-      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-irpf', {
+      const response = await fetch('/functions/v1/odoo-irpf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
