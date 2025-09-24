@@ -18,6 +18,8 @@ interface IVAData {
     quarter: number;
     year: number;
   };
+  sales_invoices_count?: number;
+  purchase_invoices_count?: number;
 }
 
 const formatCurrency = (amount: number) => {
@@ -43,11 +45,27 @@ const quarters = [
 ];
 
 // Generate years dynamically including the current year
-const currentYear = new Date().getFullYear();
-const years = [];
-for (let year = currentYear; year >= currentYear - 5; year--) {
-  years.push({ value: year, label: year.toString() });
-}
+const generateYearOptions = () => {
+  const currentYear = new Date().getFullYear();
+  const years = [];
+  
+  // Desde el próximo año hasta 4 años atrás
+  for (let year = currentYear + 1; year >= currentYear - 4; year--) {
+    years.push({ value: year, label: year.toString() });
+  }
+  
+  return years;
+};
+
+const years = generateYearOptions();
+
+const isPeriodInFuture = (quarter: number, year: number) => {
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentQuarter = Math.ceil((currentDate.getMonth() + 1) / 3);
+  
+  return year > currentYear || (year === currentYear && quarter > currentQuarter);
+};
 
 export default function VatPage() {
   const { tenant } = useParams();
@@ -321,6 +339,30 @@ export default function VatPage() {
         </Card>
       </div>
 
+      {/* Warning Messages */}
+      {isPeriodInFuture(selectedQuarter, selectedYear) && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-blue-600 mr-2" />
+            <span className="text-blue-800">
+              Período futuro: Los datos para Q{selectedQuarter} {selectedYear} no están disponibles hasta que transcurra el trimestre.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {!isPeriodInFuture(selectedQuarter, selectedYear) && ivaData && 
+       (ivaData.sales_invoices_count === 0 || ivaData.purchase_invoices_count === 0) && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+            <span className="text-yellow-800">
+              No hay facturas registradas para Q{selectedQuarter} {selectedYear}.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Summary Card */}
       {ivaData && (
         <Card>
@@ -339,6 +381,19 @@ export default function VatPage() {
               <span>IVA Soportado (pagado):</span>
               <span className="font-semibold">{formatCurrency(ivaData.iva_soportado)}</span>
             </div>
+            
+            {/* Invoice Counters */}
+            <div className="grid grid-cols-2 gap-4 py-2">
+              <div>
+                <p className="text-sm text-muted-foreground">Facturas de Venta</p>
+                <p className="text-lg font-semibold">{ivaData?.sales_invoices_count || 0}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Facturas de Compra</p>
+                <p className="text-lg font-semibold">{ivaData?.purchase_invoices_count || 0}</p>
+              </div>
+            </div>
+            
             <Separator />
             <div className="flex justify-between items-center">
               <span className="font-semibold">Diferencia:</span>
