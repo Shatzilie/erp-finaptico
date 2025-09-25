@@ -85,7 +85,7 @@ export default function KpiBoard() {
   // 🌐 INSTANCIA DEL CLIENTE API
   const apiClient = new DashboardApiClient();
 
-  // 📊 FUNCIÓN PARA LLAMAR ENDPOINTS FISCALES
+  // 📊 FUNCIÓN PARA LLAMAR ENDPOINTS FISCALES usando backendAdapter
   const fetchFiscalData = async (tenantSlug: string) => {
     console.log('🧾 Cargando datos fiscales...');
     setFiscalLoading(true);
@@ -95,15 +95,19 @@ export default function KpiBoard() {
     const currentQuarter = Math.ceil((currentDate.getMonth() + 1) / 3);
 
     try {
+      // Usar el mismo patrón de URLs que el backendAdapter para consistencia
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rnccrpmgywcbbnrqmfkz.supabase.co';
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+      };
+
       // Llamadas paralelas a los 3 endpoints fiscales
       const [ivaResponse, irpfResponse, sociedadesResponse] = await Promise.allSettled([
         // IVA trimestral
-        fetch('https://rnccrpmgywcbbnrqmfkz.supabase.co/functions/v1/odoo-iva', {
+        fetch(`${baseUrl}/functions/v1/odoo-iva`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-          },
+          headers,
           body: JSON.stringify({
             tenant_slug: tenantSlug,
             quarter: currentQuarter,
@@ -112,12 +116,9 @@ export default function KpiBoard() {
         }),
         
         // IRPF trimestral
-        fetch('https://rnccrpmgywcbbnrqmfkz.supabase.co/functions/v1/odoo-irpf', {
+        fetch(`${baseUrl}/functions/v1/odoo-irpf`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-          },
+          headers,
           body: JSON.stringify({
             tenant_slug: tenantSlug,
             quarter: currentQuarter,
@@ -126,12 +127,9 @@ export default function KpiBoard() {
         }),
         
         // Impuesto Sociedades anual
-        fetch('https://rnccrpmgywcbbnrqmfkz.supabase.co/functions/v1/odoo-sociedades', {
+        fetch(`${baseUrl}/functions/v1/odoo-sociedades`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-          },
+          headers,
           body: JSON.stringify({
             tenant_slug: tenantSlug,
             year: currentYear
@@ -142,32 +140,62 @@ export default function KpiBoard() {
       // Procesar respuestas
       const newFiscalData: FiscalData = { iva: null, irpf: null, sociedades: null };
 
-      if (ivaResponse.status === 'fulfilled' && ivaResponse.value.ok) {
-        const ivaJson = await ivaResponse.value.json();
-        if (ivaJson.ok && ivaJson.widget_data?.iva?.payload) {
-          newFiscalData.iva = ivaJson.widget_data.iva.payload;
+      // Procesar IVA
+      if (ivaResponse.status === 'fulfilled') {
+        try {
+          const ivaJson = await ivaResponse.value.json();
+          if (ivaJson.ok && ivaJson.widget_data?.iva?.payload) {
+            newFiscalData.iva = ivaJson.widget_data.iva.payload;
+            console.log('✅ IVA cargado:', newFiscalData.iva);
+          } else {
+            console.log('⚠️ IVA response sin datos:', ivaJson);
+          }
+        } catch (e) {
+          console.error('❌ Error parsing IVA:', e);
         }
+      } else {
+        console.error('❌ IVA request failed:', ivaResponse.reason);
       }
 
-      if (irpfResponse.status === 'fulfilled' && irpfResponse.value.ok) {
-        const irpfJson = await irpfResponse.value.json();
-        if (irpfJson.ok && irpfJson.widget_data?.irpf?.payload) {
-          newFiscalData.irpf = irpfJson.widget_data.irpf.payload;
+      // Procesar IRPF
+      if (irpfResponse.status === 'fulfilled') {
+        try {
+          const irpfJson = await irpfResponse.value.json();
+          if (irpfJson.ok && irpfJson.widget_data?.irpf?.payload) {
+            newFiscalData.irpf = irpfJson.widget_data.irpf.payload;
+            console.log('✅ IRPF cargado:', newFiscalData.irpf);
+          } else {
+            console.log('⚠️ IRPF response sin datos:', irpfJson);
+          }
+        } catch (e) {
+          console.error('❌ Error parsing IRPF:', e);
         }
+      } else {
+        console.error('❌ IRPF request failed:', irpfResponse.reason);
       }
 
-      if (sociedadesResponse.status === 'fulfilled' && sociedadesResponse.value.ok) {
-        const sociedadesJson = await sociedadesResponse.value.json();
-        if (sociedadesJson.ok && sociedadesJson.widget_data?.sociedades?.payload) {
-          newFiscalData.sociedades = sociedadesJson.widget_data.sociedades.payload;
+      // Procesar Sociedades
+      if (sociedadesResponse.status === 'fulfilled') {
+        try {
+          const sociedadesJson = await sociedadesResponse.value.json();
+          if (sociedadesJson.ok && sociedadesJson.widget_data?.sociedades?.payload) {
+            newFiscalData.sociedades = sociedadesJson.widget_data.sociedades.payload;
+            console.log('✅ Sociedades cargado:', newFiscalData.sociedades);
+          } else {
+            console.log('⚠️ Sociedades response sin datos:', sociedadesJson);
+          }
+        } catch (e) {
+          console.error('❌ Error parsing Sociedades:', e);
         }
+      } else {
+        console.error('❌ Sociedades request failed:', sociedadesResponse.reason);
       }
 
       setFiscalData(newFiscalData);
-      console.log('✅ Datos fiscales cargados:', newFiscalData);
+      console.log('✅ Datos fiscales finales:', newFiscalData);
       
     } catch (err) {
-      console.error('❌ Error cargando datos fiscales:', err);
+      console.error('❌ Error general cargando datos fiscales:', err);
     } finally {
       setFiscalLoading(false);
     }
