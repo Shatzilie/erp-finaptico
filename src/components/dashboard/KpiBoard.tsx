@@ -1,6 +1,6 @@
 // src/components/dashboard/KpiBoard.tsx
 // =====================================
-// VERSIÓN MIGRADA - Compatible con nuevo backend + fallback automático
+// VERSIÓN MIGRADA - Compatible con nuevo backend + fallback automático + TARJETAS FISCALES
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
@@ -10,10 +10,35 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, TrendingUp, TrendingDown, DollarSign, 
          AlertTriangle, CheckCircle, XCircle, Euro, CreditCard, 
-         Receipt, Target } from 'lucide-react';
+         Receipt, Target, Calculator, Percent, FileText, Building } from 'lucide-react';
 
 // 🔥 IMPORTAR NUEVO ADAPTADOR
 import { DashboardApiClient, LegacyDashboardData } from '@/lib/backendAdapter';
+
+// 🆕 INTERFACES PARA DATOS FISCALES
+interface FiscalData {
+  iva: {
+    iva_diferencia: number;
+    iva_repercutido: number;
+    iva_soportado: number;
+    status: string;
+    period: { quarter: number; year: number; };
+  } | null;
+  irpf: {
+    diferencia: number;
+    retenciones_practicadas: number;
+    retenciones_soportadas: number;
+    status: string;
+    period: { quarter: number; year: number; };
+  } | null;
+  sociedades: {
+    cuota_diferencial: number;
+    resultado_ejercicio: number;
+    base_imponible: number;
+    status: string;
+    period: { year: number; };
+  } | null;
+}
 
 // 🔧 HOOK PARA TENANT SLUG
 function useTenantSlug() {
@@ -49,7 +74,9 @@ const formatNumber = (value: number, decimals = 2) => {
 export default function KpiBoard() {
   const slug = useTenantSlug();
   const [data, setData] = useState<LegacyDashboardData | null>(null);
+  const [fiscalData, setFiscalData] = useState<FiscalData>({ iva: null, irpf: null, sociedades: null });
   const [loading, setLoading] = useState(true);
+  const [fiscalLoading, setFiscalLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -58,15 +85,108 @@ export default function KpiBoard() {
   // 🌐 INSTANCIA DEL CLIENTE API
   const apiClient = new DashboardApiClient();
 
+  // 📊 FUNCIÓN PARA LLAMAR ENDPOINTS FISCALES
+  const fetchFiscalData = async (tenantSlug: string) => {
+    console.log('🧾 Cargando datos fiscales...');
+    setFiscalLoading(true);
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentQuarter = Math.ceil((currentDate.getMonth() + 1) / 3);
+
+    try {
+      // Llamadas paralelas a los 3 endpoints fiscales
+      const [ivaResponse, irpfResponse, sociedadesResponse] = await Promise.allSettled([
+        // IVA trimestral
+        fetch('https://rnccrpmgywcbbnrqmfkz.supabase.co/functions/v1/odoo-iva', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({
+            tenant_slug: tenantSlug,
+            quarter: currentQuarter,
+            year: currentYear
+          })
+        }),
+        
+        // IRPF trimestral
+        fetch('https://rnccrpmgywcbbnrqmfkz.supabase.co/functions/v1/odoo-irpf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({
+            tenant_slug: tenantSlug,
+            quarter: currentQuarter,
+            year: currentYear
+          })
+        }),
+        
+        // Impuesto Sociedades anual
+        fetch('https://rnccrpmgywcbbnrqmfkz.supabase.co/functions/v1/odoo-sociedades', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({
+            tenant_slug: tenantSlug,
+            year: currentYear
+          })
+        })
+      ]);
+
+      // Procesar respuestas
+      const newFiscalData: FiscalData = { iva: null, irpf: null, sociedades: null };
+
+      if (ivaResponse.status === 'fulfilled' && ivaResponse.value.ok) {
+        const ivaJson = await ivaResponse.value.json();
+        if (ivaJson.ok && ivaJson.widget_data?.iva?.payload) {
+          newFiscalData.iva = ivaJson.widget_data.iva.payload;
+        }
+      }
+
+      if (irpfResponse.status === 'fulfilled' && irpfResponse.value.ok) {
+        const irpfJson = await irpfResponse.value.json();
+        if (irpfJson.ok && irpfJson.widget_data?.irpf?.payload) {
+          newFiscalData.irpf = irpfJson.widget_data.irpf.payload;
+        }
+      }
+
+      if (sociedadesResponse.status === 'fulfilled' && sociedadesResponse.value.ok) {
+        const sociedadesJson = await sociedadesResponse.value.json();
+        if (sociedadesJson.ok && sociedadesJson.widget_data?.sociedades?.payload) {
+          newFiscalData.sociedades = sociedadesJson.widget_data.sociedades.payload;
+        }
+      }
+
+      setFiscalData(newFiscalData);
+      console.log('✅ Datos fiscales cargados:', newFiscalData);
+      
+    } catch (err) {
+      console.error('❌ Error cargando datos fiscales:', err);
+    } finally {
+      setFiscalLoading(false);
+    }
+  };
+
   // 📊 FUNCIÓN DE CARGA DE DATOS (NUEVA)
   const fetchDashboardData = async () => {
     console.log('🎯 Cargando datos del Dashboard...');
     setLoading(true);
     setError(null);
     
+    const tenantSlug = slug || 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd';
+    
     try {
-      // Usar el nuevo cliente API con fallback automático
-      const dashboardData = await apiClient.fetchDashboardData(slug || 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd');
+      // Cargar datos operativos y fiscales en paralelo
+      const [dashboardData] = await Promise.all([
+        apiClient.fetchDashboardData(tenantSlug),
+        fetchFiscalData(tenantSlug)
+      ]);
       
       setData(dashboardData);
       setLastSync(new Date());
@@ -194,7 +314,7 @@ export default function KpiBoard() {
         </div>
       )}
 
-      {/* 🎯 GRID DE KPIS PRINCIPALES */}
+      {/* 🎯 GRID DE KPIS PRINCIPALES - OPERATIVOS */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         
         {/* 💰 TESORERÍA */}
@@ -258,6 +378,145 @@ export default function KpiBoard() {
             <p className="text-xs text-muted-foreground">
               {formatNumber(dashboardData.marginPercentage || 0, 1)}% margen
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 🧾 GRID DE KPIS FISCALES */}
+      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
+        
+        {/* 🧾 IVA TRIMESTRAL */}
+        <Card className={fiscalLoading ? 'opacity-60' : ''}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              IVA Q{fiscalData.iva?.period?.quarter || 3} {fiscalData.iva?.period?.year || 2025}
+            </CardTitle>
+            <Percent className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {fiscalLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Cargando...</span>
+              </div>
+            ) : fiscalData.iva ? (
+              <>
+                <div className={`text-2xl font-bold ${
+                  fiscalData.iva.iva_diferencia >= 0 ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {formatEuro(Math.abs(fiscalData.iva.iva_diferencia))}
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Repercutido: {formatEuro(fiscalData.iva.iva_repercutido)}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Soportado: {formatEuro(fiscalData.iva.iva_soportado)}
+                  </p>
+                </div>
+                <Badge 
+                  variant={fiscalData.iva.iva_diferencia >= 0 ? 'destructive' : 'default'}
+                  className="mt-2 w-full justify-center"
+                >
+                  {fiscalData.iva.status}
+                </Badge>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">Error cargando IVA</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 🧾 IRPF TRIMESTRAL */}
+        <Card className={fiscalLoading ? 'opacity-60' : ''}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              IRPF Q{fiscalData.irpf?.period?.quarter || 3} {fiscalData.irpf?.period?.year || 2025}
+            </CardTitle>
+            <Calculator className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {fiscalLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Cargando...</span>
+              </div>
+            ) : fiscalData.irpf ? (
+              <>
+                <div className={`text-2xl font-bold ${
+                  fiscalData.irpf.diferencia >= 0 ? 'text-red-600' : 'text-blue-600'
+                }`}>
+                  {formatEuro(Math.abs(fiscalData.irpf.diferencia))}
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Practicadas: {formatEuro(fiscalData.irpf.retenciones_practicadas)}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Soportadas: {formatEuro(fiscalData.irpf.retenciones_soportadas)}
+                  </p>
+                </div>
+                <Badge 
+                  variant={fiscalData.irpf.diferencia >= 0 ? 'destructive' : 'default'}
+                  className="mt-2 w-full justify-center"
+                >
+                  {fiscalData.irpf.diferencia < 0 ? 'A tu favor' : fiscalData.irpf.status}
+                </Badge>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">Error cargando IRPF</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 🏢 IMPUESTO SOCIEDADES */}
+        <Card className={fiscalLoading ? 'opacity-60' : ''}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              I. Sociedades {fiscalData.sociedades?.period?.year || 2025}
+            </CardTitle>
+            <Building className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {fiscalLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Cargando...</span>
+              </div>
+            ) : fiscalData.sociedades ? (
+              <>
+                <div className={`text-2xl font-bold ${
+                  fiscalData.sociedades.cuota_diferencial >= 0 ? 'text-red-600' : 'text-blue-600'
+                }`}>
+                  {formatEuro(Math.abs(fiscalData.sociedades.cuota_diferencial))}
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Resultado: {formatEuro(fiscalData.sociedades.resultado_ejercicio)}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Base: {formatEuro(fiscalData.sociedades.base_imponible)}
+                  </p>
+                </div>
+                <Badge 
+                  variant={
+                    fiscalData.sociedades.status === 'NEUTRO' ? 'secondary' :
+                    fiscalData.sociedades.cuota_diferencial >= 0 ? 'destructive' : 'default'
+                  }
+                  className="mt-2 w-full justify-center"
+                >
+                  {fiscalData.sociedades.resultado_ejercicio < 0 ? 'Sin impuesto (pérdidas)' : fiscalData.sociedades.status}
+                </Badge>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">Error cargando Sociedades</div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -365,6 +624,9 @@ export default function KpiBoard() {
             <div>Última sync: {lastSync?.toLocaleString('es-ES') || 'nunca'}</div>
             <div>Alertas: {dashboardData.alerts?.length || 0}</div>
             <div>Backend Status: {error ? '❌ Error' : data ? '✅ OK' : '⏳ Cargando'}</div>
+            <div>Fiscal IVA: {fiscalData.iva ? '✅' : '❌'}</div>
+            <div>Fiscal IRPF: {fiscalData.irpf ? '✅' : '❌'}</div>
+            <div>Fiscal Sociedades: {fiscalData.sociedades ? '✅' : '❌'}</div>
           </CardContent>
         </Card>
       )}
