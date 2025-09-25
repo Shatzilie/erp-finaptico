@@ -1,369 +1,287 @@
-// src/lib/fiscalCalendar.ts
+// src/lib/fiscalCalendar.ts - VERSIÓN ACCIONABLE
 // ============================
-// SISTEMA DE CALENDARIO FISCAL AUTOMÁTICO
-// Detecta obligaciones fiscales según perfil de empresa y fechas
+// CALENDARIO FISCAL ENFOCADO EN ACCIONES PRESENTES Y FUTURAS
 
-export interface FiscalObligation {
+export interface ActionableFiscalObligation {
   id: string;
-  model: string; // "303", "115", "200", etc.
-  name: string; // "Declaración IVA", "Retenciones IRPF", etc.
-  frequency: 'monthly' | 'quarterly' | 'yearly';
+  model: string;
+  name: string;
   dueDate: Date;
-  period: {
-    type: 'month' | 'quarter' | 'year';
-    value: number; // Mes, trimestre o año
-    year: number;
-  };
-  status: 'pending' | 'upcoming' | 'overdue' | 'completed';
-  priority: 'high' | 'medium' | 'low';
-  amount?: number; // Estimado si disponible
+  period: string; // "Q3 2025", "2025", etc.
+  urgency: 'critical' | 'upcoming' | 'planned';
+  actionType: 'present' | 'file' | 'pay' | 'prepare';
+  estimatedAmount?: number;
+  daysLeft: number;
   description: string;
-  penalties?: {
-    lateFee: number;
-    interestRate: number;
-  };
+  actionRequired: string; // Qué hacer específicamente
 }
 
-export interface CompanyProfile {
-  regime: 'general' | 'simplified' | 'sii'; // Régimen fiscal
-  vatQuarter: 1 | 2 | 3 | 4; // Trimestre de declaración IVA
-  hasEmployees: boolean; // Determina obligaciones IRPF
-  annualRevenue: number; // Para determinar tipo de declaraciones
-  sector: 'services' | 'commerce' | 'industry' | 'other';
+export interface FiscalSummary {
+  critical: number;      // Obligaciones críticas (0-7 días)
+  upcoming: number;      // Próximas (8-30 días)
+  planned: number;       // Futuras (>30 días)
+  totalEstimatedCost: number;
+  nextDeadline: Date | null;
 }
 
-// 📅 CALENDARIO FISCAL ESPAÑOL 2025
-const FISCAL_CALENDAR_2025 = {
-  // IVA - Modelo 303 (Trimestral)
-  vat: {
-    Q1: { dueDate: '2025-04-20', period: { quarter: 1, year: 2025 } },
-    Q2: { dueDate: '2025-07-20', period: { quarter: 2, year: 2025 } },
-    Q3: { dueDate: '2025-10-20', period: { quarter: 3, year: 2025 } },
-    Q4: { dueDate: '2026-01-30', period: { quarter: 4, year: 2025 } }
+export interface FiscalRecommendation {
+  type: 'cash_flow' | 'tax_optimization' | 'compliance' | 'planning';
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  message: string;
+  actionable: boolean;
+  estimatedSaving?: number;
+}
+
+// 📅 FECHAS FISCALES RELEVANTES (SOLO FUTURAS Y CRÍTICAS)
+const CURRENT_FISCAL_OBLIGATIONS_2025 = {
+  // Solo obligaciones relevantes desde hoy hacia adelante
+  october_2025: {
+    vat_q3: { dueDate: '2025-10-20', model: '303', period: 'Q3 2025' },
+    irpf_q3: { dueDate: '2025-10-20', model: '115', period: 'Q3 2025' }
   },
-  
-  // IRPF Retenciones - Modelo 115 (Trimestral)
-  irpf: {
-    Q1: { dueDate: '2025-04-20', period: { quarter: 1, year: 2025 } },
-    Q2: { dueDate: '2025-07-20', period: { quarter: 2, year: 2025 } },
-    Q3: { dueDate: '2025-10-20', period: { quarter: 3, year: 2025 } },
-    Q4: { dueDate: '2026-01-30', period: { quarter: 4, year: 2025 } }
+  january_2026: {
+    vat_q4: { dueDate: '2026-01-30', model: '303', period: 'Q4 2025' },
+    irpf_q4: { dueDate: '2026-01-30', model: '115', period: 'Q4 2025' },
+    vat_summary: { dueDate: '2026-01-30', model: '390', period: '2025' },
+    irpf_summary: { dueDate: '2026-01-31', model: '190', period: '2025' }
   },
-  
-  // Impuesto Sociedades - Modelo 200 (Anual)
-  corporateTax: {
-    annual: { 
-      dueDate: '2025-07-25', 
-      period: { year: 2024 },
-      fractionalPayments: [
-        { dueDate: '2025-04-20', period: '1st fractional' },
-        { dueDate: '2025-10-20', period: '2nd fractional' }
-      ]
-    }
-  },
-  
-  // Resumen Anual IVA - Modelo 390 (Anual)
-  vatSummary: {
-    annual: { dueDate: '2026-01-30', period: { year: 2025 } }
-  },
-  
-  // Retenciones Anuales - Modelo 190 (Anual)
-  irpfSummary: {
-    annual: { dueDate: '2026-01-31', period: { year: 2025 } }
+  july_2025: {
+    corporate_tax: { dueDate: '2025-07-25', model: '200', period: '2024' }
   }
 };
 
-export class FiscalCalendarService {
-  private companyProfile: CompanyProfile;
+export class ActionableFiscalCalendar {
+  private currentDate: Date;
+  private companyData: {
+    hasEmployees: boolean;
+    annualRevenue: number;
+    currentIVA: number;
+    currentIRPF: number;
+    currentIS: number;
+  };
 
-  constructor(profile: CompanyProfile) {
-    this.companyProfile = profile;
+  constructor(companyData: {
+    hasEmployees: boolean;
+    annualRevenue: number;
+    currentIVA: number;
+    currentIRPF: number;
+    currentIS: number;
+  }) {
+    this.currentDate = new Date();
+    this.companyData = companyData;
   }
 
-  // 🔍 DETECTAR OBLIGACIONES PENDIENTES
-  getPendingObligations(currentDate: Date = new Date()): FiscalObligation[] {
-    const obligations: FiscalObligation[] = [];
-    const today = new Date(currentDate);
-    
-    // 🧾 IVA - Siempre obligatorio para empresas
-    if (this.companyProfile.regime !== 'simplified') {
-      obligations.push(...this.getVATObligations(today));
-    }
-    
-    // 📊 IRPF - Solo si tiene empleados o hace retenciones
-    if (this.companyProfile.hasEmployees) {
-      obligations.push(...this.getIRPFObligations(today));
-    }
-    
-    // 🏢 Impuesto de Sociedades - Empresas con beneficios
-    if (this.companyProfile.annualRevenue > 0) {
-      obligations.push(...this.getCorporateTaxObligations(today));
-    }
-    
-    // Ordenar por fecha de vencimiento
-    return obligations.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  }
+  // 🎯 OBTENER SOLO OBLIGACIONES ACCIONABLES
+  getActionableObligations(): ActionableFiscalObligation[] {
+    const today = this.currentDate;
+    const obligations: ActionableFiscalObligation[] = [];
 
-  // 🧾 OBLIGACIONES IVA
-  private getVATObligations(currentDate: Date): FiscalObligation[] {
-    const obligations: FiscalObligation[] = [];
-    const currentYear = currentDate.getFullYear();
-    
-    Object.entries(FISCAL_CALENDAR_2025.vat).forEach(([quarter, info]) => {
-      const dueDate = new Date(info.dueDate);
-      const status = this.calculateStatus(dueDate, currentDate);
-      
-      if (status !== 'completed') {
-        obligations.push({
-          id: `vat-${quarter}-${currentYear}`,
-          model: '303',
-          name: `Declaración IVA ${quarter} ${info.period.year}`,
-          frequency: 'quarterly',
-          dueDate,
-          period: {
-            type: 'quarter',
-            value: info.period.quarter,
-            year: info.period.year
-          },
-          status,
-          priority: status === 'overdue' ? 'high' : 'medium',
-          description: `Declaración trimestral del Impuesto sobre el Valor Añadido`,
-          penalties: {
-            lateFee: 200,
-            interestRate: 3.75
-          }
-        });
-      }
-    });
-    
-    return obligations;
-  }
-
-  // 📊 OBLIGACIONES IRPF
-  private getIRPFObligations(currentDate: Date): FiscalObligation[] {
-    const obligations: FiscalObligation[] = [];
-    const currentYear = currentDate.getFullYear();
-    
-    Object.entries(FISCAL_CALENDAR_2025.irpf).forEach(([quarter, info]) => {
-      const dueDate = new Date(info.dueDate);
-      const status = this.calculateStatus(dueDate, currentDate);
-      
-      if (status !== 'completed') {
-        obligations.push({
-          id: `irpf-${quarter}-${currentYear}`,
-          model: '115',
-          name: `Retenciones IRPF ${quarter} ${info.period.year}`,
-          frequency: 'quarterly',
-          dueDate,
-          period: {
-            type: 'quarter',
-            value: info.period.quarter,
-            year: info.period.year
-          },
-          status,
-          priority: status === 'overdue' ? 'high' : 'medium',
-          description: `Retenciones e ingresos a cuenta del IRPF`,
-          penalties: {
-            lateFee: 150,
-            interestRate: 3.75
-          }
-        });
-      }
-    });
-    
-    return obligations;
-  }
-
-  // 🏢 OBLIGACIONES IMPUESTO SOCIEDADES
-  private getCorporateTaxObligations(currentDate: Date): FiscalObligation[] {
-    const obligations: FiscalObligation[] = [];
-    const currentYear = currentDate.getFullYear();
-    
-    // Declaración anual
-    const annualDueDate = new Date(FISCAL_CALENDAR_2025.corporateTax.annual.dueDate);
-    const annualStatus = this.calculateStatus(annualDueDate, currentDate);
-    
-    if (annualStatus !== 'completed') {
+    // 🧾 IVA Q3 2025 - CRÍTICO (vence 20 octubre)
+    const vatQ3Due = new Date('2025-10-20');
+    if (vatQ3Due > today) {
+      const daysLeft = Math.ceil((vatQ3Due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       obligations.push({
-        id: `corporate-annual-${currentYear}`,
+        id: 'vat-q3-2025',
+        model: '303',
+        name: 'IVA Q3 2025',
+        dueDate: vatQ3Due,
+        period: 'Q3 2025',
+        urgency: daysLeft <= 7 ? 'critical' : daysLeft <= 30 ? 'upcoming' : 'planned',
+        actionType: this.companyData.currentIVA > 0 ? 'pay' : 'present',
+        estimatedAmount: Math.abs(this.companyData.currentIVA),
+        daysLeft,
+        description: 'Declaración trimestral del IVA',
+        actionRequired: this.companyData.currentIVA > 0 
+          ? `Presentar y pagar ${this.companyData.currentIVA.toLocaleString()}€`
+          : `Presentar declaración (sin importe a pagar)`
+      });
+    }
+
+    // 📊 IRPF Q3 2025 - CRÍTICO (vence 20 octubre)  
+    if (this.companyData.hasEmployees) {
+      const irpfQ3Due = new Date('2025-10-20');
+      if (irpfQ3Due > today) {
+        const daysLeft = Math.ceil((irpfQ3Due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        obligations.push({
+          id: 'irpf-q3-2025',
+          model: '115',
+          name: 'IRPF Q3 2025',
+          dueDate: irpfQ3Due,
+          period: 'Q3 2025',
+          urgency: daysLeft <= 7 ? 'critical' : daysLeft <= 30 ? 'upcoming' : 'planned',
+          actionType: this.companyData.currentIRPF > 0 ? 'pay' : 'file',
+          estimatedAmount: Math.abs(this.companyData.currentIRPF),
+          daysLeft,
+          description: 'Retenciones e ingresos a cuenta del IRPF',
+          actionRequired: this.companyData.currentIRPF > 0 
+            ? `Presentar y pagar ${this.companyData.currentIRPF.toLocaleString()}€`
+            : `Solicitar devolución de ${Math.abs(this.companyData.currentIRPF).toLocaleString()}€`
+        });
+      }
+    }
+
+    // 🏢 IMPUESTO SOCIEDADES 2024 - Si aún no vencido
+    const isAnnualDue = new Date('2025-07-25');
+    if (isAnnualDue > today && this.companyData.annualRevenue > 0) {
+      const daysLeft = Math.ceil((isAnnualDue.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      obligations.push({
+        id: 'is-2024',
         model: '200',
-        name: `Impuesto de Sociedades ${FISCAL_CALENDAR_2025.corporateTax.annual.period.year}`,
-        frequency: 'yearly',
-        dueDate: annualDueDate,
-        period: {
-          type: 'year',
-          value: FISCAL_CALENDAR_2025.corporateTax.annual.period.year,
-          year: FISCAL_CALENDAR_2025.corporateTax.annual.period.year
-        },
-        status: annualStatus,
-        priority: annualStatus === 'overdue' ? 'high' : 'low',
-        description: `Declaración anual del Impuesto sobre Sociedades`,
-        penalties: {
-          lateFee: 300,
-          interestRate: 3.75
-        }
+        name: 'Impuesto Sociedades 2024',
+        dueDate: isAnnualDue,
+        period: '2024',
+        urgency: daysLeft <= 7 ? 'critical' : daysLeft <= 30 ? 'upcoming' : 'planned',
+        actionType: this.companyData.currentIS > 0 ? 'pay' : 'present',
+        estimatedAmount: this.companyData.currentIS,
+        daysLeft,
+        description: 'Declaración anual del Impuesto sobre Sociedades',
+        actionRequired: this.companyData.currentIS > 0 
+          ? `Presentar y pagar ${this.companyData.currentIS.toLocaleString()}€`
+          : 'Presentar declaración (sin cuota)'
       });
     }
-    
-    // Pagos fraccionados (solo empresas grandes)
-    if (this.companyProfile.annualRevenue > 6000000) {
-      FISCAL_CALENDAR_2025.corporateTax.annual.fractionalPayments.forEach((payment, index) => {
-        const dueDate = new Date(payment.dueDate);
-        const status = this.calculateStatus(dueDate, currentDate);
-        
-        if (status !== 'completed') {
-          obligations.push({
-            id: `corporate-fractional-${index + 1}-${currentYear}`,
-            model: '202',
-            name: `Pago fraccionado IS ${payment.period} ${currentYear}`,
-            frequency: 'quarterly',
-            dueDate,
-            period: {
-              type: 'quarter',
-              value: index + 1,
-              year: currentYear
-            },
-            status,
-            priority: status === 'overdue' ? 'high' : 'low',
-            description: `Pago fraccionado del Impuesto sobre Sociedades`,
-            penalties: {
-              lateFee: 200,
-              interestRate: 3.75
-            }
-          });
-        }
-      });
-    }
-    
-    return obligations;
-  }
 
-  // 📊 CALCULAR ESTADO DE OBLIGACIÓN
-  private calculateStatus(dueDate: Date, currentDate: Date): FiscalObligation['status'] {
-    const today = new Date(currentDate);
-    const due = new Date(dueDate);
-    const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) {
-      return 'overdue'; // Vencido
-    } else if (diffDays <= 15) {
-      return 'pending'; // Próximo a vencer
-    } else {
-      return 'upcoming'; // Futuro
-    }
-  }
-
-  // 🚨 OBTENER ALERTAS CRÍTICAS
-  getCriticalAlerts(currentDate: Date = new Date()): Array<{
-    type: 'overdue' | 'due_soon' | 'high_amount';
-    message: string;
-    obligation: FiscalObligation;
-    severity: 'high' | 'medium' | 'low';
-  }> {
-    const obligations = this.getPendingObligations(currentDate);
-    const alerts = [];
-
-    obligations.forEach(obligation => {
-      if (obligation.status === 'overdue') {
-        alerts.push({
-          type: 'overdue' as const,
-          message: `⚠️ VENCIDO: ${obligation.name} - Presenta antes de acumular más recargos`,
-          obligation,
-          severity: 'high' as const
-        });
-      } else if (obligation.status === 'pending') {
-        const daysLeft = Math.ceil((obligation.dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-        alerts.push({
-          type: 'due_soon' as const,
-          message: `📅 PRÓXIMO: ${obligation.name} - ${daysLeft} días restantes`,
-          obligation,
-          severity: daysLeft <= 7 ? 'high' : 'medium'
+    // 📅 PRÓXIMAS OBLIGACIONES Q4 2025
+    const vatQ4Due = new Date('2026-01-30');
+    if (vatQ4Due > today) {
+      const daysLeft = Math.ceil((vatQ4Due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysLeft <= 60) { // Solo mostrar si está en el horizonte de planificación
+        obligations.push({
+          id: 'vat-q4-2025',
+          model: '303',
+          name: 'IVA Q4 2025',
+          dueDate: vatQ4Due,
+          period: 'Q4 2025',
+          urgency: 'planned',
+          actionType: 'prepare',
+          daysLeft,
+          description: 'Declaración trimestral del IVA',
+          actionRequired: 'Preparar documentación para el cierre del ejercicio'
         });
       }
+    }
 
-      if (obligation.amount && obligation.amount > 5000) {
-        alerts.push({
-          type: 'high_amount' as const,
-          message: `💰 IMPORTE ALTO: ${obligation.name} - ${obligation.amount.toLocaleString()}€`,
-          obligation,
-          severity: 'medium' as const
-        });
+    // Ordenar por urgencia y fecha
+    return obligations.sort((a, b) => {
+      const urgencyOrder = { critical: 3, upcoming: 2, planned: 1 };
+      if (urgencyOrder[a.urgency] !== urgencyOrder[b.urgency]) {
+        return urgencyOrder[b.urgency] - urgencyOrder[a.urgency];
       }
-    });
-
-    return alerts.sort((a, b) => {
-      const severityOrder = { high: 3, medium: 2, low: 1 };
-      return severityOrder[b.severity] - severityOrder[a.severity];
+      return a.dueDate.getTime() - b.dueDate.getTime();
     });
   }
 
-  // 📅 OBTENER PRÓXIMAS FECHAS IMPORTANTES
-  getUpcomingDeadlines(days: number = 30, currentDate: Date = new Date()): FiscalObligation[] {
-    const obligations = this.getPendingObligations(currentDate);
-    const futureDate = new Date(currentDate);
-    futureDate.setDate(futureDate.getDate() + days);
+  // 📊 RESUMEN EJECUTIVO
+  getSummary(): FiscalSummary {
+    const obligations = this.getActionableObligations();
+    
+    const critical = obligations.filter(o => o.urgency === 'critical').length;
+    const upcoming = obligations.filter(o => o.urgency === 'upcoming').length;
+    const planned = obligations.filter(o => o.urgency === 'planned').length;
+    
+    const totalEstimatedCost = obligations.reduce((sum, o) => sum + (o.estimatedAmount || 0), 0);
+    const nextDeadline = obligations.length > 0 ? obligations[0].dueDate : null;
 
-    return obligations.filter(obligation => 
-      obligation.dueDate >= currentDate && 
-      obligation.dueDate <= futureDate
-    );
+    return {
+      critical,
+      upcoming, 
+      planned,
+      totalEstimatedCost,
+      nextDeadline
+    };
   }
 
-  // 💡 GENERAR RECOMENDACIONES
-  getRecommendations(fiscalData: { iva?: number; irpf?: number; societies?: number }): Array<{
-    type: 'planning' | 'optimization' | 'compliance';
-    message: string;
-    impact: 'high' | 'medium' | 'low';
-  }> {
-    const recommendations = [];
+  // 💡 RECOMENDACIONES ACCIONABLES
+  getActionableRecommendations(): FiscalRecommendation[] {
+    const recommendations: FiscalRecommendation[] = [];
+    const summary = this.getSummary();
 
-    // Recomendación de planificación fiscal
-    if (fiscalData.iva && fiscalData.iva > 3000) {
+    // Recomendaciones de flujo de caja
+    if (summary.totalEstimatedCost > 1000) {
       recommendations.push({
-        type: 'planning' as const,
-        message: 'Considera fraccionar el pago del IVA para mejorar el flujo de caja',
-        impact: 'medium' as const
+        type: 'cash_flow',
+        priority: 'high',
+        title: 'Planificación de Tesorería',
+        message: `Tienes ${summary.totalEstimatedCost.toLocaleString()}€ en obligaciones próximas. Asegura liquidez.`,
+        actionable: true
       });
     }
 
     // Optimización IRPF
-    if (fiscalData.irpf && fiscalData.irpf < 0) {
+    if (this.companyData.currentIRPF < -1000) {
       recommendations.push({
-        type: 'optimization' as const,
-        message: 'Tu IRPF está a favor. Solicita la devolución cuanto antes',
-        impact: 'high' as const
+        type: 'tax_optimization',
+        priority: 'high',
+        title: 'Recupera tu IRPF',
+        message: `Tienes ${Math.abs(this.companyData.currentIRPF).toLocaleString()}€ a tu favor. Solicita la devolución.`,
+        actionable: true,
+        estimatedSaving: Math.abs(this.companyData.currentIRPF)
       });
     }
 
-    // Planificación Sociedades
-    if (fiscalData.societies === 0) {
+    // Planificación fin de año
+    const daysToYearEnd = Math.ceil((new Date('2025-12-31').getTime() - this.currentDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysToYearEnd <= 90) {
       recommendations.push({
-        type: 'planning' as const,
-        message: 'Sin impuesto de sociedades por pérdidas. Considera inversiones deducibles',
-        impact: 'low' as const
+        type: 'planning',
+        priority: 'medium',
+        title: 'Cierre de Ejercicio',
+        message: `Quedan ${daysToYearEnd} días para el cierre. Planifica inversiones deducibles.`,
+        actionable: true
       });
     }
 
-    return recommendations;
+    return recommendations.sort((a, b) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
+    });
+  }
+
+  // 🚨 ALERTAS CRÍTICAS (SOLO LO URGENTE)
+  getCriticalAlerts(): Array<{
+    type: 'overdue' | 'critical' | 'cash_flow';
+    message: string;
+    actionRequired: string;
+    daysLeft: number;
+  }> {
+    const obligations = this.getActionableObligations();
+    const alerts = [];
+
+    // Solo alertas realmente críticas (7 días o menos)
+    obligations.forEach(obligation => {
+      if (obligation.urgency === 'critical') {
+        alerts.push({
+          type: 'critical' as const,
+          message: `⚠️ ${obligation.name} vence en ${obligation.daysLeft} días`,
+          actionRequired: obligation.actionRequired,
+          daysLeft: obligation.daysLeft
+        });
+      }
+    });
+
+    // Alerta de flujo de caja si hay pagos importantes próximos
+    const nextPayment = obligations.find(o => o.estimatedAmount && o.estimatedAmount > 2000 && o.daysLeft <= 15);
+    if (nextPayment) {
+      alerts.push({
+        type: 'cash_flow' as const,
+        message: `💰 Pago importante próximo: ${nextPayment.estimatedAmount?.toLocaleString()}€`,
+        actionRequired: 'Verificar disponibilidad de tesorería',
+        daysLeft: nextPayment.daysLeft
+      });
+    }
+
+    return alerts.sort((a, b) => a.daysLeft - b.daysLeft);
   }
 }
 
-// 🏭 FACTORY PARA CREAR PERFIL DE EMPRESA
-export function createCompanyProfile(data: {
-  annualRevenue: number;
+// 🏭 FACTORY PARA CREAR CALENDARIO CON DATOS REALES
+export function createActionableFiscalCalendar(dashboardData: {
   hasEmployees: boolean;
-  sector?: string;
-}): CompanyProfile {
-  return {
-    regime: data.annualRevenue > 6000000 ? 'sii' : 'general',
-    vatQuarter: Math.ceil((new Date().getMonth() + 1) / 3) as 1 | 2 | 3 | 4,
-    hasEmployees: data.hasEmployees,
-    annualRevenue: data.annualRevenue,
-    sector: (data.sector as any) || 'services'
-  };
-}
-
-// 📤 EXPORTAR INSTANCIA CONFIGURADA
-export function createFiscalCalendar(companyProfile: CompanyProfile): FiscalCalendarService {
-  return new FiscalCalendarService(companyProfile);
+  annualRevenue: number;
+  currentIVA: number;    // Del endpoint IVA
+  currentIRPF: number;   // Del endpoint IRPF  
+  currentIS: number;     // Del endpoint Sociedades
+}): ActionableFiscalCalendar {
+  return new ActionableFiscalCalendar(dashboardData);
 }

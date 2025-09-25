@@ -19,14 +19,13 @@ import {
   Target
 } from 'lucide-react';
 import { 
-  FiscalCalendarService, 
-  createCompanyProfile, 
-  createFiscalCalendar,
-  type FiscalObligation 
+  ActionableFiscalCalendar, 
+  createActionableFiscalCalendar,
+  type ActionableFiscalObligation 
 } from '@/lib/fiscalCalendar';
 
 const CalendarioFiscal: React.FC = () => {
-  const [obligations, setObligations] = useState<FiscalObligation[]>([]);
+  const [obligations, setObligations] = useState<ActionableFiscalObligation[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,23 +35,18 @@ const CalendarioFiscal: React.FC = () => {
       setLoading(true);
       
       try {
-        // Crear perfil de empresa con datos reales (esto se podría obtener de la API)
-        const companyProfile = createCompanyProfile({
-          annualRevenue: 50300, // Usar datos reales del dashboard
-          hasEmployees: true,   // Asumiendo que hace retenciones
-          sector: 'services'
-        });
+        const companyData = {
+          hasEmployees: true,
+          annualRevenue: 50300,
+          currentIVA: 1766,   // Del dashboard real
+          currentIRPF: -1598, // Del dashboard real  
+          currentIS: 0        // Del dashboard real
+        };
 
-        const fiscalCalendar = createFiscalCalendar(companyProfile);
-        
-        // Cargar datos
-        const currentObligations = fiscalCalendar.getPendingObligations();
+        const fiscalCalendar = createActionableFiscalCalendar(companyData);
+        const currentObligations = fiscalCalendar.getActionableObligations();
         const currentAlerts = fiscalCalendar.getCriticalAlerts();
-        const currentRecommendations = fiscalCalendar.getRecommendations({
-          iva: 1766,   // Datos reales del dashboard
-          irpf: -1598,
-          societies: 0
-        });
+        const currentRecommendations = fiscalCalendar.getActionableRecommendations();
 
         setObligations(currentObligations);
         setAlerts(currentAlerts);
@@ -76,40 +70,42 @@ const CalendarioFiscal: React.FC = () => {
     }).format(date);
   };
 
-  const getStatusColor = (status: FiscalObligation['status']) => {
-    switch (status) {
-      case 'overdue':
+  const getUrgencyColor = (urgency: ActionableFiscalObligation['urgency']) => {
+    switch (urgency) {
+      case 'critical':
         return 'bg-red-100 text-red-800 border-red-200';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'upcoming':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'planned':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const getStatusIcon = (status: FiscalObligation['status']) => {
-    switch (status) {
-      case 'overdue':
+  const getUrgencyIcon = (urgency: ActionableFiscalObligation['urgency']) => {
+    switch (urgency) {
+      case 'critical':
         return <AlertTriangle className="h-4 w-4" />;
-      case 'pending':
-        return <Clock className="h-4 w-4" />;
       case 'upcoming':
+        return <Clock className="h-4 w-4" />;
+      case 'planned':
         return <Calendar className="h-4 w-4" />;
       default:
         return <CheckCircle className="h-4 w-4" />;
     }
   };
 
-  const getPriorityColor = (priority: FiscalObligation['priority']) => {
-    switch (priority) {
-      case 'high':
+  const getActionTypeColor = (actionType: ActionableFiscalObligation['actionType']) => {
+    switch (actionType) {
+      case 'pay':
         return 'destructive';
-      case 'medium':
+      case 'file':
         return 'secondary';
-      case 'low':
+      case 'present':
         return 'outline';
+      case 'prepare':
+        return 'default';
       default:
         return 'secondary';
     }
@@ -183,27 +179,27 @@ const CalendarioFiscal: React.FC = () => {
               <Card className="bg-red-50 border-red-200">
                 <CardContent className="p-6 text-center">
                   <div className="text-3xl font-bold text-red-700 mb-2">
-                    {obligations.filter(o => o.status === 'overdue').length}
+                    {obligations.filter(o => o.urgency === 'critical').length}
                   </div>
-                  <div className="text-sm text-red-600 font-medium">Vencidas</div>
+                  <div className="text-sm text-red-600 font-medium">Críticas</div>
                 </CardContent>
               </Card>
               
               <Card className="bg-yellow-50 border-yellow-200">
                 <CardContent className="p-6 text-center">
                   <div className="text-3xl font-bold text-yellow-700 mb-2">
-                    {obligations.filter(o => o.status === 'pending').length}
+                    {obligations.filter(o => o.urgency === 'upcoming').length}
                   </div>
-                  <div className="text-sm text-yellow-600 font-medium">Próximas (15 días)</div>
+                  <div className="text-sm text-yellow-600 font-medium">Próximas (30 días)</div>
                 </CardContent>
               </Card>
               
               <Card className="bg-blue-50 border-blue-200">
                 <CardContent className="p-6 text-center">
                   <div className="text-3xl font-bold text-blue-700 mb-2">
-                    {obligations.filter(o => o.status === 'upcoming').length}
+                    {obligations.filter(o => o.urgency === 'planned').length}
                   </div>
-                  <div className="text-sm text-blue-600 font-medium">Futuras</div>
+                  <div className="text-sm text-blue-600 font-medium">Planificadas</div>
                 </CardContent>
               </Card>
 
@@ -226,11 +222,11 @@ const CalendarioFiscal: React.FC = () => {
               
               <div className="grid gap-4">
                 {obligations.map((obligation) => (
-                  <Card key={obligation.id} className={`border-2 hover:shadow-lg transition-all duration-200 ${getStatusColor(obligation.status)}`}>
+                  <Card key={obligation.id} className={`border-2 hover:shadow-lg transition-all duration-200 ${getUrgencyColor(obligation.urgency)}`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {getStatusIcon(obligation.status)}
+                          {getUrgencyIcon(obligation.urgency)}
                           <div>
                             <CardTitle className="text-lg font-bold">
                               {obligation.name}
@@ -241,51 +237,50 @@ const CalendarioFiscal: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <Badge variant={getPriorityColor(obligation.priority)} className="mb-2">
-                            {obligation.priority === 'high' ? 'Alta' : 
-                             obligation.priority === 'medium' ? 'Media' : 'Baja'} Prioridad
+                          <Badge variant={getActionTypeColor(obligation.actionType)} className="mb-2">
+                            {obligation.actionType === 'pay' ? 'Pagar' : 
+                             obligation.actionType === 'file' ? 'Presentar' : 
+                             obligation.actionType === 'present' ? 'Declarar' : 'Preparar'}
                           </Badge>
                           <div className="text-sm text-gray-600">
                             Vence: <strong>{formatDate(obligation.dueDate)}</strong>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {obligation.daysLeft} días restantes
                           </div>
                         </div>
                       </div>
                     </CardHeader>
                     
                     <CardContent className="pt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
                         <div>
                           <span className="font-semibold text-gray-700">Período:</span>
                           <div className="mt-1">
-                            {obligation.period.type === 'quarter' ? 
-                              `Q${obligation.period.value} ${obligation.period.year}` :
-                              `${obligation.period.year}`
-                            }
+                            {obligation.period}
                           </div>
                         </div>
                         
-                        <div>
-                          <span className="font-semibold text-gray-700">Frecuencia:</span>
-                          <div className="mt-1">
-                            {obligation.frequency === 'quarterly' ? 'Trimestral' : 
-                             obligation.frequency === 'monthly' ? 'Mensual' : 'Anual'}
-                          </div>
-                        </div>
-                        
-                        {obligation.penalties && (
+                        {obligation.estimatedAmount && (
                           <div>
-                            <span className="font-semibold text-gray-700">Recargo:</span>
-                            <div className="mt-1">
-                              {obligation.penalties.lateFee}€ + {obligation.penalties.interestRate}% interés
+                            <span className="font-semibold text-gray-700">Importe estimado:</span>
+                            <div className="mt-1 font-bold">
+                              {obligation.estimatedAmount.toLocaleString()}€
                             </div>
                           </div>
                         )}
                       </div>
+
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-800 font-medium">
+                          📋 {obligation.actionRequired}
+                        </p>
+                      </div>
                       
-                      {obligation.status === 'overdue' && (
+                      {obligation.urgency === 'critical' && (
                         <div className="mt-4 p-3 bg-red-100 rounded-lg">
                           <p className="text-sm text-red-800 font-medium">
-                            ⚠️ Esta obligación está vencida. Presenta cuanto antes para evitar mayores recargos.
+                            ⚠️ URGENTE: Esta obligación vence en {obligation.daysLeft} días.
                           </p>
                         </div>
                       )}
@@ -322,15 +317,25 @@ const CalendarioFiscal: React.FC = () => {
                         <div className="flex items-start gap-3">
                           <TrendingUp className="h-5 w-5 text-green-600 mt-1" />
                           <div>
-                            <p className="font-medium text-gray-800 mb-1">
+                            <h3 className="font-bold text-gray-800 mb-1">
+                              {rec.title}
+                            </h3>
+                            <p className="font-medium text-gray-700 mb-2">
                               {rec.message}
                             </p>
-                            <Badge 
-                              variant={rec.impact === 'high' ? 'destructive' : rec.impact === 'medium' ? 'secondary' : 'outline'}
-                              className="text-xs"
-                            >
-                              Impacto {rec.impact === 'high' ? 'Alto' : rec.impact === 'medium' ? 'Medio' : 'Bajo'}
-                            </Badge>
+                            <div className="flex gap-2">
+                              <Badge 
+                                variant={rec.priority === 'high' ? 'destructive' : rec.priority === 'medium' ? 'secondary' : 'outline'}
+                                className="text-xs"
+                              >
+                                Prioridad {rec.priority === 'high' ? 'Alta' : rec.priority === 'medium' ? 'Media' : 'Baja'}
+                              </Badge>
+                              {rec.estimatedSaving && (
+                                <Badge variant="default" className="text-xs">
+                                  Ahorro: {rec.estimatedSaving.toLocaleString()}€
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </CardContent>
