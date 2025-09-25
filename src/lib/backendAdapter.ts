@@ -27,6 +27,45 @@ export interface LegacyDashboardData {
 }
 
 // 🆕 INTERFACES PARA DATOS FISCALES
+export interface FiscalData {
+  iva: {
+    quarter: number;
+    year: number;
+    iva_repercutido: number;
+    iva_soportado: number;
+    iva_diferencia: number;
+    status: 'A INGRESAR' | 'A COMPENSAR' | 'NEUTRO';
+    base_imponible_ventas: number;
+    base_imponible_compras: number;
+  };
+  irpf: {
+    quarter: number; 
+    year: number;
+    retenciones_practicadas: number;
+    retenciones_soportadas: number;
+    diferencia: number;
+    status: 'A INGRESAR' | 'A COMPENSAR' | 'NEUTRO';
+  };
+  sociedades: {
+    year: number;
+    resultado_ejercicio: number;
+    base_imponible: number;
+    cuota_diferencial: number;
+    status: 'A PAGAR' | 'A DEVOLVER' | 'NEUTRO';
+    empresa_tipo: 'PYME' | 'GRANDE';
+    tipo_impositivo: number;
+  };
+}
+
+export interface SmartAlert {
+  type: 'fiscal' | 'operational' | 'deadline';
+  severity: 'info' | 'warning' | 'error' | 'success';
+  title: string;
+  message: string;
+  actionable?: boolean;
+  action?: string;
+}
+
 export interface IVAData {
   iva_repercutido: number;
   iva_soportado: number;
