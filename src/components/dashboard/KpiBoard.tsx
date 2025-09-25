@@ -50,6 +50,7 @@ interface DashboardData {
   irpf: {
     practicadas: number;
     soportadas: number;
+    diferencia: number;  // AÑADIDO: diferencia para IRPF
     status: string;
   };
   societies: {
@@ -412,13 +413,13 @@ export default function KpiBoard() {
               </span>
             </div>
             <Badge 
-              variant={data.iva.status === 'A INGRESAR' ? 'destructive' : 
+              variant={data.iva.status === 'A PAGAR' ? 'destructive' : 
                       data.iva.status === 'A COMPENSAR' ? 'default' : 'secondary'}
               className="w-full justify-center"
             >
               {data.iva.status}
             </Badge>
-            {data.iva.status === 'A INGRESAR' && (
+            {data.iva.status === 'A PAGAR' && (
               <div className="bg-red-50 border border-red-200 p-2 rounded text-xs text-red-800">
                 💰 Hay que pagar a Hacienda
               </div>
@@ -443,12 +444,26 @@ export default function KpiBoard() {
               <span className="text-sm text-muted-foreground">Retenido por proveedores:</span>
               <span className="font-medium">{formatEuro(data.irpf.soportadas)}</span>
             </div>
+            {/* NUEVA LÍNEA: Diferencia IRPF */}
+            <div className="flex justify-between border-t pt-2">
+              <span className="text-sm font-medium">Diferencia:</span>
+              <span className={`font-bold ${data.irpf.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {formatEuro(data.irpf.diferencia)}
+              </span>
+            </div>
             <Badge 
-              variant={data.irpf.status === 'NEUTRO' ? 'secondary' : 'default'}
+              variant={data.irpf.status === 'A PAGAR' ? 'destructive' : 
+                      data.irpf.status === 'A COMPENSAR' ? 'default' : 'secondary'}
               className="w-full justify-center"
             >
               {data.irpf.status}
             </Badge>
+            {/* NUEVA SECCIÓN: Mensaje igual que IVA */}
+            {data.irpf.status === 'A PAGAR' && (
+              <div className="bg-red-50 border border-red-200 p-2 rounded text-xs text-red-800">
+                💰 Hay que pagar a Hacienda
+              </div>
+            )}
             {data.irpf.status === 'NEUTRO' && (
               <div className="bg-gray-50 border border-gray-200 p-2 rounded text-xs text-gray-700">
                 ℹ️ Sin movimientos significativos
