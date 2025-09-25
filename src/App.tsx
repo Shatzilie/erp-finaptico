@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import StubPageWithLayout from "./pages/stubs/StubPageWithLayout";
+import CalendarioFiscal from "./pages/CalendarioFiscal";
 import TreasuryPageWithLayout from "./pages/TreasuryPageWithLayout";
 import InvoicingPageWithLayout from "./pages/InvoicingPageWithLayout";
 import ExpensesPageWithLayout from "./pages/ExpensesPageWithLayout";
@@ -34,7 +35,7 @@ const App = () => (
             <Route path="/:tenant/vat" element={<VatPageWithLayout />} />
             <Route path="/:tenant/irpf" element={<IRPFPageWithLayout />} />
             <Route path="/:tenant/is" element={<SociedadesPageWithLayout />} />
-            <Route path="/:tenant/calendar" element={<StubPageWithLayout title="Calendario fiscal" />} />
+            <Route path="/:tenant/calendar" element={<CalendarioFiscal />} />
             <Route path="/:tenant/docs" element={<StubPageWithLayout title="Documentación" />} />
             <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
             <Route path="/:tenant/company" element={<StubPageWithLayout title="Mi empresa" />} />
