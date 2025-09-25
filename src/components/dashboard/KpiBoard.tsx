@@ -70,6 +70,23 @@ interface DashboardData {
   lastUpdated: string;
 }
 
+// Interface para la respuesta de la API
+interface ApiResponse {
+  ok: boolean;
+  widget_data: {
+    dashboard: {
+      success: boolean;
+      payload: DashboardData;
+    };
+  };
+  meta: {
+    execution_time: string;
+    tenant_slug: string;
+    trace: any[];
+  };
+  error?: string;
+}
+
 function useTenantSlug() {
   const params = useParams();
   const location = useLocation();
@@ -122,14 +139,30 @@ export default function KpiBoard() {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
+        console.error('❌ Error response:', errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
       
-      const result = await response.json();
-      console.log('📊 Datos del Dashboard recibidos:', result);
-      setData(result);
-      setError(null);
+      const result: ApiResponse = await response.json();
+      console.log('📊 Respuesta completa de la API:', result);
+      
+      // CORRECCIÓN CRÍTICA: Acceder a los datos correctamente
+      if (result.ok && result.widget_data?.dashboard?.success) {
+        const dashboardPayload = result.widget_data.dashboard.payload;
+        console.log('✅ Datos extraídos correctamente:', dashboardPayload);
+        
+        // Añadir timestamp de actualización
+        setData({
+          ...dashboardPayload,
+          lastUpdated: result.meta.execution_time
+        });
+        setError(null);
+      } else {
+        // Manejar errores de la API
+        const errorMsg = result.error || 'Error desconocido en la respuesta de la API';
+        console.error('❌ Error en la respuesta de la API:', errorMsg);
+        throw new Error(errorMsg);
+      }
     } catch (err: any) {
       console.error('❌ Error cargando datos del Dashboard:', err);
       setError(err.message);
@@ -143,6 +176,7 @@ export default function KpiBoard() {
     setSyncing(true);
     try {
       await fetchDashboardData();
+      console.log('✅ Sincronización completada');
     } catch (err) {
       console.error('❌ Error en sincronización:', err);
     } finally {
@@ -160,7 +194,7 @@ export default function KpiBoard() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-semibold">Dashboard Principal</h2>
-            <p className="text-sm text-muted-foreground">Resumen financiero completo</p>
+            <p className="text-sm text-muted-foreground">Cargando datos financieros...</p>
           </div>
           <Button disabled>
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -193,7 +227,7 @@ export default function KpiBoard() {
             <h2 className="text-2xl font-semibold">Dashboard Principal</h2>
             <p className="text-sm text-muted-foreground">Error al cargar datos</p>
           </div>
-          <Button onClick={handleSyncNow} disabled={syncing}>
+          <Button onClick={handleSyncNow} disabled={syncing} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
             Reintentar
           </Button>
@@ -202,9 +236,22 @@ export default function KpiBoard() {
         <Alert className="border-red-200 bg-red-50">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-red-800">
-            Error al cargar el dashboard: {error || 'Error desconocido'}
+            <strong>Error al cargar el dashboard:</strong><br />
+            {error || 'Error desconocido. Por favor, intenta recargar la página.'}
           </AlertDescription>
         </Alert>
+        
+        {/* Información de debug */}
+        <Card className="border-amber-200 bg-amber-50">
+          <CardHeader>
+            <CardTitle className="text-sm text-amber-800">Información de Debug</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-amber-700">
+            <p>• Tenant: {slug || 'No definido'}</p>
+            <p>• Función: odoo-dashboard</p>
+            <p>• Estado: {error ? 'Error' : 'Sin datos'}</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -221,19 +268,25 @@ export default function KpiBoard() {
         </div>
         <Button onClick={handleSyncNow} disabled={syncing} variant="outline">
           <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-          Sincronizar ahora
+          {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
         </Button>
       </div>
 
       {/* Alertas dinámicas */}
       {data.alerts && data.alerts.length > 0 && (
         <div className="space-y-3">
+          <h3 className="text-lg font-medium">Alertas importantes</h3>
           {data.alerts.map((alert, index) => (
             <Alert key={index} className={
               alert.type === 'warning' ? 'border-yellow-200 bg-yellow-50' :
               alert.type === 'important' ? 'border-red-200 bg-red-50' :
               'border-blue-200 bg-blue-50'
             }>
+              <AlertTriangle className={`h-4 w-4 ${
+                alert.type === 'warning' ? 'text-yellow-600' :
+                alert.type === 'important' ? 'text-red-600' :
+                'text-blue-600'
+              }`} />
               <AlertDescription className={
                 alert.type === 'warning' ? 'text-yellow-800' :
                 alert.type === 'important' ? 'text-red-800' :
@@ -360,7 +413,7 @@ export default function KpiBoard() {
             </div>
             <Badge 
               variant={data.iva.status === 'A INGRESAR' ? 'destructive' : 
-                      data.iva.status === 'A DEVOLVER' ? 'default' : 'secondary'}
+                      data.iva.status === 'A COMPENSAR' ? 'default' : 'secondary'}
               className="w-full justify-center"
             >
               {data.iva.status}
@@ -398,7 +451,7 @@ export default function KpiBoard() {
             </Badge>
             {data.irpf.status === 'NEUTRO' && (
               <div className="bg-gray-50 border border-gray-200 p-2 rounded text-xs text-gray-700">
-                ℹ️ Sin movimientos
+                ℹ️ Sin movimientos significativos
               </div>
             )}
           </CardContent>
@@ -468,7 +521,7 @@ export default function KpiBoard() {
               <span className="text-muted-foreground">Última actualización:</span>
               <p className="font-medium flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {data.lastUpdated ? new Date(data.lastUpdated).toLocaleString('es-ES') : 'No disponible'}
+                {data.lastUpdated ? new Date(data.lastUpdated).toLocaleString('es-ES') : 'Ahora mismo'}
               </p>
             </div>
           </div>
