@@ -125,13 +125,31 @@ export class DashboardApiClient {
     expenses: 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-expenses'
   };
 
-  private readonly DEFAULT_TENANT = 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd';
+  // 🗺️ MAPEO DE SLUGS A UUIDs
+  private mapTenantSlugToId(slug?: string): string {
+    const tenantMapping = {
+      'young-minds': 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
+      'blacktar': 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd', // Temporal, cambiar cuando tengamos el UUID real
+    };
+
+    if (!slug) {
+      return 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd';
+    }
+
+    // Si ya es un UUID, devolverlo tal cual
+    if (slug.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      return slug;
+    }
+
+    // Si es un slug, mapearlo al UUID
+    return tenantMapping[slug] || 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd';
+  }
 
   async fetchDashboardData(tenantSlug?: string): Promise<LegacyDashboardData> {
-    const tenant = tenantSlug || this.DEFAULT_TENANT;
+    const tenant = this.mapTenantSlugToId(tenantSlug);
     
     try {
-      console.log('🎯 Intentando NUEVO backend consolidado...');
+      console.log('🎯 Intentando NUEVO backend consolidado con UUID:', tenant);
       
       const response = await fetch(this.NEW_ENDPOINT, {
         method: 'POST',
