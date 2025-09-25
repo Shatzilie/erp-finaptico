@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, DollarSign, Calendar, Building, CreditCard, Loader2 } from 'lucide-react';
-import { backendAdapter } from '@/lib/backendAdapter';
+import { backendAdapter, type LegacyDashboardData, type IVAData, type IRPFData, type SociedadesData } from '@/lib/backendAdapter';
 
 interface DashboardData {
   fiscal: {
@@ -115,38 +115,53 @@ const KpiBoard: React.FC = () => {
       setError(null);
       
       try {
-        // Obtener datos en paralelo usando el backendAdapter
+        console.log('🎯 Cargando dashboard ejecutivo completo...');
+
+        // 🔥 CARGAR DATOS EN PARALELO - OPERATIVOS + FISCALES
         const [dashboardResponse, ivaResponse, irpfResponse, sociedadesResponse] = await Promise.allSettled([
-          backendAdapter.fetchDashboardData(),
-          backendAdapter.fetchIVAData(),
-          backendAdapter.fetchIRPFData(),
-          backendAdapter.fetchSociedadesData()
+          backendAdapter.fetchDashboardData(), // Datos operativos
+          backendAdapter.fetchIVAData(),       // Datos IVA
+          backendAdapter.fetchIRPFData(),      // Datos IRPF
+          backendAdapter.fetchSociedadesData() // Datos Sociedades
         ]);
 
-        // Procesar dashboard principal
-        let dashboardData: any = null;
-        if (dashboardResponse.status === 'fulfilled' && dashboardResponse.value?.ok) {
-          dashboardData = dashboardResponse.value.widget_data.dashboard.payload;
+        console.log('📊 Respuestas recibidas:', {
+          dashboard: dashboardResponse.status,
+          iva: ivaResponse.status, 
+          irpf: irpfResponse.status,
+          sociedades: sociedadesResponse.status
+        });
+
+        // 🔄 PROCESAR DATOS OPERATIVOS
+        let operativeData: LegacyDashboardData = {};
+        if (dashboardResponse.status === 'fulfilled') {
+          operativeData = dashboardResponse.value;
+          console.log('✅ Datos operativos:', operativeData);
+        } else {
+          console.warn('⚠️ Error en datos operativos:', dashboardResponse.reason);
         }
 
-        // Procesar datos fiscales
-        let ivaData: any = null;
-        let irpfData: any = null;
-        let sociedadesData: any = null;
+        // 🔄 PROCESAR DATOS FISCALES
+        let ivaData: IVAData | null = null;
+        let irpfData: IRPFData | null = null;
+        let sociedadesData: SociedadesData | null = null;
 
         if (ivaResponse.status === 'fulfilled' && ivaResponse.value?.ok) {
           ivaData = ivaResponse.value.widget_data.iva.payload;
+          console.log('✅ Datos IVA:', ivaData);
         }
 
         if (irpfResponse.status === 'fulfilled' && irpfResponse.value?.ok) {
           irpfData = irpfResponse.value.widget_data.irpf.payload;
+          console.log('✅ Datos IRPF:', irpfData);
         }
 
         if (sociedadesResponse.status === 'fulfilled' && sociedadesResponse.value?.ok) {
           sociedadesData = sociedadesResponse.value.widget_data.sociedades.payload;
+          console.log('✅ Datos Sociedades:', sociedadesData);
         }
 
-        // Construir el objeto de datos consolidado
+        // 🔧 CONSTRUIR OBJETO CONSOLIDADO
         const consolidatedData: DashboardData = {
           fiscal: {
             iva: {
@@ -169,31 +184,33 @@ const KpiBoard: React.FC = () => {
           },
           operativo: {
             tesoreria: {
-              total: dashboardData?.treasury?.total || 0,
-              currency: dashboardData?.treasury?.currency || 'EUR',
-              accounts: dashboardData?.treasury?.accounts || 0
+              total: operativeData.totalCash || 0,
+              currency: 'EUR',
+              accounts: 4 // Valor fijo por ahora
             },
             ingresos: {
-              monthly: dashboardData?.revenue?.monthly || 0,
-              yearly: dashboardData?.revenue?.yearly || 0,
-              pendingCount: dashboardData?.revenue?.pendingCount || 0
+              monthly: operativeData.monthlyRevenue || 0,
+              yearly: operativeData.yearlyRevenue || 0,
+              pendingCount: operativeData.pendingInvoices || 0
             },
             gastos: {
-              monthly: dashboardData?.expenses?.monthly || 0,
-              yearly: dashboardData?.expenses?.yearly || 0,
-              pendingCount: dashboardData?.expenses?.pendingCount || 0
+              monthly: operativeData.monthlyExpenses || 0,
+              yearly: operativeData.yearlyExpenses || 0,
+              pendingCount: operativeData.pendingPayments || 0
             },
             margen: {
-              monthlyMargin: dashboardData?.profitability?.monthlyMargin || 0,
-              yearlyMargin: dashboardData?.profitability?.yearlyMargin || 0,
-              marginPercentage: dashboardData?.profitability?.marginPercentage || 0
+              monthlyMargin: operativeData.monthlyMargin || 0,
+              yearlyMargin: operativeData.yearlyMargin || 0,
+              marginPercentage: operativeData.marginPercentage || 0
             }
           }
         };
 
+        console.log('🎯 Dashboard consolidado:', consolidatedData);
         setData(consolidatedData);
+
       } catch (err) {
-        console.error('Error fetching dashboard data:', err);
+        console.error('❌ Error cargando dashboard:', err);
         setError('Error al cargar los datos del dashboard');
       } finally {
         setLoading(false);
