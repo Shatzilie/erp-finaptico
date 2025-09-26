@@ -1,63 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Banknote, 
-  Calculator, 
-  FileText, 
-  Receipt, 
-  Building2,
-  AlertTriangle,
-  Info,
-  Clock,
-  BarChart3,
-  PieChart
-} from "lucide-react";
-import { backendAdapter } from '@/lib/backendAdapter';
+import { useParams, useLocation } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, RefreshCw, TrendingUp, TrendingDown, DollarSign, 
+         AlertTriangle, CheckCircle, XCircle, Euro, CreditCard, 
+         Receipt, Target } from 'lucide-react';
 
-// Interfaces para tipado
 interface DashboardData {
-  treasury: {
-    total: number;
-    accounts: number;
-    currency: string;
-  };
-  revenue: {
-    monthly: number;
-    quarterly: number;
-    yearly: number;
-    pendingCount: number;
-  };
-  expenses: {
-    monthly: number;
-    quarterly: number;
-    yearly: number;
-    pendingCount: number;
-  };
-  profitability: {
-    monthlyMargin: number;
-    quarterlyMargin: number;
-    yearlyMargin: number;
-    marginPercentage: number;
-  };
-  fiscal?: {
-    iva: any;
-    irpf: any;
-    sociedades: any;
-  };
-  alerts: Array<{
-    type: string;
-    message: string;
-    module: string;
-  }>;
+  totalCash?: number;
+  monthlyRevenue?: number;
+  quarterlyRevenue?: number;
+  yearlyRevenue?: number;
+  pendingInvoices?: number;
+  monthlyExpenses?: number;
+  quarterlyExpenses?: number;
+  yearlyExpenses?: number;
+  pendingPayments?: number;
+  monthlyMargin?: number;
+  quarterlyMargin?: number;
+  yearlyMargin?: number;
+  marginPercentage?: number;
+  alerts?: Array<{ type: string; message: string; module: string; }>;
   lastUpdated?: string;
 }
 
-// Función para formatear euros
-const formatEuro = (amount: number): string => {
+function useTenantSlug() {
+  const params = useParams();
+  const location = useLocation();
+
+  let slug = (params as any)?.tenant || (params as any)?.tenantSlug || "";
+  if (!slug) {
+    const first = location.pathname.split("/").filter(Boolean)[0];
+    slug = first || "";
+  }
+  return slug;
+}
+
+const formatEuro = (amount: number) => {
   return new Intl.NumberFormat('es-ES', {
     style: 'currency',
     currency: 'EUR',
@@ -66,124 +47,175 @@ const formatEuro = (amount: number): string => {
   }).format(amount);
 };
 
-// Función para formatear números
-const formatNumber = (value: number, decimals: number = 1): string => {
+const formatNumber = (value: number, decimals = 2) => {
   return new Intl.NumberFormat('es-ES', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(value);
 };
 
-export function KpiBoard() {
+export default function KpiBoard() {
+  const slug = useTenantSlug();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastSync, setLastSync] = useState<Date>(new Date());
+  const [syncing, setSyncing] = useState(false);
 
   const fetchDashboardData = async () => {
+    console.log('🎯 Cargando datos del Dashboard...');
+    
     try {
-      setLoading(true);
-      setError(null);
+      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          tenant_slug: 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd'
+        })
+      });
       
-      // Usar el backendAdapter correcto que ya está funcionando
-      const dashboardData = await backendAdapter.fetchDashboardData();
-
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
       
-      // Cargar datos fiscales adicionales en paralelo para el dashboard completo
-      const [ivaData, irpfData, sociedadesData] = await Promise.all([
-        backendAdapter.fetchIVAData(),
-        backendAdapter.fetchIRPFData(), 
-        backendAdapter.fetchSociedadesData()
-      ]);
-
-      // Combinar todos los datos
-      const combinedData = {
-        // Datos operativos del dashboard principal
-        treasury: {
-          total: dashboardData.totalCash || 0,
-          accounts: 6, // Dato fijo conocido
-          currency: 'EUR'
-        },
-        revenue: {
-          monthly: dashboardData.monthlyRevenue || 0,
-          quarterly: dashboardData.quarterlyRevenue || 0,
-          yearly: dashboardData.yearlyRevenue || 0,
-          pendingCount: dashboardData.pendingInvoices || 0
-        },
-        expenses: {
-          monthly: dashboardData.monthlyExpenses || 0,
-          quarterly: dashboardData.quarterlyExpenses || 0,
-          yearly: dashboardData.yearlyExpenses || 0,
-          pendingCount: dashboardData.pendingPayments || 0
-        },
-        profitability: {
-          monthlyMargin: dashboardData.monthlyMargin || 0,
-          quarterlyMargin: dashboardData.quarterlyMargin || 0,
-          yearlyMargin: dashboardData.yearlyMargin || 0,
-          marginPercentage: dashboardData.marginPercentage || 0
-        },
-        // Datos fiscales adicionales
-        fiscal: {
-          iva: ivaData,
-          irpf: irpfData,
-          sociedades: sociedadesData
-        },
-        alerts: dashboardData.alerts || [],
-        lastUpdated: new Date().toISOString()
-      };
-
-      setData(combinedData);
-      setLastSync(new Date());
-    } catch (err) {
-      console.error('Error fetching dashboard:', err);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      const result = await response.json();
+      console.log('📊 Respuesta completa de la API:', result);
+      
+      // CORRECCIÓN CRÍTICA: Acceder a los datos correctamente
+      if (result.ok && result.widget_data?.dashboard?.success) {
+        const dashboardPayload = result.widget_data.dashboard.payload;
+        console.log('✅ Datos extraídos correctamente:', dashboardPayload);
+        
+        // Transformar el formato del backend al formato esperado
+        const transformedData: DashboardData = {
+          totalCash: dashboardPayload.treasury?.total || 0,
+          monthlyRevenue: dashboardPayload.revenue?.monthly || 0,
+          quarterlyRevenue: dashboardPayload.revenue?.quarterly || 0,
+          yearlyRevenue: dashboardPayload.revenue?.yearly || 0,
+          pendingInvoices: dashboardPayload.revenue?.pendingCount || 0,
+          monthlyExpenses: dashboardPayload.expenses?.monthly || 0,
+          quarterlyExpenses: dashboardPayload.expenses?.quarterly || 0,
+          yearlyExpenses: dashboardPayload.expenses?.yearly || 0,
+          pendingPayments: dashboardPayload.expenses?.pendingCount || 0,
+          monthlyMargin: dashboardPayload.profitability?.monthlyMargin || 0,
+          quarterlyMargin: dashboardPayload.profitability?.quarterlyMargin || 0,
+          yearlyMargin: dashboardPayload.profitability?.yearlyMargin || 0,
+          marginPercentage: dashboardPayload.profitability?.marginPercentage || 0,
+          alerts: dashboardPayload.alerts || [],
+          lastUpdated: result.meta?.execution_time
+        };
+        
+        setData(transformedData);
+        setError(null);
+      } else {
+        // Manejar errores de la API
+        const errorMsg = result.error || 'Error desconocido en la respuesta de la API';
+        console.error('❌ Error en la respuesta de la API:', errorMsg);
+        throw new Error(errorMsg);
+      }
+    } catch (err: any) {
+      console.error('❌ Error cargando datos del Dashboard:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSyncNow = async () => {
+    console.log('🔄 Sincronizando Dashboard...');
+    setSyncing(true);
+    try {
+      await fetchDashboardData();
+      console.log('✅ Sincronización completada');
+    } catch (err) {
+      console.error('❌ Error en sincronización:', err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
-    // Actualizar cada 5 minutos
+    
+    // Auto-refresh cada 5 minutos
     const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-sm text-muted-foreground">Cargando dashboard...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Cargando datos del Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (error || !data) {
+  if (error) {
     return (
       <Alert variant="destructive" className="mx-4">
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
-          Error al cargar el dashboard: {error || 'Datos no disponibles'}
+          Error al cargar el dashboard: {error}
+          <Button variant="outline" size="sm" className="ml-2" onClick={handleSyncNow}>
+            Reintentar
+          </Button>
         </AlertDescription>
       </Alert>
     );
   }
 
+  if (!data) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">No hay datos disponibles</p>
+        <Button onClick={handleSyncNow} className="mt-4">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Cargar datos
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8"> {/* Cambiado de space-y-6 a space-y-8 para más separación */}
+    <div className="space-y-12"> {/* ESPACIADO AMPLIO - Cambiado de space-y-6 a space-y-12 */}
       
       {/* SECCIÓN 1: ESTADO FISCAL - Con separación amplia */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 mb-6"> {/* Añadido mb-6 para separar del contenido */}
-          <h2 className="text-2xl font-bold">📊 Estado Fiscal del Trimestre</h2>
-          <Badge variant="outline">Q3 2025 • Situación actualizada</Badge>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between mb-8"> {/* Añadido mb-8 para más separación */}
+          <div>
+            <h2 className="text-2xl font-bold">📊 Estado Fiscal del Trimestre</h2>
+            <p className="text-muted-foreground">Q3 2025 • Situación actualizada</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-blue-50">
+              🚀 Backend Nuevo
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncNow}
+              disabled={syncing}
+            >
+              {syncing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Sincronizar
+            </Button>
+          </div>
         </div>
 
         {/* Alertas */}
         {data.alerts && data.alerts.length > 0 && (
-          <div className="space-y-2 mb-8"> {/* Añadido mb-8 para más separación */}
+          <div className="space-y-3 mb-10"> {/* Cambiado mb-6 a mb-10 para más separación */}
             {data.alerts.map((alert, index) => (
               <Alert 
                 key={index} 
@@ -197,7 +229,7 @@ export function KpiBoard() {
         )}
 
         {/* Tarjetas fiscales - con más espacio */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"> {/* Cambiado gap-4 a gap-6 y añadido mb-8 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12"> {/* Cambiado gap-6 a gap-8 y mb-8 a mb-12 */}
           {/* Tarjeta IVA */}
           <Card className="border-red-200 bg-red-50/50">
             <CardHeader className="pb-3">
@@ -224,7 +256,7 @@ export function KpiBoard() {
           <Card className="border-blue-200 bg-blue-50/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <FileText className="h-4 w-4 text-blue-600" />
+                <Receipt className="h-4 w-4 text-blue-600" />
                 IRPF - Tercer Trimestre
               </CardTitle>
             </CardHeader>
@@ -233,10 +265,9 @@ export function KpiBoard() {
                 Previsión: a tu favor 1597,82 €
               </div>
               <div className="space-y-1 text-xs text-muted-foreground">
-                <p>IRPF aplicado en servicios que han venido:</p>
-                <p>IRPF que le han venido 2497,66 €</p>
-                <p>IRPF que he han venido facturado que le han venido que ha vendido:</p>
-                <p>869,84 €</p>
+                <p>IRPF aplicado en servicios</p>
+                <p>IRPF soportado: 2497,66 €</p>
+                <p>IRPF practicado: 869,84 €</p>
               </div>
               <Badge variant="default" className="mt-3">
                 No hay que hacer nada
@@ -248,7 +279,7 @@ export function KpiBoard() {
           <Card className="border-gray-200 bg-gray-50/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-gray-600" />
+                <Receipt className="h-4 w-4 text-gray-600" />
                 Impuesto de Sociedades - 2025
               </CardTitle>
             </CardHeader>
@@ -269,22 +300,22 @@ export function KpiBoard() {
       </div>
 
       {/* SEPARADOR VISUAL AMPLIO */}
-      <div className="my-12">
+      <div className="my-16"> {/* Separador más amplio - Cambiado de my-12 a my-16 */}
         <hr className="border-gray-200" />
       </div>
 
       {/* SECCIÓN 2: EVOLUCIÓN DE LA EMPRESA - Con separación amplia */}
-      <div className="space-y-6">
-        <div className="flex items-center gap-2 mb-6"> {/* Añadido mb-6 */}
+      <div className="space-y-8">
+        <div className="flex items-center gap-2 mb-8"> {/* Añadido mb-8 */}
           <h2 className="text-2xl font-bold">📈 Evolución de tu empresa</h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8"> {/* Cambiado gap-6 a gap-8 y añadido mb-8 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-12"> {/* Cambiado gap-8 a gap-10 y mb-8 a mb-12 */}
           {/* Gráfica de Ingresos */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
+                <TrendingUp className="h-5 w-5" />
                 Ingresos Galway Morgon Mensual
               </CardTitle>
             </CardHeader>
@@ -299,7 +330,7 @@ export function KpiBoard() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <PieChart className="h-5 w-5" />
+                <Target className="h-5 w-5" />
                 Balances del Margen
               </CardTitle>
             </CardHeader>
@@ -313,36 +344,36 @@ export function KpiBoard() {
       </div>
 
       {/* SEPARADOR VISUAL AMPLIO */}
-      <div className="my-12">
+      <div className="my-16"> {/* Separador más amplio */}
         <hr className="border-gray-200" />
       </div>
 
       {/* SECCIÓN 3: GESTIÓN OPERATIVA - Con separación amplia */}
-      <div className="space-y-6">
-        <div className="flex items-center gap-2 mb-6"> {/* Añadido mb-6 */}
+      <div className="space-y-8">
+        <div className="flex items-center gap-2 mb-8"> {/* Añadido mb-8 */}
           <h2 className="text-2xl font-bold">💼 Gestión Operativa</h2>
           <Badge variant="outline">Tesorería, ingresos, gastos y rentabilidad</Badge>
         </div>
 
         {/* KPIs operativos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"> {/* Cambiado gap-4 a gap-6 y añadido mb-8 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12"> {/* Cambiado gap-6 a gap-8 y mb-8 a mb-12 */}
           {/* Saldo disponible en bancos */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Banknote className="h-4 w-4" />
+                <Euro className="h-4 w-4" />
                 Saldo disponible en bancos
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${data.treasury.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatEuro(data.treasury.total)}
+              <div className={`text-2xl font-bold ${(data.totalCash || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatEuro(data.totalCash || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {data.treasury.accounts} cuentas activas
+                6 cuentas activas
               </p>
-              <Badge variant={data.treasury.total >= 0 ? "default" : "destructive"} className="mt-2">
-                {data.treasury.total >= 0 ? 'Positivo' : 'Negativo'}
+              <Badge variant={(data.totalCash || 0) >= 0 ? "default" : "destructive"} className="mt-2">
+                {(data.totalCash || 0) >= 0 ? 'Positivo' : 'Negativo'}
               </Badge>
             </CardContent>
           </Card>
@@ -357,13 +388,13 @@ export function KpiBoard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {formatEuro(data.revenue.yearly)}
+                {formatEuro(data.yearlyRevenue || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Facturación del mes actual
               </p>
               <p className="text-xs text-muted-foreground">
-                4 mes {formatEuro(data.revenue.monthly)} €
+                Sep: {formatEuro(data.monthlyRevenue || 0)}
               </p>
             </CardContent>
           </Card>
@@ -378,13 +409,13 @@ export function KpiBoard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {formatEuro(data.expenses.yearly)}
+                {formatEuro(data.yearlyExpenses || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Pagos del mes actual
               </p>
               <p className="text-xs text-muted-foreground">
-                4 sep {formatEuro(data.expenses.monthly)} €
+                Sep: {formatEuro(data.monthlyExpenses || 0)}
               </p>
             </CardContent>
           </Card>
@@ -393,40 +424,35 @@ export function KpiBoard() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Calculator className="h-4 w-4" />
+                <Target className="h-4 w-4" />
                 Rentabilidad
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${data.profitability.yearlyMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatEuro(data.profitability.yearlyMargin)}
+              <div className={`text-2xl font-bold ${(data.yearlyMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatEuro(data.yearlyMargin || 0)}
               </div>
-              <p className={`text-xs mt-1 font-medium ${data.profitability.marginPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className="text-xs text-muted-foreground mt-1">
                 Margen estimado entre ingresos y gastos
               </p>
-              <p className={`text-xs mt-1 font-medium ${data.profitability.marginPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatNumber(data.profitability.marginPercentage, 1)}%
+              <p className={`text-xs mt-1 font-medium ${(data.marginPercentage || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatNumber(data.marginPercentage || 0, 1)}%
               </p>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* SEPARADOR FINAL AMPLIO */}
-      <div className="my-12">
-        <hr className="border-gray-200" />
-      </div>
-
       {/* Información del período */}
-      <Card className="mt-8"> {/* Añadido mt-8 para más separación */}
+      <Card className="mt-16"> {/* Añadido mt-16 para más separación final */}
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Info className="h-5 w-5" />
+            <CheckCircle className="h-5 w-5" />
             Información del Período
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm"> {/* Cambiado gap-4 a gap-6 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-sm"> {/* Cambiado gap-6 a gap-8 */}
             <div>
               <span className="text-muted-foreground">Año fiscal:</span>
               <p className="font-medium">2025</p>
@@ -441,9 +467,8 @@ export function KpiBoard() {
             </div>
             <div>
               <span className="text-muted-foreground">Última actualización:</span>
-              <p className="font-medium flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {lastSync.toLocaleString('es-ES')}
+              <p className="font-medium">
+                {data.lastUpdated ? new Date(data.lastUpdated).toLocaleString('es-ES') : 'Ahora mismo'}
               </p>
             </div>
           </div>
