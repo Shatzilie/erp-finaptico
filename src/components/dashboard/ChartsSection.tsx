@@ -341,10 +341,10 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
   const averageMargin = chartData.reduce((sum, item) => sum + item.margen, 0) / chartData.length;
 
   return (
-    <div className="mt-12">
-      <h2 className="text-xl font-semibold text-gray-900 mb-8">Evolución de tu empresa</h2>
+    <div className="mt-16">
+      <h2 className="text-xl font-semibold text-gray-900 mb-10">Evolución de tu empresa</h2>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* 1. Gráfico combinado: Ingresos vs Gastos con línea de margen */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-4">
