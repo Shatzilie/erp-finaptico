@@ -288,7 +288,7 @@ export default function TreasuryPage() {
       {/* Header + botón */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Tesorería</h1>
+          <h1 className="text-2xl font-semibold">Saldo disponible en bancos</h1>
           <p className="text-sm text-muted-foreground">
             Saldo bancario y movimientos (últimos 30 días)
           </p>
