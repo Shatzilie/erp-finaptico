@@ -125,7 +125,7 @@ export default function InvoicingPage() {
       title: "Facturas Pendientes",
       value: displayData.outstanding_invoices_count,
       icon: Clock,
-      description: "Facturas por cobrar",
+      description: "Facturas emitidas aún sin cobrar",
       color: "text-orange-600",
       isCount: true
     },
@@ -133,7 +133,7 @@ export default function InvoicingPage() {
       title: "Total Facturas",
       value: displayData.total_invoices,
       icon: FileText,
-      description: "Facturas totales",
+      description: "Facturas emitidas este año",
       color: "text-gray-600",
       isCount: true
     }
