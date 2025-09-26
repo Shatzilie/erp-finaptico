@@ -150,13 +150,23 @@ export default function IRPFPage() {
     return 'text-muted-foreground';
   };
 
+  const getStatusMessage = (diferencia: number, status: string) => {
+    if (diferencia > 0) {
+      return `Este trimestre pagarás ${formatCurrency(diferencia)} de IRPF`;
+    } else if (diferencia < 0) {
+      return `Tienes ${formatCurrency(Math.abs(diferencia))} a tu favor de IRPF`;
+    } else {
+      return 'IRPF equilibrado este trimestre';
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">IRPF</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Gestión de IRPF</h1>
           <p className="text-muted-foreground">
-            Cálculos trimestrales de IRPF
+            Estoy controlando tus retenciones de IRPF y preparando las declaraciones trimestrales
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -170,7 +180,7 @@ export default function IRPFPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Período de Consulta
+            Selecciona el trimestre a consultar
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -223,7 +233,7 @@ export default function IRPFPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Retenciones Practicadas</CardTitle>
+            <CardTitle className="text-sm font-medium">IRPF retenido</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -231,21 +241,21 @@ export default function IRPFPage() {
               {loading ? (
                 <div className="flex items-center">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Cargando...
+                  Calculando...
                 </div>
               ) : (
                 formatCurrency(irpfData?.retenciones_practicadas || 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              IRPF retenido a terceros
+              Has retenido a terceros
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Retenciones Soportadas</CardTitle>
+            <CardTitle className="text-sm font-medium">IRPF soportado</CardTitle>
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -253,21 +263,21 @@ export default function IRPFPage() {
               {loading ? (
                 <div className="flex items-center">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Cargando...
+                  Calculando...
                 </div>
               ) : (
                 formatCurrency(irpfData?.retenciones_soportadas || 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              IRPF soportado
+              Te han retenido a ti
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">IRPF a Ingresar/Compensar</CardTitle>
+            <CardTitle className="text-sm font-medium">Resultado del IRPF</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -275,21 +285,21 @@ export default function IRPFPage() {
               {loading ? (
                 <div className="flex items-center">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Cargando...
+                  Calculando...
                 </div>
               ) : (
                 formatCurrency(irpfData?.diferencia || 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {(irpfData?.diferencia || 0) > 0 ? 'A ingresar' : 'A compensar'}
+              {(irpfData?.diferencia || 0) > 0 ? 'Vas a pagar' : 'Tienes a favor'}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estado</CardTitle>
+            <CardTitle className="text-sm font-medium">Mi gestión</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -297,11 +307,13 @@ export default function IRPFPage() {
               {loading ? (
                 <div className="flex items-center">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Cargando...
+                  Calculando...
                 </div>
               ) : (
                 <Badge variant={getStatusColor(irpfData?.status || '')}>
-                  {irpfData?.status || 'DESCONOCIDO'}
+                  {irpfData?.status === 'A INGRESAR' ? 'VAS A PAGAR' : 
+                   irpfData?.status === 'A COMPENSAR' ? 'TIENES A FAVOR' : 
+                   'EQUILIBRADO'}
                 </Badge>
               )}
             </div>
@@ -318,7 +330,7 @@ export default function IRPFPage() {
           <div className="flex items-center">
             <AlertCircle className="h-5 w-5 text-blue-600 mr-2" />
             <span className="text-blue-800">
-              Período futuro: Los datos para Q{selectedQuarter} {selectedYear} no están disponibles hasta que transcurra el trimestre.
+              Este trimestre aún no ha terminado. Los datos de Q{selectedQuarter} {selectedYear} se actualizarán cuando transcurra el período.
             </span>
           </div>
         </div>
@@ -330,7 +342,7 @@ export default function IRPFPage() {
           <div className="flex items-center">
             <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
             <span className="text-yellow-800">
-              No hay movimientos de retenciones registrados para Q{selectedQuarter} {selectedYear}.
+              No encuentro movimientos de IRPF para Q{selectedQuarter} {selectedYear}. Revisa que las facturas estén correctamente configuradas.
             </span>
           </div>
         </div>
@@ -340,9 +352,9 @@ export default function IRPFPage() {
       {irpfData && (
         <Card>
           <CardHeader>
-            <CardTitle>Resumen del Trimestre</CardTitle>
+            <CardTitle>Mi cálculo para este trimestre</CardTitle>
             <CardDescription>
-              Período: Q{irpfData.period.quarter} {irpfData.period.year}
+              Q{irpfData.period.quarter} {irpfData.period.year} - {getStatusMessage(irpfData.diferencia, irpfData.status)}
               {irpfData.period.date_from && irpfData.period.date_to && (
                 <span className="block text-xs mt-1">
                   {irpfData.period.date_from} - {irpfData.period.date_to}
@@ -352,36 +364,38 @@ export default function IRPFPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span>Retenciones Practicadas:</span>
+              <span>IRPF que has retenido:</span>
               <span className="font-semibold">{formatCurrency(irpfData.retenciones_practicadas)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Retenciones Soportadas:</span>
+              <span>IRPF que te han retenido:</span>
               <span className="font-semibold">{formatCurrency(irpfData.retenciones_soportadas)}</span>
             </div>
             
             {/* Movement Counters */}
             <div className="grid grid-cols-2 gap-4 py-2">
               <div>
-                <p className="text-sm text-muted-foreground">Movimientos Practicadas</p>
+                <p className="text-sm text-muted-foreground">Retenciones realizadas</p>
                 <p className="text-lg font-semibold">{irpfData?.retenciones_practicadas_count || 0}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Movimientos Soportadas</p>
+                <p className="text-sm text-muted-foreground">Retenciones recibidas</p>
                 <p className="text-lg font-semibold">{irpfData?.retenciones_soportadas_count || 0}</p>
               </div>
             </div>
             
             <Separator />
             <div className="flex justify-between items-center">
-              <span className="font-semibold">Diferencia:</span>
+              <span className="font-semibold">Resultado final:</span>
               <span className={`font-bold text-lg ${getDiferenciaColor(irpfData.diferencia)}`}>
                 {formatCurrency(irpfData.diferencia)}
               </span>
             </div>
             <div className="text-center">
               <Badge variant={getStatusColor(irpfData.status)} className="text-sm">
-                {irpfData.status}
+                {irpfData.status === 'A INGRESAR' ? 'Vas a pagar' :
+                 irpfData.status === 'A COMPENSAR' ? 'Lo usaré para compensar impuestos futuros' :
+                 'Todo equilibrado este trimestre'}
               </Badge>
             </div>
           </CardContent>
