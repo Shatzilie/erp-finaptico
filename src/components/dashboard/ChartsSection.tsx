@@ -5,17 +5,15 @@ import {
   Bar, 
   LineChart, 
   Line, 
-  PieChart, 
-  Pie, 
-  Cell,
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  Legend
+  ReferenceLine
 } from 'recharts';
-import { TrendingUp, TrendingDown, PieChart as PieChartIcon } from 'lucide-react';
+import { TrendingUp, Calculator, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 // Tipos de datos
 interface MonthlyData {
@@ -29,19 +27,15 @@ interface ChartData {
   monthName: string;
   ingresos: number;
   gastos: number;
+  margen: number;
   margenPorcentaje: number;
 }
 
-interface TaxData {
-  iva: number;
-  irpf: number;
-  is: number;
-}
-
-interface FiscalChartData {
-  name: string;
-  value: number;
-  color: string;
+interface FiscalSummary {
+  ivaAPagar: number;
+  irpfAFavor: number;
+  isProvision: number;
+  resumenFiscal: string;
 }
 
 interface ChartsProps {
@@ -67,36 +61,34 @@ const formatEuro = (amount: number): string => {
   }).format(amount);
 };
 
-// Función para formatear porcentajes
-const formatPercent = (value: number): string => {
-  return `${value.toFixed(1)}%`;
+// Función para formatear euros abreviados
+const formatEuroShort = (amount: number): string => {
+  if (Math.abs(amount) >= 1000) {
+    return `${(amount / 1000).toFixed(0)}k€`;
+  }
+  return formatEuro(amount);
 };
 
 // Tooltip personalizado para barras
 const BarTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
+    const ingresos = payload.find((p: any) => p.dataKey === 'ingresos')?.value || 0;
+    const gastos = payload.find((p: any) => p.dataKey === 'gastos')?.value || 0;
+    const margen = ingresos - gastos;
+    const margenPct = ingresos > 0 ? ((margen / ingresos) * 100).toFixed(1) : 0;
+    
     return (
       <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
         <p className="font-medium text-gray-900 mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            <span className="font-medium">{entry.name}:</span> {formatEuro(entry.value)}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
-
-// Tooltip personalizado para línea de margen
-const MarginTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-medium text-gray-900 mb-2">{label}</p>
-        <p className="text-sm" style={{ color: payload[0].color }}>
-          <span className="font-medium">Margen:</span> {formatPercent(payload[0].value)}
+        <p className="text-sm text-purple-600">
+          <span className="font-medium">Ingresos:</span> {formatEuro(ingresos)}
+        </p>
+        <p className="text-sm text-teal-600">
+          <span className="font-medium">Gastos:</span> {formatEuro(gastos)}
+        </p>
+        <hr className="my-1" />
+        <p className="text-sm text-gray-800 font-medium">
+          <span>Margen:</span> {formatEuro(margen)} ({margenPct}%)
         </p>
       </div>
     );
@@ -104,15 +96,15 @@ const MarginTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// Tooltip personalizado para donut fiscal
-const FiscalTooltip = ({ active, payload }: any) => {
+// Tooltip para gráfico de margen
+const MarginTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const data = payload[0];
+    const margen = payload[0].value;
     return (
       <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-medium text-gray-900">{data.name}</p>
-        <p className="text-sm" style={{ color: data.payload.color }}>
-          <span className="font-medium">Importe:</span> {formatEuro(data.value)}
+        <p className="font-medium text-gray-900 mb-2">{label}</p>
+        <p className="text-sm text-gray-700">
+          <span className="font-medium">Margen:</span> {formatEuro(margen)}
         </p>
       </div>
     );
@@ -122,7 +114,7 @@ const FiscalTooltip = ({ active, payload }: any) => {
 
 export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
   const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [fiscalData, setFiscalData] = useState<FiscalChartData[]>([]);
+  const [fiscalSummary, setFiscalSummary] = useState<FiscalSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -164,12 +156,12 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
     return data.widget_data?.expenses?.payload?.monthly_history || [];
   };
 
-  // Función para obtener datos fiscales
-  const fetchFiscalData = async (): Promise<TaxData> => {
+  // Función para obtener resumen fiscal
+  const fetchFiscalSummary = async (): Promise<FiscalSummary> => {
     const currentYear = new Date().getFullYear();
     const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
 
-    // Obtener datos de IVA, IRPF e IS en paralelo
+    // Obtener datos fiscales en paralelo
     const [ivaResponse, irpfResponse, isResponse] = await Promise.all([
       fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
         method: 'POST',
@@ -212,10 +204,27 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
     const irpfData = await irpfResponse.json();
     const isData = await isResponse.json();
 
+    const ivaAmount = ivaData.widget_data?.iva?.payload?.iva_diferencia || 0;
+    const irpfAmount = irpfData.widget_data?.irpf?.payload?.diferencia || 0;
+    const isAmount = isData.widget_data?.sociedades?.payload?.cuota_diferencial || 0;
+
+    // Determinar resumen fiscal
+    let resumen = "";
+    if (ivaAmount > 0 && irpfAmount < 0) {
+      resumen = `IVA a pagar: ${formatEuro(ivaAmount)} • IRPF a compensar: ${formatEuro(Math.abs(irpfAmount))}`;
+    } else if (ivaAmount > 0 && irpfAmount >= 0) {
+      resumen = `IVA: ${formatEuro(ivaAmount)} • IRPF: ${formatEuro(irpfAmount)} a pagar`;
+    } else if (ivaAmount <= 0 && irpfAmount < 0) {
+      resumen = `IVA: ${formatEuro(Math.abs(ivaAmount))} • IRPF: ${formatEuro(Math.abs(irpfAmount))} a compensar`;
+    } else {
+      resumen = "Sin obligaciones fiscales significativas";
+    }
+
     return {
-      iva: Math.abs(ivaData.widget_data?.iva?.payload?.iva_diferencia || 0),
-      irpf: Math.abs(irpfData.widget_data?.irpf?.payload?.diferencia || 0),
-      is: Math.abs(isData.widget_data?.sociedades?.payload?.cuota_diferencial || 0)
+      ivaAPagar: Math.max(0, ivaAmount),
+      irpfAFavor: Math.abs(Math.min(0, irpfAmount)),
+      isProvision: Math.max(0, isAmount),
+      resumenFiscal: resumen
     };
   };
 
@@ -227,13 +236,13 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
         setError(null);
 
         // Obtener datos en paralelo
-        const [revenueData, expensesData, taxData] = await Promise.all([
+        const [revenueData, expensesData, fiscalData] = await Promise.all([
           fetchRevenueData(),
           fetchExpensesData(),
-          fetchFiscalData()
+          fetchFiscalSummary()
         ]);
 
-        // Verificar que tenemos datos históricos suficientes (mínimo 3 meses)
+        // Verificar que tenemos datos históricos suficientes
         if (revenueData.length < 3 || expensesData.length < 3) {
           console.log('Insufficient historical data, hiding charts');
           setChartData([]);
@@ -255,18 +264,19 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
             monthName: getMonthName(item.month),
             ingresos: item.total,
             gastos: 0,
+            margen: 0,
             margenPorcentaje: 0
           });
         });
 
-        // Añadir datos de gastos y calcular margen porcentual
+        // Añadir datos de gastos
         last12Expenses.forEach(item => {
           const existing = combinedData.get(item.month);
           if (existing) {
             existing.gastos = item.total;
-            // Calcular margen porcentual: ((ingresos - gastos) / ingresos) * 100
+            existing.margen = existing.ingresos - item.total;
             existing.margenPorcentaje = existing.ingresos > 0 
-              ? ((existing.ingresos - item.total) / existing.ingresos) * 100 
+              ? ((existing.margen / existing.ingresos) * 100) 
               : 0;
           }
         });
@@ -276,21 +286,7 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
           .sort((a, b) => a.month.localeCompare(b.month));
 
         setChartData(finalData);
-
-        // Preparar datos fiscales para el donut
-        const fiscalChartData: FiscalChartData[] = [];
-        
-        if (taxData.iva > 0) {
-          fiscalChartData.push({ name: 'IVA', value: taxData.iva, color: '#6C5CE7' });
-        }
-        if (taxData.irpf > 0) {
-          fiscalChartData.push({ name: 'IRPF', value: taxData.irpf, color: '#74C0FC' });
-        }
-        if (taxData.is > 0) {
-          fiscalChartData.push({ name: 'IS', value: taxData.is, color: '#111827' });
-        }
-
-        setFiscalData(fiscalChartData);
+        setFiscalSummary(fiscalData);
 
       } catch (err) {
         console.error('Error loading chart data:', err);
@@ -345,23 +341,26 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
     return null;
   }
 
+  // Calcular promedio de margen para línea de referencia
+  const averageMargin = chartData.reduce((sum, item) => sum + item.margen, 0) / chartData.length;
+
   return (
     <div className="mt-8">
       <h2 className="text-xl font-semibold text-gray-900 mb-6">Evolución de tu empresa</h2>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 1. Gráfico de barras comparativo Ingresos vs Gastos */}
-        <Card>
+        {/* 1. Gráfico combinado: Ingresos vs Gastos con línea de margen */}
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Ingresos y Gastos
+              Ingresos, Gastos y Margen Mensual
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-48">
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="monthName" 
@@ -373,7 +372,7 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 11, fill: '#6b7280' }}
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    tickFormatter={formatEuroShort}
                   />
                   <Tooltip content={<BarTooltip />} />
                   <Bar 
@@ -388,47 +387,53 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
                     name="Gastos"
                     radius={[2, 2, 0, 0]}
                   />
+                  <ReferenceLine 
+                    y={averageMargin} 
+                    stroke="#111827" 
+                    strokeDasharray="3 3"
+                    label={{ value: `Margen promedio: ${formatEuroShort(averageMargin)}`, position: 'topRight', fontSize: 11 }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* 2. Gráfico de línea - Margen Anual (%) */}
+        {/* 2. Evolución del margen mensual */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Margen Anual
+              <Calculator className="h-4 w-4" />
+              Evolución del Margen
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-48">
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                <LineChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="monthName" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: '#6b7280' }}
+                    tick={{ fontSize: 10, fill: '#6b7280' }}
                   />
                   <YAxis 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: '#6b7280' }}
-                    tickFormatter={(value) => `${value.toFixed(0)}%`}
-                    domain={[0, 100]}
+                    tick={{ fontSize: 10, fill: '#6b7280' }}
+                    tickFormatter={formatEuroShort}
                   />
                   <Tooltip content={<MarginTooltip />} />
+                  <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="2 2" />
                   <Line 
                     type="monotone" 
-                    dataKey="margenPorcentaje" 
+                    dataKey="margen" 
                     stroke="#111827" 
                     strokeWidth={3}
                     dot={{ fill: "#111827", strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6, fill: "#111827" }}
-                    name="Margen %"
+                    name="Margen"
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -436,52 +441,48 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
           </CardContent>
         </Card>
 
-        {/* 3. Gráfico donut fiscal */}
-        <Card>
-          <CardHeader className="pb-2">
+        {/* 3. Resumen fiscal actual */}
+        <Card className="lg:col-span-3">
+          <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <PieChartIcon className="h-4 w-4" />
-              Situación Fiscal
+              <AlertCircle className="h-4 w-4" />
+              Situación Fiscal Actual
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-48">
-              {fiscalData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={fiscalData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={70}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {fiscalData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<FiscalTooltip />} />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      height={36}
-                      iconType="circle"
-                      wrapperStyle={{ fontSize: '12px' }}
-                      formatter={(value, entry: any) => (
-                        <span style={{ color: entry.color }}>
-                          {value}
-                        </span>
-                      )}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                  Sin obligaciones fiscales
-                </div>
+            <div className="flex flex-wrap items-center gap-4">
+              {fiscalSummary?.ivaAPagar && fiscalSummary.ivaAPagar > 0 && (
+                <Badge variant="destructive" className="text-sm">
+                  IVA: {formatEuro(fiscalSummary.ivaAPagar)} a pagar
+                </Badge>
+              )}
+              
+              {fiscalSummary?.irpfAFavor && fiscalSummary.irpfAFavor > 0 && (
+                <Badge variant="default" className="text-sm bg-blue-100 text-blue-800">
+                  IRPF: {formatEuro(fiscalSummary.irpfAFavor)} a tu favor
+                </Badge>
+              )}
+              
+              {fiscalSummary?.isProvision && fiscalSummary.isProvision > 0 && (
+                <Badge variant="secondary" className="text-sm">
+                  IS: {formatEuro(fiscalSummary.isProvision)} estimado
+                </Badge>
+              )}
+              
+              {(!fiscalSummary?.ivaAPagar || fiscalSummary.ivaAPagar <= 0) && 
+               (!fiscalSummary?.irpfAFavor || fiscalSummary.irpfAFavor <= 0) && 
+               (!fiscalSummary?.isProvision || fiscalSummary.isProvision <= 0) && (
+                <Badge variant="outline" className="text-sm text-green-700 border-green-300">
+                  Sin obligaciones fiscales pendientes
+                </Badge>
               )}
             </div>
+            
+            {fiscalSummary?.resumenFiscal && (
+              <p className="text-sm text-gray-600 mt-3">
+                {fiscalSummary.resumenFiscal}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
