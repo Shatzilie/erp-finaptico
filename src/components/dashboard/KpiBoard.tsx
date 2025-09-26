@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, TrendingUp, TrendingDown, DollarSign, 
          AlertTriangle, CheckCircle, XCircle, Euro, CreditCard, 
          Receipt, Target } from 'lucide-react';
+import { ChartsSection } from './ChartsSection';
 
 interface DashboardData {
   totalCash?: number;
@@ -306,41 +307,7 @@ export default function KpiBoard() {
 
       {/* SECCIÓN 2: EVOLUCIÓN DE LA EMPRESA - Con separación amplia */}
       <div className="space-y-8">
-        <div className="flex items-center gap-2 mb-8"> {/* Añadido mb-8 */}
-          <h2 className="text-2xl font-bold">📈 Evolución de tu empresa</h2>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-12"> {/* Cambiado gap-8 a gap-10 y mb-8 a mb-12 */}
-          {/* Gráfica de Ingresos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Ingresos Galway Morgon Mensual
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-48 flex items-center justify-center bg-muted/20 rounded">
-                <p className="text-muted-foreground">Gráfica de ingresos mensual</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Gráfica de Balances */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                Balances del Margen
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-48 flex items-center justify-center bg-muted/20 rounded">
-                <p className="text-muted-foreground">Gráfica de márgenes</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <ChartsSection tenantSlug={slug} />
       </div>
 
       {/* SEPARADOR VISUAL AMPLIO */}
