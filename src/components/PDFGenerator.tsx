@@ -19,7 +19,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
     
     try {
       // 1. Llamar al endpoint para obtener HTML
-      const response = await fetch('/api/supabase/functions/generate-pdf-report', {
+      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/generate-pdf-report', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
