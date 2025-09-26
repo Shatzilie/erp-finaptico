@@ -16,19 +16,9 @@ import {
   BarChart3,
   PieChart
 } from "lucide-react";
+import { backendAdapter } from '@/lib/backendAdapter';
 
 // Interfaces para tipado
-interface ApiResponse {
-  ok: boolean;
-  widget_data?: {
-    dashboard?: {
-      success: boolean;
-      payload: DashboardData;
-    };
-  };
-  error?: string;
-}
-
 interface DashboardData {
   treasury: {
     total: number;
@@ -52,6 +42,11 @@ interface DashboardData {
     quarterlyMargin: number;
     yearlyMargin: number;
     marginPercentage: number;
+  };
+  fiscal?: {
+    iva: any;
+    irpf: any;
+    sociedades: any;
   };
   alerts: Array<{
     type: string;
@@ -90,31 +85,55 @@ export function KpiBoard() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('https://fobpgsqxhlrlzecgkzra.supabase.co/functions/v1/odoo-dashboard', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q',
+      // Usar el backendAdapter correcto que ya está funcionando
+      const dashboardData = await backendAdapter.fetchDashboardData();
+
+      
+      // Cargar datos fiscales adicionales en paralelo para el dashboard completo
+      const [ivaData, irpfData, sociedadesData] = await Promise.all([
+        backendAdapter.fetchIVAData(),
+        backendAdapter.fetchIRPFData(), 
+        backendAdapter.fetchSociedadesData()
+      ]);
+
+      // Combinar todos los datos
+      const combinedData = {
+        // Datos operativos del dashboard principal
+        treasury: {
+          total: dashboardData.totalCash || 0,
+          accounts: 6, // Dato fijo conocido
+          currency: 'EUR'
         },
-        body: JSON.stringify({
-          tenant_slug: 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd'
-        }),
-      });
+        revenue: {
+          monthly: dashboardData.monthlyRevenue || 0,
+          quarterly: dashboardData.quarterlyRevenue || 0,
+          yearly: dashboardData.yearlyRevenue || 0,
+          pendingCount: dashboardData.pendingInvoices || 0
+        },
+        expenses: {
+          monthly: dashboardData.monthlyExpenses || 0,
+          quarterly: dashboardData.quarterlyExpenses || 0,
+          yearly: dashboardData.yearlyExpenses || 0,
+          pendingCount: dashboardData.pendingPayments || 0
+        },
+        profitability: {
+          monthlyMargin: dashboardData.monthlyMargin || 0,
+          quarterlyMargin: dashboardData.quarterlyMargin || 0,
+          yearlyMargin: dashboardData.yearlyMargin || 0,
+          marginPercentage: dashboardData.marginPercentage || 0
+        },
+        // Datos fiscales adicionales
+        fiscal: {
+          iva: ivaData,
+          irpf: irpfData,
+          sociedades: sociedadesData
+        },
+        alerts: dashboardData.alerts || [],
+        lastUpdated: new Date().toISOString()
+      };
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result: ApiResponse = await response.json();
-      console.log('API Response:', result);
-
-      if (result.ok && result.widget_data?.dashboard?.success) {
-        const dashboardPayload = result.widget_data.dashboard.payload;
-        setData(dashboardPayload);
-        setLastSync(new Date());
-      } else {
-        throw new Error(result.error || 'Failed to load dashboard data');
-      }
+      setData(combinedData);
+      setLastSync(new Date());
     } catch (err) {
       console.error('Error fetching dashboard:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
