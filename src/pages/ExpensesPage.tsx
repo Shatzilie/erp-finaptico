@@ -107,39 +107,39 @@ export default function ExpensesPage() {
 
   const kpiCards = [
     {
-      title: "Gastos Mensuales",
+      title: "Gastos de este mes",
       value: displayData.monthly_expenses,
       icon: ShoppingCart,
-      description: "Gastos del mes actual",
+      description: "Has gastado este mes",
       color: "text-red-600"
     },
     {
-      title: "Gastos Trimestrales", 
+      title: "Gastos del trimestre", 
       value: displayData.quarterly_expenses,
       icon: TrendingDown,
-      description: "Gastos del trimestre",
+      description: "Total gastado en el trimestre",
       color: "text-orange-600"
     },
     {
-      title: "Gastos Anuales",
+      title: "Gastos del año",
       value: displayData.annual_expenses,
       icon: TrendingDown,
-      description: "Gastos del año",
+      description: "Has gastado este año",
       color: "text-purple-600"
     },
     {
-      title: "Facturas Pendientes",
+      title: "Facturas por pagar",
       value: displayData.pending_invoices_count,
       icon: Clock,
-      description: "Facturas por pagar",
+      description: "Estoy controlando los pagos pendientes",
       color: "text-yellow-600",
       isCount: true
     },
     {
-      title: "Total Facturas",
+      title: "Facturas de gastos",
       value: displayData.total_invoices,
       icon: FileText,
-      description: "Facturas totales",
+      description: "Total de facturas registradas",
       color: "text-gray-600",
       isCount: true
     }
@@ -149,9 +149,9 @@ export default function ExpensesPage() {
     <div className="container mx-auto px-6 py-8 max-w-7xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Gastos</h1>
+          <h1 className="text-3xl font-bold text-foreground">Control de Gastos</h1>
           <p className="text-muted-foreground mt-2">
-            Gestión y seguimiento de gastos y facturas de proveedores
+            Estoy controlando todos tus gastos y facturas de proveedores para optimizar tu fiscalidad
           </p>
         </div>
         
@@ -162,14 +162,16 @@ export default function ExpensesPage() {
           className="gap-2"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          {loading ? 'Actualizando...' : 'Actualizar datos'}
+          {loading ? 'Actualizando datos...' : 'Actualizar datos'}
         </Button>
       </div>
 
       {error && (
         <Card className="mb-6 border-destructive">
           <CardContent className="p-4">
-            <p className="text-destructive">Error: {error}</p>
+            <p className="text-destructive">
+              No puedo conectar con Odoo ahora mismo. Te muestro los últimos datos disponibles.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -203,9 +205,9 @@ export default function ExpensesPage() {
         <Card className="mt-8">
           <CardContent className="p-8 text-center">
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No hay datos disponibles</h3>
+            <h3 className="text-lg font-semibold mb-2">Cargando tus datos de gastos</h3>
             <p className="text-muted-foreground mb-4">
-              Haz clic en "Actualizar datos" para cargar la información de gastos.
+              Estoy conectando con Odoo para traerte la información más actualizada de tus gastos.
             </p>
             <Button onClick={fetchExpensesData} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
