@@ -192,29 +192,38 @@ export class ActionableFiscalCalendar {
     };
   }
 
+  // 🧮 CALCULAR OBLIGACIONES REALES A PAGAR (solo positivos)
+  getPayableObligations(): number {
+    const ivaAmount = this.companyData.currentIVA > 0 ? this.companyData.currentIVA : 0;
+    const irpfAmount = this.companyData.currentIRPF > 0 ? this.companyData.currentIRPF : 0; 
+    const isAmount = this.companyData.currentIS > 0 ? this.companyData.currentIS : 0;
+    
+    return ivaAmount + irpfAmount + isAmount;
+  }
+
   // 💡 RECOMENDACIONES ACCIONABLES
   getActionableRecommendations(): FiscalRecommendation[] {
     const recommendations: FiscalRecommendation[] = [];
-    const summary = this.getSummary();
+    const payableAmount = this.getPayableObligations();
 
-    // Recomendaciones de flujo de caja
-    if (summary.totalEstimatedCost > 1000) {
+    // Recomendaciones de flujo de caja - Solo pagos reales
+    if (payableAmount > 1000) {
       recommendations.push({
         type: 'cash_flow',
         priority: 'high',
         title: 'Planificación de Tesorería',
-        message: `Tienes ${summary.totalEstimatedCost.toLocaleString()}€ en obligaciones próximas. Asegura liquidez.`,
+        message: `Tienes ${payableAmount.toLocaleString()}€ en obligaciones próximas a pagar. Asegura liquidez.`,
         actionable: true
       });
     }
 
-    // Optimización IRPF
+    // IRPF a compensar (cambio de título y prioridad)
     if (this.companyData.currentIRPF < -1000) {
       recommendations.push({
         type: 'tax_optimization',
-        priority: 'high',
-        title: 'Recupera tu IRPF',
-        message: `Tienes ${Math.abs(this.companyData.currentIRPF).toLocaleString()}€ a tu favor. Solicita la devolución.`,
+        priority: 'medium', // Cambiado de 'high' a 'medium' para badge azul
+        title: 'IRPF a Compensar',
+        message: `Tienes ${Math.abs(this.companyData.currentIRPF).toLocaleString()}€ a tu favor. Se compensará automáticamente en futuras declaraciones.`,
         actionable: true,
         estimatedSaving: Math.abs(this.companyData.currentIRPF)
       });
