@@ -149,13 +149,23 @@ export default function VatPage() {
     return 'text-muted-foreground';
   };
 
+  const getStatusMessage = (diferencia: number, status: string) => {
+    if (diferencia > 0) {
+      return `Este trimestre pagarás ${formatCurrency(diferencia)} de IVA`;
+    } else if (diferencia < 0) {
+      return `Tienes ${formatCurrency(Math.abs(diferencia))} a tu favor de IVA`;
+    } else {
+      return 'IVA equilibrado este trimestre';
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">IVA</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Declaración de IVA</h1>
           <p className="text-muted-foreground">
-            Cálculos trimestrales de IVA
+            Estoy calculando tu IVA trimestral y preparando las declaraciones
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -169,7 +179,7 @@ export default function VatPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Período de Consulta
+            Selecciona el trimestre a consultar
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -222,7 +232,7 @@ export default function VatPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">IVA Repercutido</CardTitle>
+            <CardTitle className="text-sm font-medium">IVA cobrado</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -230,21 +240,21 @@ export default function VatPage() {
               {loading ? (
                 <div className="flex items-center">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Cargando...
+                  Calculando...
                 </div>
               ) : (
                 formatCurrency(ivaData?.iva_repercutido || 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              IVA cobrado a clientes
+              IVA repercutido en tus ventas
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">IVA Soportado</CardTitle>
+            <CardTitle className="text-sm font-medium">IVA pagado</CardTitle>
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -252,21 +262,21 @@ export default function VatPage() {
               {loading ? (
                 <div className="flex items-center">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Cargando...
+                  Calculando...
                 </div>
               ) : (
                 formatCurrency(ivaData?.iva_soportado || 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              IVA pagado a proveedores
+              IVA soportado en tus compras
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">IVA Diferencia</CardTitle>
+            <CardTitle className="text-sm font-medium">Resultado del IVA</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -274,21 +284,21 @@ export default function VatPage() {
               {loading ? (
                 <div className="flex items-center">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Cargando...
+                  Calculando...
                 </div>
               ) : (
                 formatCurrency(ivaData?.iva_diferencia || 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {(ivaData?.iva_diferencia || 0) > 0 ? 'A ingresar' : 'A compensar'}
+              {(ivaData?.iva_diferencia || 0) > 0 ? 'Vas a pagar' : 'Tienes a favor'}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estado</CardTitle>
+            <CardTitle className="text-sm font-medium">Mi gestión</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -296,11 +306,13 @@ export default function VatPage() {
               {loading ? (
                 <div className="flex items-center">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Cargando...
+                  Calculando...
                 </div>
               ) : (
                 <Badge variant={getStatusColor(ivaData?.status || '')}>
-                  {ivaData?.status || 'DESCONOCIDO'}
+                  {ivaData?.status === 'A INGRESAR' ? 'PREPARANDO PAGO' : 
+                   ivaData?.status === 'A COMPENSAR' ? 'GESTIONANDO DEVOLUCIÓN' : 
+                   'EQUILIBRADO'}
                 </Badge>
               )}
             </div>
@@ -317,7 +329,7 @@ export default function VatPage() {
           <div className="flex items-center">
             <AlertCircle className="h-5 w-5 text-blue-600 mr-2" />
             <span className="text-blue-800">
-              Período futuro: Los datos para Q{selectedQuarter} {selectedYear} no están disponibles hasta que transcurra el trimestre.
+              Este trimestre aún no ha terminado. Los datos de Q{selectedQuarter} {selectedYear} se actualizarán cuando transcurra el período.
             </span>
           </div>
         </div>
@@ -329,7 +341,7 @@ export default function VatPage() {
           <div className="flex items-center">
             <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
             <span className="text-yellow-800">
-              No hay facturas registradas para Q{selectedQuarter} {selectedYear}.
+              No encuentro facturas registradas para Q{selectedQuarter} {selectedYear}. Revisa que estén todas subidas a Odoo.
             </span>
           </div>
         </div>
@@ -339,43 +351,45 @@ export default function VatPage() {
       {ivaData && (
         <Card>
           <CardHeader>
-            <CardTitle>Resumen del Trimestre</CardTitle>
+            <CardTitle>Mi cálculo para este trimestre</CardTitle>
             <CardDescription>
-              Período: Q{ivaData.period.quarter} {ivaData.period.year}
+              Q{ivaData.period.quarter} {ivaData.period.year} - {getStatusMessage(ivaData.iva_diferencia, ivaData.status)}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span>IVA Repercutido (cobrado):</span>
+              <span>IVA cobrado a tus clientes:</span>
               <span className="font-semibold">{formatCurrency(ivaData.iva_repercutido)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>IVA Soportado (pagado):</span>
+              <span>IVA pagado a proveedores:</span>
               <span className="font-semibold">{formatCurrency(ivaData.iva_soportado)}</span>
             </div>
             
             {/* Invoice Counters */}
             <div className="grid grid-cols-2 gap-4 py-2">
               <div>
-                <p className="text-sm text-muted-foreground">Facturas de Venta</p>
+                <p className="text-sm text-muted-foreground">Facturas emitidas</p>
                 <p className="text-lg font-semibold">{ivaData?.sales_invoices_count || 0}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Facturas de Compra</p>
+                <p className="text-sm text-muted-foreground">Facturas recibidas</p>
                 <p className="text-lg font-semibold">{ivaData?.purchase_invoices_count || 0}</p>
               </div>
             </div>
             
             <Separator />
             <div className="flex justify-between items-center">
-              <span className="font-semibold">Diferencia:</span>
+              <span className="font-semibold">Resultado final:</span>
               <span className={`font-bold text-lg ${getDiferenciaColor(ivaData.iva_diferencia)}`}>
                 {formatCurrency(ivaData.iva_diferencia)}
               </span>
             </div>
             <div className="text-center">
               <Badge variant={getStatusColor(ivaData.status)} className="text-sm">
-                {ivaData.status}
+                {ivaData.status === 'A INGRESAR' ? 'Ya estoy preparando la declaración' :
+                 ivaData.status === 'A COMPENSAR' ? 'Estoy tramitando la devolución' :
+                 'Todo equilibrado este trimestre'}
               </Badge>
             </div>
           </CardContent>
