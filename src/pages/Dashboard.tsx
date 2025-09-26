@@ -11,6 +11,8 @@ import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { TrendingUp, DollarSign, FileText } from 'lucide-react';
 import KpiBoard from '@/components/dashboard/KpiBoard';
 import StubPage from '@/pages/stubs/StubPage';
+import { PDFGenerator } from '@/components/PDFGenerator';
+import { PageHeader } from '@/components/PageHeader';
 
 type ChangeType = 'positive' | 'negative' | 'neutral';
 
@@ -303,6 +305,26 @@ const DashboardContent = () => {
       
       <div className="flex-1">
         <DashboardHeader />
+        
+        {/* Header con botón PDF */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div>
+                <PageHeader 
+                  title="Dashboard Ejecutivo" 
+                  subtitle="Resumen financiero y fiscal en tiempo real"
+                />
+              </div>
+              <div className="flex space-x-4">
+                <PDFGenerator 
+                  tenantSlug="c4002f55-f7d5-4dd4-9942-d7ca65a551fd"
+                  className="shadow-lg"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
         
         <main className="p-6">
           {renderMainContent()}
