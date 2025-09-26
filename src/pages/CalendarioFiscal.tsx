@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useTenantFeatures } from '@/hooks/useTenantFeatures';
 import { 
   Calendar, 
   AlertTriangle, 
@@ -16,7 +17,8 @@ import {
   TrendingUp,
   Bell,
   CalendarDays,
-  Target
+  Target,
+  Info
 } from 'lucide-react';
 import { 
   ActionableFiscalCalendar, 
@@ -24,23 +26,116 @@ import {
   type ActionableFiscalObligation 
 } from '@/lib/fiscalCalendar';
 
+// Helper function para convertir slug a UUID
+const getTenantId = (tenant: string) => {
+  const tenantMap: Record<string, string> = {
+    'young-minds': 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
+    'blacktar': 'otro-uuid-aqui' // Add real UUID when available
+  };
+  return tenantMap[tenant] || tenant;
+};
+
+interface FiscalData {
+  iva: {
+    diferencia: number;
+    iva_repercutido: number;
+    iva_soportado: number;
+  };
+  irpf: {
+    diferencia: number;
+    retenciones_practicadas: number;
+    retenciones_soportadas: number;
+  };
+  sociedades: {
+    cuota_diferencial: number;
+    resultado_ejercicio: number;
+    base_imponible: number;
+  };
+}
+
 const CalendarioFiscal: React.FC = () => {
+  const { slug } = useTenantFeatures();
   const [obligations, setObligations] = useState<ActionableFiscalObligation[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fiscalData, setFiscalData] = useState<FiscalData | null>(null);
+
+  // Fetch fiscal data from endpoints
+  const fetchFiscalData = async (): Promise<FiscalData> => {
+    if (!slug) throw new Error('No tenant slug available');
+    
+    const currentYear = new Date().getFullYear();
+    const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+    const tenantId = getTenantId(slug);
+
+    const [ivaResponse, irpfResponse, sociedadesResponse] = await Promise.all([
+      fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          tenant_slug: tenantId,
+          quarter: currentQuarter,
+          year: currentYear
+        })
+      }),
+      fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-irpf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          tenant_slug: tenantId,
+          quarter: currentQuarter,
+          year: currentYear
+        })
+      }),
+      fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          tenant_slug: tenantId,
+          year: currentYear
+        })
+      })
+    ]);
+
+    const [ivaData, irpfData, sociedadesData] = await Promise.all([
+      ivaResponse.json(),
+      irpfResponse.json(),
+      sociedadesResponse.json()
+    ]);
+
+    return {
+      iva: ivaData.widget_data?.iva?.payload || { diferencia: 0, iva_repercutido: 0, iva_soportado: 0 },
+      irpf: irpfData.widget_data?.irpf?.payload || { diferencia: 0, retenciones_practicadas: 0, retenciones_soportadas: 0 },
+      sociedades: sociedadesData.widget_data?.sociedades?.payload || { cuota_diferencial: 0, resultado_ejercicio: 0, base_imponible: 0 }
+    };
+  };
 
   useEffect(() => {
     const loadFiscalData = async () => {
+      if (!slug) return;
+      
       setLoading(true);
       
       try {
+        const data = await fetchFiscalData();
+        setFiscalData(data);
+
         const companyData = {
           hasEmployees: true,
           annualRevenue: 50300,
-          currentIVA: 1766,   // Del dashboard real
-          currentIRPF: -1598, // Del dashboard real  
-          currentIS: 0        // Del dashboard real
+          currentIVA: data.iva.diferencia,
+          currentIRPF: data.irpf.diferencia,
+          currentIS: data.sociedades.cuota_diferencial
         };
 
         const fiscalCalendar = createActionableFiscalCalendar(companyData);
@@ -60,7 +155,7 @@ const CalendarioFiscal: React.FC = () => {
     };
 
     loadFiscalData();
-  }, []);
+  }, [slug]);
 
   const formatDate = (date: Date): string => {
     return new Intl.DateTimeFormat('es-ES', {
@@ -106,8 +201,27 @@ const CalendarioFiscal: React.FC = () => {
         return 'outline';
       case 'prepare':
         return 'default';
+      case 'info': // Nuevo tipo para IRPF
+        return 'outline';
       default:
         return 'secondary';
+    }
+  };
+
+  const getActionTypeLabel = (actionType: ActionableFiscalObligation['actionType']) => {
+    switch (actionType) {
+      case 'pay':
+        return 'Pagar';
+      case 'file':
+        return 'Presentar';
+      case 'present':
+        return 'Declarar';
+      case 'prepare':
+        return 'Preparar';
+      case 'info':
+        return 'Información';
+      default:
+        return 'Acción';
     }
   };
 
@@ -238,9 +352,7 @@ const CalendarioFiscal: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <Badge variant={getActionTypeColor(obligation.actionType)} className="mb-2">
-                            {obligation.actionType === 'pay' ? 'Pagar' : 
-                             obligation.actionType === 'file' ? 'Presentar' : 
-                             obligation.actionType === 'present' ? 'Declarar' : 'Preparar'}
+                            {getActionTypeLabel(obligation.actionType)}
                           </Badge>
                           <div className="text-sm text-gray-600">
                             Vence: <strong>{formatDate(obligation.dueDate)}</strong>

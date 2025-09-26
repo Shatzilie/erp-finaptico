@@ -9,7 +9,7 @@ export interface ActionableFiscalObligation {
   dueDate: Date;
   period: string; // "Q3 2025", "2025", etc.
   urgency: 'critical' | 'upcoming' | 'planned';
-  actionType: 'present' | 'file' | 'pay' | 'prepare';
+  actionType: 'present' | 'file' | 'pay' | 'prepare' | 'info';
   estimatedAmount?: number;
   daysLeft: number;
   description: string;
@@ -110,13 +110,13 @@ export class ActionableFiscalCalendar {
           dueDate: irpfQ3Due,
           period: 'Q3 2025',
           urgency: daysLeft <= 7 ? 'critical' : daysLeft <= 30 ? 'upcoming' : 'planned',
-          actionType: this.companyData.currentIRPF > 0 ? 'pay' : 'file',
+          actionType: this.companyData.currentIRPF > 0 ? 'pay' : 'info',
           estimatedAmount: Math.abs(this.companyData.currentIRPF),
           daysLeft,
           description: 'Retenciones e ingresos a cuenta del IRPF',
           actionRequired: this.companyData.currentIRPF > 0 
             ? `Presentar y pagar ${this.companyData.currentIRPF.toLocaleString()}€`
-            : `Solicitar devolución de ${Math.abs(this.companyData.currentIRPF).toLocaleString()}€`
+            : `A compensar automáticamente en futuras declaraciones: ${Math.abs(this.companyData.currentIRPF).toLocaleString()}€`
         });
       }
     }
