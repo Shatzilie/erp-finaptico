@@ -90,7 +90,7 @@ export function KpiBoard() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/dashboard', {
+      const response = await fetch('https://fobpgsqxhlrlzecgkzra.supabase.co/functions/v1/odoo-dashboard', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
