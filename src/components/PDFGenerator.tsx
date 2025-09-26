@@ -63,9 +63,10 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
 
     } catch (error) {
       console.error('❌ Error generando PDF:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       toast({
         title: "❌ Error",
-        description: `No se pudo generar el informe: ${error.message}`,
+        description: `No se pudo generar el informe: ${errorMessage}`,
         variant: "destructive"
       });
     } finally {
