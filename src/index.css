@@ -8,26 +8,26 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Corporate Financial Theme */
+    /* Corporate Identity Theme */
     --background: 220 15% 97%;
-    --foreground: 220 15% 12%;
+    --foreground: 215 42% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 12%;
+    --card-foreground: 215 42% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 12%;
+    --popover-foreground: 215 42% 12%;
 
-    --primary: 221 83% 53%;
+    --primary: 248 78% 64%;
     --primary-foreground: 0 0% 98%;
 
     --secondary: 220 14% 96%;
-    --secondary-foreground: 220 15% 25%;
+    --secondary-foreground: 215 16% 34%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 220 13% 46%;
+    --muted-foreground: 215 13% 47%;
 
-    --accent: 142 76% 36%;
+    --accent: 169 100% 37%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 60%;
@@ -35,22 +35,22 @@ All colors MUST be HSL.
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 221 83% 53%;
+    --ring: 248 78% 64%;
 
     /* Financial specific colors */
-    --profit: 142 76% 36%;
+    --profit: 169 100% 37%;
     --loss: 0 84% 60%;
     --warning: 43 96% 56%;
     --info: 199 89% 48%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(221, 83%, 53%), hsl(221, 83%, 63%));
+    --gradient-primary: linear-gradient(135deg, hsl(248, 78%, 64%), hsl(248, 78%, 74%));
     --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%), hsl(220, 14%, 98%));
-    --gradient-sidebar: linear-gradient(180deg, hsl(220, 15%, 25%), hsl(220, 15%, 20%));
+    --gradient-sidebar: linear-gradient(180deg, hsl(215, 42%, 25%), hsl(215, 42%, 20%));
 
     /* Shadows */
-    --shadow-card: 0 4px 6px -1px hsl(220, 13%, 46% / 0.1), 0 2px 4px -1px hsl(220, 13%, 46% / 0.06);
-    --shadow-elevated: 0 10px 15px -3px hsl(220, 13%, 46% / 0.1), 0 4px 6px -2px hsl(220, 13%, 46% / 0.05);
+    --shadow-card: 0 4px 6px -1px hsl(215, 13%, 47% / 0.1), 0 2px 4px -1px hsl(215, 13%, 47% / 0.06);
+    --shadow-elevated: 0 10px 15px -3px hsl(215, 13%, 47% / 0.1), 0 4px 6px -2px hsl(215, 13%, 47% / 0.05);
 
     --radius: 0.5rem;
 
@@ -81,8 +81,8 @@ All colors MUST be HSL.
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 248 78% 64%;
+    --primary-foreground: 0 0% 98%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -90,23 +90,23 @@ All colors MUST be HSL.
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 169 100% 37%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 248 78% 64%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 248 78% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 248 78% 64%;
   }
 }
 
