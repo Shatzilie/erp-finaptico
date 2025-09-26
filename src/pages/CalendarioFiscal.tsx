@@ -37,7 +37,8 @@ const getTenantId = (tenant: string) => {
 
 interface FiscalData {
   iva: {
-    diferencia: number;
+    iva_diferencia?: number;
+    diferencia?: number;
     iva_repercutido: number;
     iva_soportado: number;
   };
@@ -133,9 +134,9 @@ const CalendarioFiscal: React.FC = () => {
         const companyData = {
           hasEmployees: true,
           annualRevenue: 50300,
-          currentIVA: data.iva.diferencia,
-          currentIRPF: data.irpf.diferencia,
-          currentIS: data.sociedades.cuota_diferencial
+          currentIVA: data.iva.iva_diferencia || data.iva.diferencia || 0,
+          currentIRPF: data.irpf.diferencia || 0,
+          currentIS: data.sociedades.cuota_diferencial || 0
         };
 
         const fiscalCalendar = createActionableFiscalCalendar(companyData);
