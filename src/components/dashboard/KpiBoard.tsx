@@ -2,7 +2,6 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Wallet, Receipt, Calculator, Building2, AlertCircle } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
 
 interface KpiData {
   treasury: {
@@ -59,6 +58,16 @@ interface KpiBoardProps {
 }
 
 const KpiBoard: React.FC<KpiBoardProps> = ({ data }) => {
+  // Función para formatear moneda
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+
   return (
     <div className="space-y-6">
       {/* Alertas */}
