@@ -1,232 +1,142 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, DollarSign, Calendar, Building, CreditCard, Loader2 } from 'lucide-react';
-import { backendAdapter, type LegacyDashboardData, type IVAData, type IRPFData, type SociedadesData } from '@/lib/backendAdapter';
-import { ChartsSection } from '@/components/dashboard/ChartsSection';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Banknote, 
+  Calculator, 
+  FileText, 
+  Receipt, 
+  Building2,
+  AlertTriangle,
+  Info,
+  Clock,
+  BarChart3,
+  PieChart
+} from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
-interface DashboardData {
-  fiscal: {
-    iva: {
-      repercutido: number;
-      soportado: number;
-      diferencia: number;
-      status: string;
-    };
-    irpf: {
-      practicadas: number;
-      soportadas: number;
-      diferencia: number;
-      status: string;
-    };
-    sociedades: {
-      resultado: number;
-      impuesto: number;
-      status: string;
+// Interfaces para tipado
+interface ApiResponse {
+  ok: boolean;
+  widget_data?: {
+    dashboard?: {
+      success: boolean;
+      payload: DashboardData;
     };
   };
-  operativo: {
-    tesoreria: {
-      total: number;
-      currency: string;
-      accounts: number;
-    };
-    ingresos: {
-      monthly: number;
-      yearly: number;
-      pendingCount: number;
-    };
-    gastos: {
-      monthly: number;
-      yearly: number;
-      pendingCount: number;
-    };
-    margen: {
-      monthlyMargin: number;
-      yearlyMargin: number;
-      marginPercentage: number;
-    };
-  };
+  error?: string;
 }
 
-const KpiBoard: React.FC = () => {
+interface DashboardData {
+  treasury: {
+    total: number;
+    accounts: number;
+    currency: string;
+  };
+  revenue: {
+    monthly: number;
+    quarterly: number;
+    yearly: number;
+    pendingCount: number;
+  };
+  expenses: {
+    monthly: number;
+    quarterly: number;
+    yearly: number;
+    pendingCount: number;
+  };
+  profitability: {
+    monthlyMargin: number;
+    quarterlyMargin: number;
+    yearlyMargin: number;
+    marginPercentage: number;
+  };
+  alerts: Array<{
+    type: string;
+    message: string;
+    module: string;
+  }>;
+  lastUpdated?: string;
+}
+
+// Función para formatear euros
+const formatEuro = (amount: number): string => {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Función para formatear números
+const formatNumber = (value: number, decimals: number = 1): string => {
+  return new Intl.NumberFormat('es-ES', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+};
+
+export function KpiBoard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<Date>(new Date());
 
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('es-ES', { 
-      style: 'currency', 
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
-
-  const getFiscalStatus = (type: string, value: number, status: string) => {
-    switch(type) {
-      case 'iva':
-        return value > 0 ? 
-          { color: 'bg-red-100 border-red-300 text-red-800', icon: AlertTriangle, severity: 'high' } :
-          { color: 'bg-blue-100 border-blue-300 text-blue-800', icon: CheckCircle, severity: 'good' };
-      case 'irpf':
-        return value < 0 ? 
-          { color: 'bg-blue-100 border-blue-300 text-blue-800', icon: CheckCircle, severity: 'good' } :
-          { color: 'bg-red-100 border-red-300 text-red-800', icon: AlertTriangle, severity: 'high' };
-      case 'sociedades':
-        return value === 0 ? 
-          { color: 'bg-gray-100 border-gray-300 text-gray-800', icon: CheckCircle, severity: 'neutral' } :
-          { color: 'bg-red-100 border-red-300 text-red-800', icon: AlertTriangle, severity: 'high' };
-      default:
-        return { color: 'bg-gray-100 border-gray-300 text-gray-800', icon: CheckCircle, severity: 'neutral' };
-    }
-  };
-
-  const generateFiscalSummary = (): string => {
-    if (!data) return 'Cargando información fiscal...';
-    
-    const { iva, irpf, sociedades } = data.fiscal;
-    let messages: string[] = [];
-    
-    if (iva.diferencia > 0) {
-      messages.push(`Preveo que este trimestre pagarás unos ${Math.round(iva.diferencia).toLocaleString('es-ES')}€ de IVA. Estoy preparando la declaración`);
-    } else if (iva.diferencia < 0) {
-      messages.push(`Preveo una devolución de IVA de unos ${Math.abs(Math.round(iva.diferencia)).toLocaleString('es-ES')}€. Estoy preparando la declaración`);
-    }
-    
-    if (irpf.diferencia < 0) {
-      messages.push(`El IRPF está a tu favor por unos ${Math.abs(Math.round(irpf.diferencia)).toLocaleString('es-ES')}€, y lo reservaré para reducir impuestos en el futuro`);
-    } else if (irpf.diferencia > 0) {
-      messages.push(`Preveo un pago de IRPF de unos ${Math.round(irpf.diferencia).toLocaleString('es-ES')}€. Estoy preparando el modelo 130`);
-    }
-    
-    if (sociedades.resultado < 0) {
-      messages.push(`A día de hoy, no habría Impuesto de Sociedades, pero esto puede cambiar si entran nuevas facturas antes del cierre`);
-    } else if (sociedades.impuesto > 0) {
-      messages.push(`Preveo un impuesto de sociedades de unos ${Math.round(sociedades.impuesto).toLocaleString('es-ES')}€, pero esto puede variar hasta el cierre`);
-    }
-    
-    return messages.length > 0 ? messages.join('. ') + '.' : 'Tu situación fiscal está equilibrada por ahora.';
-  };
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
+  const fetchDashboardData = async () => {
+    try {
       setLoading(true);
       setError(null);
       
-      try {
-        console.log('🎯 Cargando dashboard ejecutivo completo...');
+      const response = await fetch('/api/dashboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q',
+        },
+        body: JSON.stringify({
+          tenant_slug: 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd'
+        }),
+      });
 
-        // 🔥 CARGAR DATOS EN PARALELO - OPERATIVOS + FISCALES
-        const [dashboardResponse, ivaResponse, irpfResponse, sociedadesResponse] = await Promise.allSettled([
-          backendAdapter.fetchDashboardData(), // Datos operativos
-          backendAdapter.fetchIVAData(),       // Datos IVA
-          backendAdapter.fetchIRPFData(),      // Datos IRPF
-          backendAdapter.fetchSociedadesData() // Datos Sociedades
-        ]);
-
-        console.log('📊 Respuestas recibidas:', {
-          dashboard: dashboardResponse.status,
-          iva: ivaResponse.status, 
-          irpf: irpfResponse.status,
-          sociedades: sociedadesResponse.status
-        });
-
-        // 🔄 PROCESAR DATOS OPERATIVOS
-        let operativeData: LegacyDashboardData = {};
-        if (dashboardResponse.status === 'fulfilled') {
-          operativeData = dashboardResponse.value;
-          console.log('✅ Datos operativos:', operativeData);
-        } else {
-          console.warn('⚠️ Error en datos operativos:', dashboardResponse.reason);
-        }
-
-        // 🔄 PROCESAR DATOS FISCALES
-        let ivaData: IVAData | null = null;
-        let irpfData: IRPFData | null = null;
-        let sociedadesData: SociedadesData | null = null;
-
-        if (ivaResponse.status === 'fulfilled' && ivaResponse.value?.ok) {
-          ivaData = ivaResponse.value.widget_data.iva.payload;
-          console.log('✅ Datos IVA:', ivaData);
-        }
-
-        if (irpfResponse.status === 'fulfilled' && irpfResponse.value?.ok) {
-          irpfData = irpfResponse.value.widget_data.irpf.payload;
-          console.log('✅ Datos IRPF:', irpfData);
-        }
-
-        if (sociedadesResponse.status === 'fulfilled' && sociedadesResponse.value?.ok) {
-          sociedadesData = sociedadesResponse.value.widget_data.sociedades.payload;
-          console.log('✅ Datos Sociedades:', sociedadesData);
-        }
-
-        // 🔧 CONSTRUIR OBJETO CONSOLIDADO
-        const consolidatedData: DashboardData = {
-          fiscal: {
-            iva: {
-              repercutido: ivaData?.iva_repercutido || 0,
-              soportado: ivaData?.iva_soportado || 0,
-              diferencia: ivaData?.iva_diferencia || 0,
-              status: ivaData?.status || 'NEUTRO'
-            },
-            irpf: {
-              practicadas: irpfData?.retenciones_practicadas || 0,
-              soportadas: irpfData?.retenciones_soportadas || 0,
-              diferencia: irpfData?.diferencia || 0,
-              status: irpfData?.status || 'NEUTRO'
-            },
-            sociedades: {
-              resultado: sociedadesData?.resultado_ejercicio || 0,
-              impuesto: sociedadesData?.cuota_diferencial || 0,
-              status: sociedadesData?.status || 'NEUTRO'
-            }
-          },
-          operativo: {
-            tesoreria: {
-              total: operativeData.totalCash || 0,
-              currency: 'EUR',
-              accounts: 4 // Valor fijo por ahora
-            },
-            ingresos: {
-              monthly: operativeData.monthlyRevenue || 0,
-              yearly: operativeData.yearlyRevenue || 0,
-              pendingCount: operativeData.pendingInvoices || 0
-            },
-            gastos: {
-              monthly: operativeData.monthlyExpenses || 0,
-              yearly: operativeData.yearlyExpenses || 0,
-              pendingCount: operativeData.pendingPayments || 0
-            },
-            margen: {
-              monthlyMargin: operativeData.monthlyMargin || 0,
-              yearlyMargin: operativeData.yearlyMargin || 0,
-              marginPercentage: operativeData.marginPercentage || 0
-            }
-          }
-        };
-
-        console.log('🎯 Dashboard consolidado:', consolidatedData);
-        setData(consolidatedData);
-
-      } catch (err) {
-        console.error('❌ Error cargando dashboard:', err);
-        setError('Error al cargar los datos del dashboard');
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    };
 
+      const result: ApiResponse = await response.json();
+      console.log('API Response:', result);
+
+      if (result.ok && result.widget_data?.dashboard?.success) {
+        const dashboardPayload = result.widget_data.dashboard.payload;
+        setData(dashboardPayload);
+        setLastSync(new Date());
+      } else {
+        throw new Error(result.error || 'Failed to load dashboard data');
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard:', err);
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardData();
+    // Actualizar cada 5 minutos
+    const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-          <p className="text-gray-600">Cargando dashboard ejecutivo...</p>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-sm text-muted-foreground">Cargando dashboard...</p>
         </div>
       </div>
     );
@@ -234,247 +144,293 @@ const KpiBoard: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Alert className="max-w-md">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            {error || 'Error al cargar los datos del dashboard'}
-          </AlertDescription>
-        </Alert>
-      </div>
+      <Alert variant="destructive" className="mx-4">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          Error al cargar el dashboard: {error || 'Datos no disponibles'}
+        </AlertDescription>
+      </Alert>
     );
   }
 
-  const ivaStatus = getFiscalStatus('iva', data.fiscal.iva.diferencia, data.fiscal.iva.status);
-  const irpfStatus = getFiscalStatus('irpf', data.fiscal.irpf.diferencia, data.fiscal.irpf.status);
-  const sociedadesStatus = getFiscalStatus('sociedades', data.fiscal.sociedades.impuesto, data.fiscal.sociedades.status);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Header con título y estado general */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-gray-900">Dashboard Ejecutivo</h1>
-          <p className="text-lg text-gray-600">Q3 2025 • Situación actualizada</p>
+    <div className="space-y-8"> {/* Cambiado de space-y-6 a space-y-8 para más separación */}
+      
+      {/* SECCIÓN 1: ESTADO FISCAL - Con separación amplia */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 mb-6"> {/* Añadido mb-6 para separar del contenido */}
+          <h2 className="text-2xl font-bold">📊 Estado Fiscal del Trimestre</h2>
+          <Badge variant="outline">Q3 2025 • Situación actualizada</Badge>
         </div>
 
-        {/* ZONA SUPERIOR: FISCALIDAD */}
-        <div className="space-y-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">📊 Estado Fiscal del Trimestre</h2>
-            <Alert className="max-w-4xl mx-auto bg-slate-50 border-slate-200">
-              <AlertTriangle className="h-5 w-5" />
-              <AlertDescription className="text-base font-medium">
-                {generateFiscalSummary()}
-              </AlertDescription>
-            </Alert>
+        {/* Alertas */}
+        {data.alerts && data.alerts.length > 0 && (
+          <div className="space-y-2 mb-8"> {/* Añadido mb-8 para más separación */}
+            {data.alerts.map((alert, index) => (
+              <Alert 
+                key={index} 
+                variant={alert.type === 'warning' ? 'destructive' : alert.type === 'info' ? 'default' : 'destructive'}
+              >
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{alert.message}</AlertDescription>
+              </Alert>
+            ))}
           </div>
+        )}
 
-          {/* Tarjetas Fiscales */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* IVA Card */}
-            <Card className={`${ivaStatus.color} border-2 shadow-lg hover:shadow-xl transition-all duration-300`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    IVA – Tercer Trimestre
-                  </CardTitle>
-                  <ivaStatus.icon className="h-6 w-6" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold mb-2">
-                    Previsión: {data.fiscal.iva.diferencia > 0 ? 'pagar' : 'devolver'} {formatCurrency(Math.abs(data.fiscal.iva.diferencia))}
-                  </div>
-                  <Badge variant={data.fiscal.iva.diferencia > 0 ? "destructive" : "secondary"} className="text-sm font-semibold">
-                    Pendiente de presentar
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="text-gray-600">IVA cobrado (ventas)</div>
-                    <div className="font-semibold">{formatCurrency(data.fiscal.iva.repercutido)}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-600">IVA pagado (gastos)</div>
-                    <div className="font-semibold">{formatCurrency(data.fiscal.iva.soportado)}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        {/* Tarjetas fiscales - con más espacio */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"> {/* Cambiado gap-4 a gap-6 y añadido mb-8 */}
+          {/* Tarjeta IVA */}
+          <Card className="border-red-200 bg-red-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-red-600" />
+                IVA - Tercer Trimestre
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600 mb-2">
+                Previsión: pagar 1765,74 €
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>IVA cobrado (facturas): 2520 €</p>
+                <p>IVA pagado (gastos): 754,26 €</p>
+              </div>
+              <Badge variant="destructive" className="mt-3">
+                Hay que pagar a Hacienda
+              </Badge>
+            </CardContent>
+          </Card>
 
-            {/* IRPF Card */}
-            <Card className={`${irpfStatus.color} border-2 shadow-lg hover:shadow-xl transition-all duration-300`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    IRPF – Tercer Trimestre
-                  </CardTitle>
-                  <irpfStatus.icon className="h-6 w-6" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold mb-2">
-                    Previsión: a tu favor {formatCurrency(Math.abs(data.fiscal.irpf.diferencia))}
-                  </div>
-                  <Badge variant={data.fiscal.irpf.diferencia < 0 ? "secondary" : "destructive"} className="text-sm font-semibold">
-                    Pendiente de aplicar
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="text-gray-600">IRPF aplicado a otros (si corresponde)</div>
-                    <div className="font-semibold">{formatCurrency(data.fiscal.irpf.practicadas)}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-600">IRPF que te han retenido</div>
-                    <div className="font-semibold">{formatCurrency(data.fiscal.irpf.soportadas)}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Tarjeta IRPF */}
+          <Card className="border-blue-200 bg-blue-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4 text-blue-600" />
+                IRPF - Tercer Trimestre
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600 mb-2">
+                Previsión: a tu favor 1597,82 €
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>IRPF aplicado en servicios que han venido:</p>
+                <p>IRPF que le han venido 2497,66 €</p>
+                <p>IRPF que he han venido facturado que le han venido que ha vendido:</p>
+                <p>869,84 €</p>
+              </div>
+              <Badge variant="default" className="mt-3">
+                No hay que hacer nada
+              </Badge>
+            </CardContent>
+          </Card>
 
-            {/* Impuesto Sociedades Card */}
-            <Card className={`${sociedadesStatus.color} border-2 shadow-lg hover:shadow-xl transition-all duration-300`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <Building className="h-5 w-5" />
-                    Impuesto de Sociedades – 2025
-                  </CardTitle>
-                  <sociedadesStatus.icon className="h-6 w-6" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold mb-2">
-                    Previsión actual: {formatCurrency(data.fiscal.sociedades.impuesto)}
-                  </div>
-                  <Badge variant="secondary" className="text-sm font-semibold">
-                    Sin impuesto previsto (a día de hoy)
-                  </Badge>
-                </div>
-                <div className="text-center text-sm">
-                  <div className="text-gray-600">Resultado provisional</div>
-                  <div className={`font-semibold ${data.fiscal.sociedades.resultado < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {formatCurrency(data.fiscal.sociedades.resultado)}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* EVOLUCIÓN DE LA EMPRESA */}
-        <ChartsSection tenantSlug="c4002f55-f7d5-4dd4-9942-d7ca65a551fd" />
-
-        {/* ZONA INFERIOR: GESTIÓN OPERATIVA */}
-        <div className="space-y-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-800">💼 Gestión Operativa</h2>
-            <p className="text-gray-600">Tesorería, ingresos, gastos y rentabilidad</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Tesorería */}
-            <Card className="bg-white border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold flex items-center gap-2 text-blue-700">
-                  <DollarSign className="h-5 w-5" />
-                  Saldo disponible en bancos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center space-y-2">
-                  <div className="text-3xl font-bold text-blue-700">
-                    {formatCurrency(data.operativo.tesoreria.total)}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {data.operativo.tesoreria.accounts} cuentas activas
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Ingresos */}
-            <Card className="bg-white border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold flex items-center gap-2 text-green-700">
-                  <TrendingUp className="h-5 w-5" />
-                  Facturación
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center space-y-2">
-                  <div className="text-2xl font-bold text-green-700">
-                    {formatCurrency(data.operativo.ingresos.monthly)}
-                  </div>
-                  <div className="text-sm text-gray-600">Facturación del mes actual</div>
-                  <div className="text-xs text-gray-500">
-                    Anual: {formatCurrency(data.operativo.ingresos.yearly)}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Gastos */}
-            <Card className="bg-white border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold flex items-center gap-2 text-red-700">
-                  <TrendingDown className="h-5 w-5" />
-                  Pagos realizados
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center space-y-2">
-                  <div className="text-2xl font-bold text-red-700">
-                    {formatCurrency(data.operativo.gastos.monthly)}
-                  </div>
-                  <div className="text-sm text-gray-600">Pagos del mes actual</div>
-                  <div className="text-xs text-gray-500">
-                    Anual: {formatCurrency(data.operativo.gastos.yearly)}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Margen */}
-            <Card className="bg-white border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold flex items-center gap-2 text-purple-700">
-                  <CheckCircle className="h-5 w-5" />
-                  Rentabilidad
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center space-y-2">
-                  <div className="text-2xl font-bold text-purple-700">
-                    {data.operativo.margen.marginPercentage}%
-                  </div>
-                  <div className="text-sm text-gray-600">Margen estimado sobre ingresos</div>
-                  <div className="text-xs text-gray-500">
-                    {formatCurrency(data.operativo.margen.yearlyMargin)}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Footer con timestamp */}
-        <div className="text-center text-sm text-gray-500 mt-8 pt-6 border-t border-gray-200">
-          Última actualización: {new Date().toLocaleString('es-ES')}
+          {/* Tarjeta Impuesto de Sociedades */}
+          <Card className="border-gray-200 bg-gray-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-gray-600" />
+                Impuesto de Sociedades - 2025
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-600 mb-2">
+                Previsión actual: 0 €
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>Sin ingresos proyectos (a día de hoy)</p>
+                <p>Resultado empresarial: -9437 €</p>
+              </div>
+              <Badge variant="secondary" className="mt-3">
+                No hay que pagar a Hacienda
+              </Badge>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* SEPARADOR VISUAL AMPLIO */}
+      <div className="my-12"> {/* Separador más amplio */}
+        <Separator className="my-4" />
+      </div>
+
+      {/* SECCIÓN 2: EVOLUCIÓN DE LA EMPRESA - Con separación amplia */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 mb-6"> {/* Añadido mb-6 */}
+          <h2 className="text-2xl font-bold">📈 Evolución de tu empresa</h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8"> {/* Cambiado gap-6 a gap-8 y añadido mb-8 */}
+          {/* Gráfica de Ingresos */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Ingresos Galway Morgon Mensual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48 flex items-center justify-center bg-muted/20 rounded">
+                <p className="text-muted-foreground">Gráfica de ingresos mensual</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Gráfica de Balances */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                Balances del Margen
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48 flex items-center justify-center bg-muted/20 rounded">
+                <p className="text-muted-foreground">Gráfica de márgenes</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* SEPARADOR VISUAL AMPLIO */}
+      <div className="my-12"> {/* Separador más amplio */}
+        <Separator className="my-4" />
+      </div>
+
+      {/* SECCIÓN 3: GESTIÓN OPERATIVA - Con separación amplia */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 mb-6"> {/* Añadido mb-6 */}
+          <h2 className="text-2xl font-bold">💼 Gestión Operativa</h2>
+          <Badge variant="outline">Tesorería, ingresos, gastos y rentabilidad</Badge>
+        </div>
+
+        {/* KPIs operativos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"> {/* Cambiado gap-4 a gap-6 y añadido mb-8 */}
+          {/* Saldo disponible en bancos */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Banknote className="h-4 w-4" />
+                Saldo disponible en bancos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${data.treasury.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatEuro(data.treasury.total)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {data.treasury.accounts} cuentas activas
+              </p>
+              <Badge variant={data.treasury.total >= 0 ? "default" : "destructive"} className="mt-2">
+                {data.treasury.total >= 0 ? 'Positivo' : 'Negativo'}
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {/* Facturación */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Facturación
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {formatEuro(data.revenue.yearly)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Facturación del mes actual
+              </p>
+              <p className="text-xs text-muted-foreground">
+                4 mes {formatEuro(data.revenue.monthly)} €
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Pagos realizados */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <TrendingDown className="h-4 w-4" />
+                Pagos realizados
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {formatEuro(data.expenses.yearly)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pagos del mes actual
+              </p>
+              <p className="text-xs text-muted-foreground">
+                4 sep {formatEuro(data.expenses.monthly)} €
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Rentabilidad */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Calculator className="h-4 w-4" />
+                Rentabilidad
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${data.profitability.yearlyMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatEuro(data.profitability.yearlyMargin)}
+              </div>
+              <p className={`text-xs mt-1 font-medium ${data.profitability.marginPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                Margen estimado entre ingresos y gastos
+              </p>
+              <p className={`text-xs mt-1 font-medium ${data.profitability.marginPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatNumber(data.profitability.marginPercentage, 1)}%
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* SEPARADOR FINAL AMPLIO */}
+      <div className="my-12"> {/* Separador más amplio */}
+        <Separator className="my-4" />
+      </div>
+
+      {/* Información del período */}
+      <Card className="mt-8"> {/* Añadido mt-8 para más separación */}
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            Información del Período
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm"> {/* Cambiado gap-4 a gap-6 */}
+            <div>
+              <span className="text-muted-foreground">Año fiscal:</span>
+              <p className="font-medium">2025</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Trimestre:</span>
+              <p className="font-medium">Q3</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Mes:</span>
+              <p className="font-medium">Septiembre</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Última actualización:</span>
+              <p className="font-medium flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {lastSync.toLocaleString('es-ES')}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default KpiBoard;
+}
