@@ -47,14 +47,14 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
         throw new Error(result.error || 'No se pudo generar el HTML del informe');
       }
 
-      console.log('✅ HTML obtenido, convirtiendo a PDF...');
+      console.log('✅ HTML obtenido, abriendo para imprimir...');
 
-      // 2. Crear PDF usando jsPDF + html2canvas
-      await generatePDFFromHTML(result.html_content, tenantSlug);
+      // 2. Abrir en nueva ventana optimizada para PDF
+      openPrintWindow(result.html_content);
       
       toast({
-        title: "✅ Informe generado",
-        description: "El informe PDF se ha descargado correctamente.",
+        title: "✅ Informe listo",
+        description: "Se ha abierto la ventana para descargar el PDF. Usa Ctrl+P y 'Guardar como PDF'.",
       });
 
     } catch (error) {
@@ -91,87 +91,132 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
   );
 };
 
-// Función mejorada para generar PDF real desde HTML
-async function generatePDFFromHTML(htmlContent: string, tenantSlug: string) {
+// Función para abrir ventana optimizada para imprimir/PDF
+function openPrintWindow(htmlContent: string) {
   const currentDate = new Date().toLocaleDateString('es-ES', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
   }).replace(/\//g, '-');
   
-  const filename = `informe-financiero-${currentDate}.pdf`;
+  const filename = `informe-financiero-${currentDate}`;
 
-  // Crear elemento temporal para renderizar el HTML
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlContent;
-  tempDiv.style.position = 'absolute';
-  tempDiv.style.left = '-9999px';
-  tempDiv.style.top = '0';
-  tempDiv.style.width = '210mm'; // A4 width
-  tempDiv.style.backgroundColor = 'white';
-  tempDiv.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+  // Crear nueva ventana
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
   
-  document.body.appendChild(tempDiv);
-
-  try {
-    // Importar jsPDF y html2canvas dinámicamente
-    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-      import('jspdf'),
-      import('html2canvas')
-    ]);
-
-    console.log('📸 Capturando HTML como imagen...');
-    
-    // Convertir HTML a canvas
-    const canvas = await html2canvas(tempDiv, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      width: 794, // A4 width in pixels at 96 DPI
-      height: 1123, // A4 height in pixels at 96 DPI
-      scrollX: 0,
-      scrollY: 0
-    });
-
-    console.log('📄 Creando PDF...');
-
-    // Crear PDF
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    const imgData = canvas.toDataURL('image/png');
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 295; // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-
-    let position = 0;
-
-    // Agregar imagen al PDF
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    // Agregar páginas adicionales si es necesario
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-
-    console.log('💾 Descargando PDF...');
-
-    // Descargar PDF
-    pdf.save(filename);
-
-  } finally {
-    // Limpiar elemento temporal
-    document.body.removeChild(tempDiv);
+  if (!printWindow) {
+    throw new Error('No se pudo abrir la ventana. Verifica que no estén bloqueadas las ventanas emergentes.');
   }
+
+  // HTML optimizado para PDF
+  const fullHTML = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${filename}</title>
+    <style>
+        /* Reset y configuración para PDF */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #1f2937;
+            background: white;
+            width: 210mm;
+            margin: 0 auto;
+            padding: 0;
+        }
+        
+        /* Instrucciones para el usuario */
+        .print-instructions {
+            background: #3b82f6;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .print-button {
+            background: #059669;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+        }
+        
+        .print-button:hover {
+            background: #047857;
+        }
+    </style>
+</head>
+<body>
+    <!-- Instrucciones (no se imprimen) -->
+    <div class="print-instructions no-print">
+        <div>📄 <strong>Informe listo para descargar</strong></div>
+        <div style="margin: 10px 0;">
+            Pulsa <strong>Ctrl+P</strong> (o Cmd+P en Mac) y selecciona <strong>"Guardar como PDF"</strong>
+        </div>
+        <button class="print-button" onclick="window.print()">
+            🖨️ Imprimir / Guardar PDF
+        </button>
+        <button class="print-button" onclick="window.close()" style="background: #dc2626;">
+            ❌ Cerrar
+        </button>
+    </div>
+    
+    <!-- Contenido del informe -->
+    ${htmlContent}
+    
+    <script>
+        // Auto-abrir diálogo de impresión después de cargar
+        window.onload = function() {
+            setTimeout(function() {
+                // Comentamos el auto-print para que el usuario pueda revisar primero
+                // window.print();
+            }, 500);
+        };
+    </script>
+</body>
+</html>
+  `;
+
+  // Escribir HTML en la nueva ventana
+  printWindow.document.write(fullHTML);
+  printWindow.document.close();
+  
+  // Enfocar la nueva ventana
+  printWindow.focus();
 }
 
 export default PDFGenerator;
