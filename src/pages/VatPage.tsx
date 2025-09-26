@@ -310,7 +310,7 @@ export default function VatPage() {
                 </div>
               ) : (
                 <Badge variant={getStatusColor(ivaData?.status || '')}>
-                  {ivaData?.status === 'A INGRESAR' ? 'PREPARANDO PAGO' : 
+                  {ivaData?.status === 'A INGRESAR' ? 'VAS A PAGAR' : 
                    ivaData?.status === 'A COMPENSAR' ? 'GESTIONANDO DEVOLUCIÓN' : 
                    'EQUILIBRADO'}
                 </Badge>
@@ -387,7 +387,7 @@ export default function VatPage() {
             </div>
             <div className="text-center">
               <Badge variant={getStatusColor(ivaData.status)} className="text-sm">
-                {ivaData.status === 'A INGRESAR' ? 'Ya estoy preparando la declaración' :
+                {ivaData.status === 'A INGRESAR' ? 'Vas a pagar' :
                  ivaData.status === 'A COMPENSAR' ? 'Estoy tramitando la devolución' :
                  'Todo equilibrado este trimestre'}
               </Badge>
