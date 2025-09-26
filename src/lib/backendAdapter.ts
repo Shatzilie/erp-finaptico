@@ -459,5 +459,27 @@ export class DashboardApiClient {
   }
 }
 
+// ===== NUEVA FUNCIÓN PARA PDF =====
+async function callEndpoint<T>(endpoint: string, data?: any): Promise<T> {
+  const response = await fetch(`https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+    },
+    body: JSON.stringify(data || {})
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error ${response.status}: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+export async function generatePDFReport(): Promise<{ html_content: string; data: any }> {
+  return callEndpoint<{ html_content: string; data: any }>('generate-pdf-report');
+}
+
 // 🆕 INSTANCIA GLOBAL DEL CLIENTE
 export const backendAdapter = new DashboardApiClient();
