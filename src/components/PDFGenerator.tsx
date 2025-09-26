@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import html2pdf from 'html2pdf.js';
-import { supabase } from '@/integrations/supabase/client';
 
 interface PDFGeneratorProps {
   tenantSlug: string;
@@ -22,50 +20,39 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
     try {
       console.log('🔄 Generando PDF para tenant:', tenantSlug);
       
-      // Get current session for authorization
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('No hay sesión de usuario activa');
-      }
-      
-      // 1. Llamar al endpoint para obtener HTML
-      const response = await fetch(`https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf?tenantSlug=${tenantSlug}`, {
-        method: 'GET',
+      const response = await fetch('/api/v1/financial-report-pdf', {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          tenant_slug: tenantSlug
+        })
       });
 
       console.log('📡 Response status:', response.status);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Response error:', errorText);
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        throw new Error(`Error: ${response.status}`);
       }
 
-      const result = await response.json();
-      console.log('📋 Result:', result);
+      // IMPORTANTE: No parsear como JSON, es un PDF binario
+      const pdfBlob = await response.blob();
       
-      if (!result.ok || !result.html_content) {
-        throw new Error(result.error || 'No se pudo generar el HTML del informe');
-      }
-
-      console.log('✅ HTML obtenido, generando PDF...');
-
-      // 2. Convertir HTML a PDF usando html2pdf.js
-      const filename = `Informe_Financiero_${result.company_name || 'Empresa'}_${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit' })}.pdf`;
+      // Crear URL temporal para el PDF
+      const pdfUrl = URL.createObjectURL(pdfBlob);
       
-      const options = {
-        margin: 0.5,
-        filename: filename,
-        image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
-      };
+      // Descargar automáticamente
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `Informe_Financiero_${new Date().toISOString().slice(0, 7)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-      await html2pdf().set(options).from(result.html_content).save();
+      // Limpiar URL temporal
+      URL.revokeObjectURL(pdfUrl);
       
       toast({
         title: "✅ Informe generado",
