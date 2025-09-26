@@ -145,12 +145,29 @@ const fetchSociedadesData = async (year?: number) => {
     return 'text-gray-600'; // Neutro
   };
 
+  const getStatusMessage = (data: SociedadesData | null) => {
+    if (!data) return '';
+    
+    if (data.resultado_ejercicio < 0) {
+      return 'No hay impuesto porque el resultado ha sido negativo';
+    } else if (data.cuota_diferencial > 0) {
+      return `Pagarás ${formatCurrency(data.cuota_diferencial)} de Impuesto de Sociedades`;
+    } else {
+      return 'Sin impuesto este año';
+    }
+  };
+
   const isInFuture = isPeriodInFuture(selectedYear);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Impuesto de Sociedades</h2>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Impuesto de Sociedades</h2>
+          <p className="text-muted-foreground">
+            Estoy calculando tu Impuesto de Sociedades y preparando la declaración anual
+          </p>
+        </div>
         <div className="flex items-center space-x-2">
           {lastUpdated && (
             <FreshnessBadge 
@@ -164,7 +181,7 @@ const fetchSociedadesData = async (year?: number) => {
       {/* Selector de Año */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-medium">Seleccionar Período</CardTitle>
+          <CardTitle className="text-lg font-medium">Selecciona el año a consultar</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col space-y-2">
@@ -196,7 +213,7 @@ const fetchSociedadesData = async (year?: number) => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resultado del Ejercicio</CardTitle>
+            <CardTitle className="text-sm font-medium">Resultado del año</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -212,12 +229,15 @@ const fetchSociedadesData = async (year?: number) => {
                 </span>
               )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              {data?.resultado_ejercicio < 0 ? 'Pérdidas del ejercicio' : 'Beneficios del ejercicio'}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Base Imponible</CardTitle>
+            <CardTitle className="text-sm font-medium">Base a tributar</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -228,12 +248,15 @@ const fetchSociedadesData = async (year?: number) => {
                 formatCurrency(data?.base_imponible || 0)
               )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Base imponible calculada
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cuota Diferencial</CardTitle>
+            <CardTitle className="text-sm font-medium">Impuesto a pagar</CardTitle>
             <Euro className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -244,12 +267,15 @@ const fetchSociedadesData = async (year?: number) => {
                 formatCurrency(Math.abs(data?.cuota_diferencial || 0))
               )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              {(data?.cuota_diferencial || 0) > 0 ? 'Vas a pagar' : 'Sin impuesto'}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estado</CardTitle>
+            <CardTitle className="text-sm font-medium">Mi gestión</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -258,10 +284,15 @@ const fetchSociedadesData = async (year?: number) => {
                 <Skeleton className="h-6 w-20" />
               ) : (
                 <Badge variant={getStatusColor(data?.status || 'NEUTRO')}>
-                  {data?.status || 'NEUTRO'}
+                  {data?.status === 'A PAGAR' ? 'PREPARANDO PAGO' : 
+                   data?.status === 'A DEVOLVER' ? 'GESTIONANDO DEVOLUCIÓN' : 
+                   'SIN IMPUESTO'}
                 </Badge>
               )}
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Ejercicio {data?.period?.year || selectedYear}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -270,7 +301,7 @@ const fetchSociedadesData = async (year?: number) => {
       {!loading && data && data.resultado_ejercicio < 0 && (
         <Alert className="bg-blue-50 border-blue-200">
           <AlertDescription className="text-blue-800">
-            💡 Las pérdidas pueden compensarse con beneficios de ejercicios futuros (hasta 10 años)
+            Las pérdidas pueden compensarse con beneficios de ejercicios futuros. Esto reduce impuestos en años venideros.
           </AlertDescription>
         </Alert>
       )}
@@ -279,8 +310,8 @@ const fetchSociedadesData = async (year?: number) => {
       {!loading && data && data.status === "NEUTRO" && data.resultado_ejercicio < 0 && (
         <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md">
           <p className="text-yellow-800 text-sm">
-            <strong>Pérdidas fiscales:</strong> Al tener pérdidas ({data.resultado_ejercicio.toFixed(2)}€), no hay beneficios que tributar. 
-            No se debe pagar Impuesto de Sociedades este ejercicio.
+            <strong>Resultado negativo:</strong> Al tener pérdidas ({data.resultado_ejercicio.toFixed(2)}€), no hay beneficios que tributar. 
+            No pagarás Impuesto de Sociedades este ejercicio.
           </p>
         </div>
       )}
@@ -292,7 +323,7 @@ const fetchSociedadesData = async (year?: number) => {
             <div className="flex items-center space-x-2 text-yellow-800">
               <Building className="h-4 w-4" />
               <p className="text-sm">
-                <strong>Período futuro:</strong> Los datos mostrados son estimaciones o ceros ya que el año {selectedYear} aún no ha finalizado.
+                <strong>Año futuro:</strong> Los datos del año {selectedYear} no están disponibles hasta que termine el ejercicio.
               </p>
             </div>
           </CardContent>
@@ -303,30 +334,30 @@ const fetchSociedadesData = async (year?: number) => {
       {data?.prevision?.es_prevision && (
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="text-lg font-semibold text-blue-800 mb-3">
-            📊 Previsión Anual ({data.prevision.progreso_anual}% completado)
+            Mi previsión para este año ({data.prevision.progreso_anual}% completado)
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Ingresos Proyectados</p>
+              <p className="text-sm text-gray-600">Facturación proyectada</p>
               <p className="text-lg font-bold text-blue-700">
                 {data.prevision.ingresos_proyectados.toLocaleString('es-ES')}€
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Resultado Proyectado</p>
+              <p className="text-sm text-gray-600">Resultado proyectado</p>
               <p className="text-lg font-bold text-blue-700">
                 {data.prevision.resultado_proyectado.toLocaleString('es-ES')}€
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Impuesto Estimado</p>
+              <p className="text-sm text-gray-600">Impuesto estimado</p>
               <p className="text-lg font-bold text-blue-700">
                 {data.prevision.cuota_integra_proyectada.toLocaleString('es-ES')}€
               </p>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            * Proyección basada en {data.prevision.dias_transcurridos} días de actividad
+            Proyección basada en {data.prevision.dias_transcurridos} días de actividad
           </p>
         </div>
       )}
@@ -337,50 +368,53 @@ const fetchSociedadesData = async (year?: number) => {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Building className="h-5 w-5" />
-              <span>Resumen Impuesto de Sociedades {selectedYear}</span>
+              <span>Mi análisis para el ejercicio {selectedYear}</span>
             </CardTitle>
+            <p className="text-muted-foreground text-sm mt-2">
+              {getStatusMessage(data)}
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tipo Impositivo:</span>
+                  <span className="text-muted-foreground">Tipo impositivo aplicado:</span>
                   <span className="font-medium">{data.tipo_impositivo}%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cuota Íntegra:</span>
+                  <span className="text-muted-foreground">Cuota calculada:</span>
                   <span className="font-medium">{formatCurrency(data.cuota_integra)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tipo de Empresa:</span>
-                  <span className="font-medium">{data.empresa_tipo}</span>
+                  <span className="text-muted-foreground">Tipo de empresa:</span>
+                  <span className="font-medium">{data.empresa_tipo === 'PYME' ? 'PYME (ventajas fiscales)' : data.empresa_tipo}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ingresos Anuales:</span>
+                  <span className="text-muted-foreground">Facturación anual:</span>
                   <span className="font-medium">{formatCurrency(data.ingresos_anuales)}</span>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Período:</span>
+                  <span className="text-muted-foreground">Período fiscal:</span>
                   <span className="font-medium">
                     {data.period?.date_from} - {data.period?.date_to}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Año fiscal:</span>
+                  <span className="text-muted-foreground">Ejercicio:</span>
                   <span className="font-medium">{data.period?.year}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Situación fiscal:</span>
+                  <span className="text-muted-foreground">Situación:</span>
                   <span className={`font-medium ${data.resultado_ejercicio < 0 ? 'text-green-600' : data.status === 'A PAGAR' ? 'text-red-600' : 'text-green-600'}`}>
                     {data.resultado_ejercicio < 0 ? 'Sin obligación de pago' : 
                      data.status === 'A PAGAR' ? 'Pendiente de pago' : 'Sin obligación de pago'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Próxima declaración:</span>
-                  <span className="font-medium">Julio {data.period?.year + 1} (ejercicio {data.period?.year})</span>
+                  <span className="text-muted-foreground">Presentación declaración:</span>
+                  <span className="font-medium">Julio {data.period?.year + 1}</span>
                 </div>
               </div>
             </div>
