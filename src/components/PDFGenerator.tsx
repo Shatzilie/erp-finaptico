@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import html2pdf from 'html2pdf.js';
 
 interface PDFGeneratorProps {
   tenantSlug: string;
@@ -20,7 +21,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
     try {
       console.log('🔄 Generando PDF para tenant:', tenantSlug);
       
-      // 1. Llamar al endpoint para obtener PDF binario
+      // 1. Llamar al endpoint para obtener HTML
       const response = await fetch(`https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf?tenantSlug=${tenantSlug}`, {
         method: 'GET'
       });
@@ -33,29 +34,27 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
-      console.log('✅ PDF obtenido, iniciando descarga...');
+      const result = await response.json();
+      console.log('📋 Result:', result);
+      
+      if (!result.ok || !result.html_content) {
+        throw new Error(result.error || 'No se pudo generar el HTML del informe');
+      }
 
-      // 2. Crear blob del PDF y descargar automáticamente
-      const pdfBlob = await response.blob();
-      const currentDate = new Date().toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).replace(/\//g, '-');
+      console.log('✅ HTML obtenido, generando PDF...');
+
+      // 2. Convertir HTML a PDF usando html2pdf.js
+      const filename = `Informe_Financiero_${result.company_name || 'Empresa'}_${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit' })}.pdf`;
       
-      const filename = `informe-financiero-${currentDate}.pdf`;
+      const options = {
+        margin: 0.5,
+        filename: filename,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
+      };
       
-      // Crear URL del blob y trigger descarga
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Cleanup blob URL
-      URL.revokeObjectURL(blobUrl);
+      await html2pdf().set(options).from(result.html_content).save();
       
       toast({
         title: "✅ Informe generado",
