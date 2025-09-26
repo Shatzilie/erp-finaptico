@@ -290,7 +290,7 @@ export default function KpiBoard() {
               </div>
               <div className="space-y-1 text-xs text-muted-foreground">
                 <p>Sin ingresos proyectos (a día de hoy)</p>
-                <p>Resultado empresarial: -9437 €</p>
+                <p>Resultado empresarial: <span className="text-red-600 font-medium">-9437 €</span></p>
               </div>
               <Badge variant="secondary" className="mt-3">
                 No hay que pagar a Hacienda
