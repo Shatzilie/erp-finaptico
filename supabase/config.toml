@@ -1,1 +1,4 @@
 project_id = "dtmrywilxpilpzokxxif"
+
+[functions.financial-report-pdf]
+verify_jwt = false
