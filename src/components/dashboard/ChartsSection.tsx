@@ -12,8 +12,7 @@ import {
   ResponsiveContainer,
   ReferenceLine
 } from 'recharts';
-import { TrendingUp, Calculator, AlertCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { TrendingUp, Calculator } from 'lucide-react';
 
 // Tipos de datos
 interface MonthlyData {
@@ -114,7 +113,6 @@ const MarginTooltip = ({ active, payload, label }: any) => {
 
 export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
   const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [fiscalSummary, setFiscalSummary] = useState<FiscalSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -236,10 +234,9 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
         setError(null);
 
         // Obtener datos en paralelo
-        const [revenueData, expensesData, fiscalData] = await Promise.all([
+        const [revenueData, expensesData] = await Promise.all([
           fetchRevenueData(),
-          fetchExpensesData(),
-          fetchFiscalSummary()
+          fetchExpensesData()
         ]);
 
         // Verificar que tenemos datos históricos suficientes
@@ -286,7 +283,6 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
           .sort((a, b) => a.month.localeCompare(b.month));
 
         setChartData(finalData);
-        setFiscalSummary(fiscalData);
 
       } catch (err) {
         console.error('Error loading chart data:', err);
@@ -441,50 +437,7 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
           </CardContent>
         </Card>
 
-        {/* 3. Resumen fiscal actual */}
-        <Card className="lg:col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              Situación Fiscal Actual
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-center gap-4">
-              {fiscalSummary?.ivaAPagar && fiscalSummary.ivaAPagar > 0 && (
-                <Badge variant="destructive" className="text-sm">
-                  IVA: {formatEuro(fiscalSummary.ivaAPagar)} a pagar
-                </Badge>
-              )}
-              
-              {fiscalSummary?.irpfAFavor && fiscalSummary.irpfAFavor > 0 && (
-                <Badge variant="default" className="text-sm bg-blue-100 text-blue-800">
-                  IRPF: {formatEuro(fiscalSummary.irpfAFavor)} a tu favor
-                </Badge>
-              )}
-              
-              {fiscalSummary?.isProvision && fiscalSummary.isProvision > 0 && (
-                <Badge variant="secondary" className="text-sm">
-                  IS: {formatEuro(fiscalSummary.isProvision)} estimado
-                </Badge>
-              )}
-              
-              {(!fiscalSummary?.ivaAPagar || fiscalSummary.ivaAPagar <= 0) && 
-               (!fiscalSummary?.irpfAFavor || fiscalSummary.irpfAFavor <= 0) && 
-               (!fiscalSummary?.isProvision || fiscalSummary.isProvision <= 0) && (
-                <Badge variant="outline" className="text-sm text-green-700 border-green-300">
-                  Sin obligaciones fiscales pendientes
-                </Badge>
-              )}
-            </div>
-            
-            {fiscalSummary?.resumenFiscal && (
-              <p className="text-sm text-gray-600 mt-3">
-                {fiscalSummary.resumenFiscal}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+
       </div>
     </div>
   );
