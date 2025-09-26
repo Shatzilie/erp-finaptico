@@ -206,6 +206,13 @@ export class ActionableFiscalCalendar {
     const recommendations: FiscalRecommendation[] = [];
     const payableAmount = this.getPayableObligations();
 
+    console.log('🧮 Datos fiscales:', {
+      currentIVA: this.companyData.currentIVA,
+      currentIRPF: this.companyData.currentIRPF,
+      currentIS: this.companyData.currentIS,
+      payableAmount
+    });
+
     // Recomendaciones de flujo de caja - Solo pagos reales
     if (payableAmount > 1000) {
       recommendations.push({
