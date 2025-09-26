@@ -221,7 +221,8 @@ export class DashboardApiClient {
   private readonly FISCAL_ENDPOINTS = {
     iva: 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva',
     irpf: 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-irpf',
-    sociedades: 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades'
+    sociedades: 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades',
+    pdfReport: 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf'
   };
 
   private readonly DEFAULT_TENANT = 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd';
@@ -253,6 +254,54 @@ export class DashboardApiClient {
     } catch (error) {
       console.warn('🔄 Fallback a endpoints legacy...', error);
       return await this.fallbackToLegacyEndpoints(tenant);
+    }
+  }
+
+  // 🆕 MÉTODO PARA GENERAR PDF - CORREGIDO
+  async generatePDFReport(tenantSlug?: string): Promise<Blob> {
+    const tenant = tenantSlug || this.DEFAULT_TENANT;
+    
+    console.log('📄 Generando informe PDF...');
+
+    try {
+      const response = await fetch(this.FISCAL_ENDPOINTS.pdfReport, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          tenant_slug: tenant
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`PDF generation failed: ${response.status}`);
+      }
+
+      // ✅ CAMBIO IMPORTANTE: Manejar respuesta según Content-Type
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        // Si es JSON, extraer el HTML y convertir en el frontend
+        const jsonData = await response.json();
+        if (jsonData.html_content) {
+          // Crear un HTML completo y devolverlo como blob para procesamiento
+          const htmlBlob = new Blob([jsonData.html_content], { type: 'text/html' });
+          return htmlBlob;
+        } else {
+          throw new Error('No HTML content in response');
+        }
+      } else {
+        // Si es PDF binario, devolverlo directamente
+        const blob = await response.blob();
+        console.log('✅ PDF generado correctamente');
+        return blob;
+      }
+
+    } catch (error) {
+      console.error('❌ Error generando PDF:', error);
+      throw error;
     }
   }
 
@@ -457,28 +506,6 @@ export class DashboardApiClient {
 
     return await response.json();
   }
-}
-
-// ===== NUEVA FUNCIÓN PARA PDF =====
-async function callEndpoint<T>(endpoint: string, data?: any): Promise<T> {
-  const response = await fetch(`https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-    },
-    body: JSON.stringify(data || {})
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error ${response.status}: ${response.statusText}`);
-  }
-
-  return await response.json();
-}
-
-export async function generatePDFReport(): Promise<{ html_content: string; data: any }> {
-  return callEndpoint<{ html_content: string; data: any }>('generate-pdf-report');
 }
 
 // 🆕 INSTANCIA GLOBAL DEL CLIENTE
