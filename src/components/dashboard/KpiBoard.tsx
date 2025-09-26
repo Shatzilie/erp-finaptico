@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, DollarSign, Calendar, Building, CreditCard, Loader2 } from 'lucide-react';
 import { backendAdapter, type LegacyDashboardData, type IVAData, type IRPFData, type SociedadesData } from '@/lib/backendAdapter';
+import { ChartsSection } from '@/components/dashboard/ChartsSection';
 
 interface DashboardData {
   fiscal: {
@@ -369,6 +370,9 @@ const KpiBoard: React.FC = () => {
             </Card>
           </div>
         </div>
+
+        {/* EVOLUCIÓN DE LA EMPRESA */}
+        <ChartsSection tenantSlug="c4002f55-f7d5-4dd4-9942-d7ca65a551fd" />
 
         {/* ZONA INFERIOR: GESTIÓN OPERATIVA */}
         <div className="space-y-6">
