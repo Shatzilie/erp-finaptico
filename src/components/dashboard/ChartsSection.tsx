@@ -387,7 +387,7 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
                     y={averageMargin} 
                     stroke="#111827" 
                     strokeDasharray="3 3"
-                    label={{ value: `Margen promedio: ${formatEuroShort(averageMargin)}`, position: 'topRight', fontSize: 11 }}
+                    label={{ value: `Margen promedio: ${formatEuroShort(averageMargin)}`, position: 'top', fontSize: 11 }}
                   />
                 </BarChart>
               </ResponsiveContainer>
