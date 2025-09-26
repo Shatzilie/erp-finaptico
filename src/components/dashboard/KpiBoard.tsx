@@ -89,21 +89,21 @@ const KpiBoard: React.FC = () => {
     let messages: string[] = [];
     
     if (iva.diferencia > 0) {
-      messages.push(`Preveo que este trimestre pagarás unos ${iva.diferencia.toLocaleString()}€ de IVA. Estoy preparando la declaración`);
+      messages.push(`Preveo que este trimestre pagarás unos ${Math.round(iva.diferencia).toLocaleString('es-ES')}€ de IVA. Estoy preparando la declaración`);
     } else if (iva.diferencia < 0) {
-      messages.push(`Preveo una devolución de IVA de unos ${Math.abs(iva.diferencia).toLocaleString()}€. Estoy preparando la declaración`);
+      messages.push(`Preveo una devolución de IVA de unos ${Math.abs(Math.round(iva.diferencia)).toLocaleString('es-ES')}€. Estoy preparando la declaración`);
     }
     
     if (irpf.diferencia < 0) {
-      messages.push(`El IRPF está a tu favor por unos ${Math.abs(irpf.diferencia).toLocaleString()}€, y lo reservaré para reducir impuestos en el futuro`);
+      messages.push(`El IRPF está a tu favor por unos ${Math.abs(Math.round(irpf.diferencia)).toLocaleString('es-ES')}€, y lo reservaré para reducir impuestos en el futuro`);
     } else if (irpf.diferencia > 0) {
-      messages.push(`Preveo un pago de IRPF de unos ${irpf.diferencia.toLocaleString()}€. Estoy preparando el modelo 130`);
+      messages.push(`Preveo un pago de IRPF de unos ${Math.round(irpf.diferencia).toLocaleString('es-ES')}€. Estoy preparando el modelo 130`);
     }
     
     if (sociedades.resultado < 0) {
       messages.push(`A día de hoy, no habría Impuesto de Sociedades, pero esto puede cambiar si entran nuevas facturas antes del cierre`);
     } else if (sociedades.impuesto > 0) {
-      messages.push(`Preveo un impuesto de sociedades de unos ${sociedades.impuesto.toLocaleString()}€, pero esto puede variar hasta el cierre`);
+      messages.push(`Preveo un impuesto de sociedades de unos ${Math.round(sociedades.impuesto).toLocaleString('es-ES')}€, pero esto puede variar hasta el cierre`);
     }
     
     return messages.length > 0 ? messages.join('. ') + '.' : 'Tu situación fiscal está equilibrada por ahora.';
