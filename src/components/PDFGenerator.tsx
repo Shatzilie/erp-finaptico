@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import html2pdf from 'html2pdf.js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PDFGeneratorProps {
   tenantSlug: string;
@@ -21,9 +22,19 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
     try {
       console.log('🔄 Generando PDF para tenant:', tenantSlug);
       
+      // Get current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No hay sesión de usuario activa');
+      }
+      
       // 1. Llamar al endpoint para obtener HTML
       const response = await fetch(`https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf?tenantSlug=${tenantSlug}`, {
-        method: 'GET'
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       console.log('📡 Response status:', response.status);

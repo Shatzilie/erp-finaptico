@@ -25,22 +25,53 @@ serve(async (req) => {
     
     console.log('📋 Tenant slug:', tenantSlug);
     
-    // Initialize Supabase client
+    // Initialize Supabase client with auth header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
     );
 
-    // Get tenant information
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
-      .select('id, slug, name')
-      .eq('id', tenantSlug)
-      .single();
-
-    if (tenantError || !tenant) {
-      console.error('❌ Tenant not found:', tenantError);
-      throw new Error('Tenant not found');
+    // Get tenant information (tenantSlug could be either id or slug)
+    let tenant;
+    
+    // First try by ID (UUID format)
+    if (tenantSlug.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('id, slug, name')
+        .eq('id', tenantSlug)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ Error querying tenant by ID:', error);
+        throw error;
+      }
+      tenant = data;
+    }
+    
+    // If not found by ID, try by slug
+    if (!tenant) {
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('id, slug, name')
+        .eq('slug', tenantSlug)
+        .single();
+      
+      if (error) {
+        console.error('❌ Error querying tenant by slug:', error);
+        throw error;
+      }
+      tenant = data;
     }
 
     console.log('✅ Tenant found:', tenant.name);
