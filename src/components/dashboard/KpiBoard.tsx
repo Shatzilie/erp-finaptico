@@ -83,30 +83,30 @@ const KpiBoard: React.FC = () => {
   };
 
   const generateFiscalSummary = (): string => {
-    if (!data) return 'Cargando tu información fiscal...';
+    if (!data) return 'Cargando información fiscal...';
     
     const { iva, irpf, sociedades } = data.fiscal;
     let messages: string[] = [];
     
     if (iva.diferencia > 0) {
-      messages.push(`Este trimestre pagarás ${iva.diferencia.toLocaleString()}€ de IVA. Ya estoy preparando la declaración`);
+      messages.push(`Preveo que este trimestre pagarás unos ${iva.diferencia.toLocaleString()}€ de IVA. Estoy preparando la declaración`);
     } else if (iva.diferencia < 0) {
-      messages.push(`Hacienda te debe ${Math.abs(iva.diferencia).toLocaleString()}€ de IVA. Me encargo de tramitar tu devolución`);
+      messages.push(`Preveo una devolución de IVA de unos ${Math.abs(iva.diferencia).toLocaleString()}€. Estoy preparando la declaración`);
     }
     
     if (irpf.diferencia < 0) {
-      messages.push(`Tienes ${Math.abs(irpf.diferencia).toLocaleString()}€ a tu favor en IRPF. Lo usaré para compensar impuestos futuros`);
+      messages.push(`El IRPF está a tu favor por unos ${Math.abs(irpf.diferencia).toLocaleString()}€, y lo reservaré para reducir impuestos en el futuro`);
     } else if (irpf.diferencia > 0) {
-      messages.push(`Pagarás ${irpf.diferencia.toLocaleString()}€ de IRPF. Me encargo de preparar el modelo 130`);
+      messages.push(`Preveo un pago de IRPF de unos ${irpf.diferencia.toLocaleString()}€. Estoy preparando el modelo 130`);
     }
     
     if (sociedades.resultado < 0) {
-      messages.push(`No hay impuesto de sociedades porque el resultado ha sido negativo`);
+      messages.push(`A día de hoy, no habría Impuesto de Sociedades, pero esto puede cambiar si entran nuevas facturas antes del cierre`);
     } else if (sociedades.impuesto > 0) {
-      messages.push(`Me encargo de calcular la declaración anual de sociedades: ${sociedades.impuesto.toLocaleString()}€`);
+      messages.push(`Preveo un impuesto de sociedades de unos ${sociedades.impuesto.toLocaleString()}€, pero esto puede variar hasta el cierre`);
     }
     
-    return messages.length > 0 ? messages.join('. ') + '.' : 'Tu situación fiscal está equilibrada.';
+    return messages.length > 0 ? messages.join('. ') + '.' : 'Tu situación fiscal está equilibrada por ahora.';
   };
 
   useEffect(() => {
@@ -225,7 +225,7 @@ const KpiBoard: React.FC = () => {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-          <p className="text-gray-600">Cargando tu dashboard ejecutivo...</p>
+          <p className="text-gray-600">Cargando dashboard ejecutivo...</p>
         </div>
       </div>
     );
@@ -254,14 +254,14 @@ const KpiBoard: React.FC = () => {
         
         {/* Header con título y estado general */}
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-gray-900">Tu Dashboard Ejecutivo</h1>
-          <p className="text-lg text-gray-600">Q3 2025 • Situación actualizada por Fatima</p>
+          <h1 className="text-4xl font-bold text-gray-900">Dashboard Ejecutivo</h1>
+          <p className="text-lg text-gray-600">Q3 2025 • Situación actualizada</p>
         </div>
 
         {/* ZONA SUPERIOR: FISCALIDAD */}
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">📊 Tu Estado Fiscal del Trimestre</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">📊 Estado Fiscal del Trimestre</h2>
             <Alert className="max-w-4xl mx-auto bg-slate-50 border-slate-200">
               <AlertTriangle className="h-5 w-5" />
               <AlertDescription className="text-base font-medium">
@@ -279,7 +279,7 @@ const KpiBoard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
                     <CreditCard className="h-5 w-5" />
-                    IVA Q3 2025
+                    IVA – Tercer Trimestre
                   </CardTitle>
                   <ivaStatus.icon className="h-6 w-6" />
                 </div>
@@ -287,22 +287,19 @@ const KpiBoard: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="text-center">
                   <div className="text-3xl font-bold mb-2">
-                    {formatCurrency(Math.abs(data.fiscal.iva.diferencia))}
-                  </div>
-                  <div className="text-base font-medium mb-2 text-gray-700">
-                    {data.fiscal.iva.diferencia > 0 ? 'Este trimestre pagarás' : 'Hacienda te debe'}
+                    Previsión: {data.fiscal.iva.diferencia > 0 ? 'pagar' : 'devolver'} {formatCurrency(Math.abs(data.fiscal.iva.diferencia))}
                   </div>
                   <Badge variant={data.fiscal.iva.diferencia > 0 ? "destructive" : "secondary"} className="text-sm font-semibold">
-                    {data.fiscal.iva.diferencia > 0 ? 'A INGRESAR' : 'A DEVOLVER'}
+                    Pendiente de presentar
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <div className="text-gray-600">Repercutido</div>
+                    <div className="text-gray-600">IVA cobrado (ventas)</div>
                     <div className="font-semibold">{formatCurrency(data.fiscal.iva.repercutido)}</div>
                   </div>
                   <div>
-                    <div className="text-gray-600">Soportado</div>
+                    <div className="text-gray-600">IVA pagado (gastos)</div>
                     <div className="font-semibold">{formatCurrency(data.fiscal.iva.soportado)}</div>
                   </div>
                 </div>
@@ -315,7 +312,7 @@ const KpiBoard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
-                    IRPF Q3 2025
+                    IRPF – Tercer Trimestre
                   </CardTitle>
                   <irpfStatus.icon className="h-6 w-6" />
                 </div>
@@ -323,22 +320,19 @@ const KpiBoard: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="text-center">
                   <div className="text-3xl font-bold mb-2">
-                    {formatCurrency(Math.abs(data.fiscal.irpf.diferencia))}
-                  </div>
-                  <div className="text-base font-medium mb-2 text-gray-700">
-                    {data.fiscal.irpf.diferencia < 0 ? 'Tienes a tu favor' : 'Pagarás de IRPF'}
+                    Previsión: a tu favor {formatCurrency(Math.abs(data.fiscal.irpf.diferencia))}
                   </div>
                   <Badge variant={data.fiscal.irpf.diferencia < 0 ? "secondary" : "destructive"} className="text-sm font-semibold">
-                    {data.fiscal.irpf.diferencia < 0 ? 'A COMPENSAR' : 'A INGRESAR'}
+                    Pendiente de aplicar
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <div className="text-gray-600">Practicadas</div>
+                    <div className="text-gray-600">IRPF aplicado a otros (si corresponde)</div>
                     <div className="font-semibold">{formatCurrency(data.fiscal.irpf.practicadas)}</div>
                   </div>
                   <div>
-                    <div className="text-gray-600">Soportadas</div>
+                    <div className="text-gray-600">IRPF que te han retenido</div>
                     <div className="font-semibold">{formatCurrency(data.fiscal.irpf.soportadas)}</div>
                   </div>
                 </div>
@@ -351,7 +345,7 @@ const KpiBoard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
                     <Building className="h-5 w-5" />
-                    Impuesto de Sociedades 2025
+                    Impuesto de Sociedades – 2025
                   </CardTitle>
                   <sociedadesStatus.icon className="h-6 w-6" />
                 </div>
@@ -359,23 +353,14 @@ const KpiBoard: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="text-center">
                   <div className="text-3xl font-bold mb-2">
-                    {data.fiscal.sociedades.impuesto === 0 ? 
-                      '0€' : 
-                      formatCurrency(data.fiscal.sociedades.impuesto)
-                    }
-                  </div>
-                  <div className="text-base font-medium mb-2 text-gray-700">
-                    {data.fiscal.sociedades.impuesto === 0 ? 
-                      'Sin impuesto este año' : 
-                      'Pagarás en Sociedades'
-                    }
+                    Previsión actual: {formatCurrency(data.fiscal.sociedades.impuesto)}
                   </div>
                   <Badge variant="secondary" className="text-sm font-semibold">
-                    {data.fiscal.sociedades.impuesto === 0 ? 'RESULTADO NEGATIVO' : data.fiscal.sociedades.status}
+                    Sin impuesto previsto (a día de hoy)
                   </Badge>
                 </div>
                 <div className="text-center text-sm">
-                  <div className="text-gray-600">Resultado</div>
+                  <div className="text-gray-600">Resultado provisional</div>
                   <div className={`font-semibold ${data.fiscal.sociedades.resultado < 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {formatCurrency(data.fiscal.sociedades.resultado)}
                   </div>
@@ -388,8 +373,8 @@ const KpiBoard: React.FC = () => {
         {/* ZONA INFERIOR: GESTIÓN OPERATIVA */}
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-800">💼 Tu Gestión Operativa</h2>
-            <p className="text-gray-600">Saldo disponible, ingresos, gastos y margen del año</p>
+            <h2 className="text-2xl font-semibold text-gray-800">💼 Gestión Operativa</h2>
+            <p className="text-gray-600">Tesorería, ingresos, gastos y rentabilidad</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -399,7 +384,7 @@ const KpiBoard: React.FC = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-bold flex items-center gap-2 text-blue-700">
                   <DollarSign className="h-5 w-5" />
-                  Saldo Total Disponible
+                  Saldo disponible en bancos
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -408,7 +393,7 @@ const KpiBoard: React.FC = () => {
                     {formatCurrency(data.operativo.tesoreria.total)}
                   </div>
                   <div className="text-sm text-gray-600">
-                    En {data.operativo.tesoreria.accounts} cuentas bancarias
+                    {data.operativo.tesoreria.accounts} cuentas activas
                   </div>
                 </div>
               </CardContent>
@@ -419,7 +404,7 @@ const KpiBoard: React.FC = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-bold flex items-center gap-2 text-green-700">
                   <TrendingUp className="h-5 w-5" />
-                  Ingresos
+                  Facturación
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -427,7 +412,7 @@ const KpiBoard: React.FC = () => {
                   <div className="text-2xl font-bold text-green-700">
                     {formatCurrency(data.operativo.ingresos.monthly)}
                   </div>
-                  <div className="text-sm text-gray-600">Este mes has facturado</div>
+                  <div className="text-sm text-gray-600">Facturación del mes actual</div>
                   <div className="text-xs text-gray-500">
                     Anual: {formatCurrency(data.operativo.ingresos.yearly)}
                   </div>
@@ -440,7 +425,7 @@ const KpiBoard: React.FC = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-bold flex items-center gap-2 text-red-700">
                   <TrendingDown className="h-5 w-5" />
-                  Gastos
+                  Pagos realizados
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -448,7 +433,7 @@ const KpiBoard: React.FC = () => {
                   <div className="text-2xl font-bold text-red-700">
                     {formatCurrency(data.operativo.gastos.monthly)}
                   </div>
-                  <div className="text-sm text-gray-600">Este mes has gastado</div>
+                  <div className="text-sm text-gray-600">Pagos del mes actual</div>
                   <div className="text-xs text-gray-500">
                     Anual: {formatCurrency(data.operativo.gastos.yearly)}
                   </div>
@@ -461,7 +446,7 @@ const KpiBoard: React.FC = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-bold flex items-center gap-2 text-purple-700">
                   <CheckCircle className="h-5 w-5" />
-                  Margen del Año
+                  Rentabilidad
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -469,7 +454,7 @@ const KpiBoard: React.FC = () => {
                   <div className="text-2xl font-bold text-purple-700">
                     {data.operativo.margen.marginPercentage}%
                   </div>
-                  <div className="text-sm text-gray-600">Tu margen sobre ventas</div>
+                  <div className="text-sm text-gray-600">Margen estimado sobre ingresos</div>
                   <div className="text-xs text-gray-500">
                     {formatCurrency(data.operativo.margen.yearlyMargin)}
                   </div>
@@ -481,7 +466,7 @@ const KpiBoard: React.FC = () => {
 
         {/* Footer con timestamp */}
         <div className="text-center text-sm text-gray-500 mt-8 pt-6 border-t border-gray-200">
-          Última actualización por Fatima: {new Date().toLocaleString('es-ES')}
+          Última actualización: {new Date().toLocaleString('es-ES')}
         </div>
       </div>
     </div>
