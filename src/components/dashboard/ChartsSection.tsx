@@ -341,22 +341,22 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
   const averageMargin = chartData.reduce((sum, item) => sum + item.margen, 0) / chartData.length;
 
   return (
-    <div className="mt-8">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Evolución de tu empresa</h2>
+    <div className="mt-12">
+      <h2 className="text-xl font-semibold text-gray-900 mb-8">Evolución de tu empresa</h2>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 1. Gráfico combinado: Ingresos vs Gastos con línea de margen */}
         <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-4">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Ingresos, Gastos y Margen Mensual
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-64">
+          <CardContent className="pt-2">
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={chartData} margin={{ top: 25, right: 35, left: 25, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="monthName" 
@@ -397,16 +397,16 @@ export const ChartsSection: React.FC<ChartsProps> = ({ tenantSlug }) => {
 
         {/* 2. Evolución del margen mensual */}
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-4">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Calculator className="h-4 w-4" />
               Evolución del Margen
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-64">
+          <CardContent className="pt-2">
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
+                <LineChart data={chartData} margin={{ top: 25, right: 15, left: 15, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="monthName" 
