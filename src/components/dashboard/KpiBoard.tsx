@@ -16,7 +16,6 @@ import {
   BarChart3,
   PieChart
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 
 // Interfaces para tipado
 interface ApiResponse {
@@ -251,8 +250,8 @@ export function KpiBoard() {
       </div>
 
       {/* SEPARADOR VISUAL AMPLIO */}
-      <div className="my-12"> {/* Separador más amplio */}
-        <Separator className="my-4" />
+      <div className="my-12">
+        <hr className="border-gray-200" />
       </div>
 
       {/* SECCIÓN 2: EVOLUCIÓN DE LA EMPRESA - Con separación amplia */}
@@ -295,8 +294,8 @@ export function KpiBoard() {
       </div>
 
       {/* SEPARADOR VISUAL AMPLIO */}
-      <div className="my-12"> {/* Separador más amplio */}
-        <Separator className="my-4" />
+      <div className="my-12">
+        <hr className="border-gray-200" />
       </div>
 
       {/* SECCIÓN 3: GESTIÓN OPERATIVA - Con separación amplia */}
@@ -395,8 +394,8 @@ export function KpiBoard() {
       </div>
 
       {/* SEPARADOR FINAL AMPLIO */}
-      <div className="my-12"> {/* Separador más amplio */}
-        <Separator className="my-4" />
+      <div className="my-12">
+        <hr className="border-gray-200" />
       </div>
 
       {/* Información del período */}
