@@ -2,6 +2,53 @@ import { supabase } from "@/integrations/supabase/client";
 
 const LOVABLE_SECRET = 'lovable_sync_2024_LP%#tGxa@Q';
 
+// 🔷 TIPOS EXPORTADOS
+export interface SmartAlert {
+  type: string;
+  title: string;
+  message: string;
+  module: string;
+  severity: string;
+  actionable?: boolean;
+  action?: string;
+}
+
+export interface IVAData {
+  quarter: number;
+  year: number;
+  iva_repercutido: number;
+  iva_soportado: number;
+  iva_diferencia: number;
+  base_imponible_ventas: number;
+  base_imponible_compras: number;
+  status: string;
+}
+
+export interface IRPFData {
+  quarter: number;
+  year: number;
+  retenciones_practicadas: number;
+  retenciones_soportadas: number;
+  diferencia: number;
+  status: string;
+}
+
+export interface SociedadesData {
+  year: number;
+  empresa_tipo: string;
+  resultado_ejercicio: number;
+  base_imponible: number;
+  tipo_impositivo: number;
+  cuota_diferencial: number;
+  status: string;
+}
+
+export interface FiscalData {
+  iva: IVAData;
+  irpf: IRPFData;
+  sociedades: SociedadesData;
+}
+
 // 🔴 VALIDACIÓN OBLIGATORIA DE TENANT
 const validateTenant = (tenantSlug?: string): string => {
   if (!tenantSlug || tenantSlug.trim() === '') {
