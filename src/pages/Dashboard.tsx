@@ -1,16 +1,9 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, DollarSign, Calendar } from "lucide-react";
-import KpiBoard from "@/components/KpiBoard";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { backendAdapter } from "@/lib/backendAdapter";
-import { PDFGenerator } from "@/components/PDFGenerator";
+import { Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-// 🔷 TIPOS
+// 🔷 TIPOS CORRECTOS
 interface DashboardData {
   treasury: {
     total: number;
@@ -42,413 +35,164 @@ interface DashboardData {
   }>;
 }
 
-interface Tenant {
-  id: string;
-  name: string;
-  slug: string;
+interface PDFGeneratorProps {
+  data: DashboardData;
+  tenantSlug: string;
+  tenantName: string;
 }
 
-const Dashboard = () => {
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
-  const [tenant, setTenant] = useState<Tenant | null>(null);
+export const PDFGenerator = ({ data, tenantSlug, tenantName }: PDFGeneratorProps) => {
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Informe Financiero", pageWidth / 2, 20, { align: "center" });
+    
+    // Tenant name
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(tenantName, pageWidth / 2, 28, { align: "center" });
+    
+    // Date
+    doc.setFontSize(10);
+    doc.text(`Generado: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 35, { align: "center" });
+    
+    let yPos = 45;
 
-  // 🆕 CARGAR TENANT DEL USUARIO
-  useEffect(() => {
-    const loadTenant = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          toast({
-            title: "Error de autenticación",
-            description: "Debes iniciar sesión",
-            variant: "destructive",
-          });
-          return;
-        }
+    // Treasury Section
+    doc.setFontSize(14);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Tesorería", 14, yPos);
+    yPos += 10;
 
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('tenant_id, tenants!inner(id, name, slug)')
-          .eq('id', user.id)
-          .single();
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Concepto", "Valor"]],
+      body: [
+        ["Saldo Total", `${data.treasury.total.toLocaleString('es-ES')} ${data.treasury.currency}`],
+        ["Cuentas Activas", data.treasury.accounts.toString()],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [66, 139, 202] },
+    });
 
-        if (error) throw error;
+    yPos = (doc as any).lastAutoTable.finalY + 10;
 
-        if (!profile?.tenants) {
-          toast({
-            title: "Error",
-            description: "No se encontró la empresa asociada",
-            variant: "destructive",
-          });
-          return;
-        }
+    // Revenue Section
+    doc.setFontSize(14);
+    doc.text("Facturación", 14, yPos);
+    yPos += 10;
 
-        // Supabase devuelve el objeto directamente cuando usas !inner
-        const tenantData = Array.isArray(profile.tenants) 
-          ? profile.tenants[0] 
-          : profile.tenants;
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Período", "Importe"]],
+      body: [
+        ["Mensual", `${data.revenue.monthly.toLocaleString('es-ES')} €`],
+        ["Trimestral", `${data.revenue.quarterly.toLocaleString('es-ES')} €`],
+        ["Anual", `${data.revenue.yearly.toLocaleString('es-ES')} €`],
+        ["Facturas Pendientes", data.revenue.pendingCount.toString()],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [92, 184, 92] },
+    });
 
-        setTenant({
-          id: tenantData.id,
-          name: tenantData.name,
-          slug: tenantData.slug,
-        });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
 
-      } catch (error) {
-        console.error('Error loading tenant:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo cargar la información de la empresa",
-          variant: "destructive",
-        });
+    // Expenses Section
+    doc.setFontSize(14);
+    doc.text("Gastos", 14, yPos);
+    yPos += 10;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Período", "Importe"]],
+      body: [
+        ["Mensual", `${data.expenses.monthly.toLocaleString('es-ES')} €`],
+        ["Trimestral", `${data.expenses.quarterly.toLocaleString('es-ES')} €`],
+        ["Anual", `${data.expenses.yearly.toLocaleString('es-ES')} €`],
+        ["Facturas por Pagar", data.expenses.pendingCount.toString()],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [217, 83, 79] },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+
+    // Profitability Section
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.text("Rentabilidad", 14, yPos);
+    yPos += 10;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Concepto", "Valor"]],
+      body: [
+        ["Margen Mensual", `${data.profitability.monthlyMargin.toLocaleString('es-ES')} €`],
+        ["Margen Trimestral", `${data.profitability.quarterlyMargin.toLocaleString('es-ES')} €`],
+        ["Margen Anual", `${data.profitability.yearlyMargin.toLocaleString('es-ES')} €`],
+        ["Porcentaje Margen", `${data.profitability.marginPercentage.toFixed(2)}%`],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [240, 173, 78] },
+    });
+
+    // Alerts Section (if any)
+    if (data.alerts.length > 0) {
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+      
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
       }
-    };
 
-    loadTenant();
-  }, [toast]);
+      doc.setFontSize(14);
+      doc.text("Alertas", 14, yPos);
+      yPos += 10;
 
-  // 🔄 CARGAR DASHBOARD
-  useEffect(() => {
-    if (tenant?.slug) {
-      loadDashboardData();
-    }
-  }, [tenant]);
-
-  const loadDashboardData = async () => {
-    if (!tenant?.slug) return;
-
-    setIsLoading(true);
-    try {
-      const data = await backendAdapter.getDashboard(tenant.slug);
-      setDashboardData(data);
-      setLastSync(new Date());
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-      toast({
-        title: "Error al cargar datos",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive",
+      autoTable(doc, {
+        startY: yPos,
+        head: [["Tipo", "Mensaje", "Módulo"]],
+        body: data.alerts.map(alert => [
+          alert.type,
+          alert.message,
+          alert.module
+        ]),
+        theme: "grid",
+        headStyles: { fillColor: [217, 83, 79] },
       });
-    } finally {
-      setIsLoading(false);
     }
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Página ${i} de ${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: "center" }
+      );
+    }
+
+    // Save PDF
+    const fileName = `informe-${tenantSlug}-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
   };
 
-  // 🔄 SYNC
-  const handleSyncNow = async () => {
-    if (!tenant?.slug) {
-      toast({
-        title: "Error",
-        description: "No hay empresa seleccionada",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSyncing(true);
-    try {
-      await backendAdapter.syncTreasury(tenant.slug);
-      
-      toast({
-        title: "Sincronización completada",
-        description: "Datos actualizados correctamente",
-      });
-      
-      await loadDashboardData();
-    } catch (error) {
-      console.error('Error syncing:', error);
-      toast({
-        title: "Error en sincronización",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  // 📊 CALCULAR MÉTRICAS
-  const calculateMetrics = () => {
-    if (!dashboardData) return null;
-
-    const { revenue, expenses } = dashboardData;
-
-    return {
-      monthlyGrowth: revenue.monthly > 0 
-        ? ((revenue.monthly - expenses.monthly) / revenue.monthly * 100).toFixed(1)
-        : "0.0",
-      quarterlyGrowth: revenue.quarterly > 0
-        ? ((revenue.quarterly - expenses.quarterly) / revenue.quarterly * 100).toFixed(1)
-        : "0.0",
-      yearlyGrowth: revenue.yearly > 0
-        ? ((revenue.yearly - expenses.yearly) / revenue.yearly * 100).toFixed(1)
-        : "0.0",
-    };
-  };
-
-  const metrics = calculateMetrics();
-
-  // 🎨 LOADING STATE
-  if (isLoading || !tenant) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Cargando datos empresariales...</p>
-          {tenant && <p className="text-sm text-muted-foreground mt-2">{tenant.name}</p>}
-        </div>
-      </div>
-    );
-  }
-
-  // 🎨 ERROR STATE
-  if (!dashboardData) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              Error al cargar datos
-            </CardTitle>
-            <CardDescription>
-              No se pudieron obtener los datos del dashboard para {tenant.name}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={loadDashboardData} className="w-full">
-              Reintentar
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // 🎨 RENDER PRINCIPAL
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Panel de Control</h1>
-          <p className="text-muted-foreground mt-1">{tenant.name}</p>
-        </div>
-        <div className="flex gap-2">
-          {lastSync && (
-            <Badge variant="outline" className="flex items-center gap-2">
-              <Calendar className="h-3 w-3" />
-              {lastSync.toLocaleString('es-ES')}
-            </Badge>
-          )}
-          <Button
-            onClick={handleSyncNow}
-            disabled={isSyncing}
-            variant="outline"
-            size="sm"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
-          </Button>
-          <PDFGenerator
-            data={dashboardData}
-            tenantSlug={tenant.slug}
-            tenantName={tenant.name}
-          />
-        </div>
-      </div>
-
-      {/* Alertas */}
-      {dashboardData.alerts.length > 0 && (
-        <div className="space-y-2">
-          {dashboardData.alerts.map((alert, idx) => (
-            <Card key={idx} className={`border-l-4 ${
-              alert.type === 'warning' ? 'border-l-yellow-500' : 'border-l-blue-500'
-            }`}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <AlertCircle className={`h-5 w-5 ${
-                  alert.type === 'warning' ? 'text-yellow-500' : 'text-blue-500'
-                }`} />
-                <div>
-                  <p className="font-medium">{alert.message}</p>
-                  <p className="text-sm text-muted-foreground">Módulo: {alert.module}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tesorería</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardData.treasury.total.toLocaleString('es-ES')} {dashboardData.treasury.currency}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.treasury.accounts} cuentas
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Facturación Anual</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardData.revenue.yearly.toLocaleString('es-ES')} €
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.revenue.pendingCount} pendientes
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gastos Anuales</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardData.expenses.yearly.toLocaleString('es-ES')} €
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.expenses.pendingCount} por pagar
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Margen Anual</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardData.profitability.marginPercentage.toFixed(1)}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.profitability.yearlyMargin.toLocaleString('es-ES')} €
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="monthly" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="monthly">Mensual</TabsTrigger>
-          <TabsTrigger value="quarterly">Trimestral</TabsTrigger>
-          <TabsTrigger value="yearly">Anual</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="monthly" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader><CardTitle>Ingresos</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {dashboardData.revenue.monthly.toLocaleString('es-ES')} €
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Gastos</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {dashboardData.expenses.monthly.toLocaleString('es-ES')} €
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Margen</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {dashboardData.profitability.monthlyMargin.toLocaleString('es-ES')} €
-                </div>
-                <p className="text-xs text-muted-foreground">{metrics?.monthlyGrowth}%</p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="quarterly" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader><CardTitle>Ingresos</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {dashboardData.revenue.quarterly.toLocaleString('es-ES')} €
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Gastos</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {dashboardData.expenses.quarterly.toLocaleString('es-ES')} €
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Margen</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {dashboardData.profitability.quarterlyMargin.toLocaleString('es-ES')} €
-                </div>
-                <p className="text-xs text-muted-foreground">{metrics?.quarterlyGrowth}%</p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="yearly" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader><CardTitle>Ingresos</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {dashboardData.revenue.yearly.toLocaleString('es-ES')} €
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Gastos</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {dashboardData.expenses.yearly.toLocaleString('es-ES')} €
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Margen</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {dashboardData.profitability.yearlyMargin.toLocaleString('es-ES')} €
-                </div>
-                <p className="text-xs text-muted-foreground">{metrics?.yearlyGrowth}%</p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* KpiBoard */}
-      <KpiBoard tenantSlug={tenant.slug} />
-    </div>
+    <Button onClick={generatePDF} variant="outline" size="sm">
+      <Download className="h-4 w-4 mr-2" />
+      Descargar PDF
+    </Button>
   );
 };
-
-export default Dashboard;
