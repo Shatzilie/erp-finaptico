@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +26,7 @@ import {
 } from '@/lib/backendAdapter';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,6 +37,28 @@ export default function Dashboard() {
   const [irpfData, setIrpfData] = useState<FiscalData | null>(null);
   const [sociedadesData, setSociedadesData] = useState<FiscalData | null>(null);
 
+  const checkAuth = async (): Promise<boolean> => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('❌ Error checking session:', error);
+        return false;
+      }
+
+      if (!session) {
+        console.log('❌ No hay sesión activa');
+        return false;
+      }
+
+      console.log('✅ Sesión activa encontrada');
+      return true;
+    } catch (error) {
+      console.error('💥 Error en checkAuth:', error);
+      return false;
+    }
+  };
+
   const loadTenantInfo = async (): Promise<string | null> => {
     try {
       console.log('🔍 Cargando información del tenant...');
@@ -44,14 +68,9 @@ export default function Dashboard() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
+      if (userError || !user) {
         console.error('❌ Error obteniendo usuario:', userError);
-        throw new Error('Error de autenticación');
-      }
-
-      if (!user) {
-        console.error('❌ No hay usuario autenticado');
-        throw new Error('Usuario no autenticado');
+        throw new Error('No se pudo obtener la información del usuario');
       }
 
       console.log('✅ Usuario autenticado:', user.id);
@@ -120,7 +139,6 @@ export default function Dashboard() {
   const loadAllData = async (slug: string) => {
     try {
       console.log('📊 Cargando datos del dashboard para:', slug);
-      setLoading(true);
 
       const [dashboard, iva, irpf, sociedades] = await Promise.allSettled([
         fetchDashboardData(slug),
@@ -168,8 +186,6 @@ export default function Dashboard() {
         description: 'Error al cargar los datos del dashboard',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -217,15 +233,36 @@ export default function Dashboard() {
   useEffect(() => {
     const init = async () => {
       console.log('🚀 Inicializando Dashboard...');
-      const slug = await loadTenantInfo();
-      if (slug) {
-        await loadAllData(slug);
-      } else {
-        setLoading(false);
+      
+      // PASO 1: Verificar autenticación
+      const isAuthenticated = await checkAuth();
+      
+      if (!isAuthenticated) {
+        console.log('🔒 Usuario no autenticado, redirigiendo a login...');
+        toast({
+          title: 'Sesión no válida',
+          description: 'Por favor, inicia sesión para continuar',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
       }
+
+      // PASO 2: Cargar tenant info
+      const slug = await loadTenantInfo();
+      
+      if (!slug) {
+        setLoading(false);
+        return;
+      }
+
+      // PASO 3: Cargar datos del dashboard
+      await loadAllData(slug);
+      setLoading(false);
     };
+
     init();
-  }, []);
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -249,12 +286,14 @@ export default function Dashboard() {
               <p className="text-muted-foreground">
                 Tu usuario no tiene una empresa asignada. Por favor, contacta al administrador.
               </p>
-              <Button
-                onClick={() => window.location.reload()}
-                variant="outline"
-              >
-                Reintentar
-              </Button>
+              <div className="flex gap-2 justify-center">
+                <Button onClick={() => navigate('/auth')} variant="outline">
+                  Volver al login
+                </Button>
+                <Button onClick={() => window.location.reload()}>
+                  Reintentar
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
