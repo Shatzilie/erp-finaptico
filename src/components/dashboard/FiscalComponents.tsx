@@ -1,7 +1,3 @@
-// src/components/dashboard/FiscalComponents.tsx
-// ===============================================
-// COMPONENTES FISCALES PARA EL DASHBOARD
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,11 +5,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { 
   TrendingUp, TrendingDown, Calculator, Receipt, Building,
-  AlertTriangle, Info, CheckCircle, Calendar, Euro,
-  FileText, Target, Percent
+  AlertTriangle, Info, CheckCircle, Calendar, FileText, Target
 } from 'lucide-react';
 
-import { FiscalData, SmartAlert } from '@/lib/backendAdapter';
+import type { SmartAlert, IVAData, IRPFData, SociedadesData } from '@/lib/backendAdapter';
 
 // 💶 FORMATEO DE MONEDA
 const formatEuro = (amount: number) => {
@@ -66,7 +61,7 @@ export function SmartAlerts({ alerts }: SmartAlertsProps) {
         {alerts.slice(0, 4).map((alert, index) => {
           const Icon = getAlertIcon(alert.type);
           return (
-            <Alert key={index} variant={getAlertVariant(alert.severity)}>
+            <Alert key={index} variant={getAlertVariant(alert.severity) as any}>
               <Icon className="h-4 w-4" />
               <AlertDescription>
                 <div className="flex justify-between items-start">
@@ -90,7 +85,7 @@ export function SmartAlerts({ alerts }: SmartAlertsProps) {
 
 // 📊 COMPONENTE: TARJETA IVA
 interface IvaCardProps {
-  data: FiscalData['iva'];
+  data: IVAData;
 }
 
 export function IvaCard({ data }: IvaCardProps) {
@@ -160,7 +155,7 @@ export function IvaCard({ data }: IvaCardProps) {
 
 // 🏢 COMPONENTE: TARJETA IRPF
 interface IrpfCardProps {
-  data: FiscalData['irpf'];
+  data: IRPFData;
 }
 
 export function IrpfCard({ data }: IrpfCardProps) {
@@ -223,7 +218,7 @@ export function IrpfCard({ data }: IrpfCardProps) {
 
 // 🏛️ COMPONENTE: TARJETA SOCIEDADES
 interface SociedadesCardProps {
-  data: FiscalData['sociedades'];
+  data: SociedadesData;
 }
 
 export function SociedadesCard({ data }: SociedadesCardProps) {
@@ -309,12 +304,10 @@ interface ObligationsCardProps {
 }
 
 export function ObligationsCard({ currentMonth, currentYear }: ObligationsCardProps) {
-  // Lógica simple para determinar próximas obligaciones
   const getNextObligations = () => {
     const obligations = [];
     
-    // IVA trimestral - cada 3 meses
-    if (currentMonth % 3 === 1) { // Enero, Abril, Julio, Octubre
+    if (currentMonth % 3 === 1) {
       obligations.push({
         model: '303',
         description: 'IVA Trimestral',
@@ -324,7 +317,6 @@ export function ObligationsCard({ currentMonth, currentYear }: ObligationsCardPr
       });
     }
     
-    // IRPF trimestral - cada 3 meses  
     if (currentMonth % 3 === 1) {
       obligations.push({
         model: '115',
@@ -335,7 +327,6 @@ export function ObligationsCard({ currentMonth, currentYear }: ObligationsCardPr
       });
     }
     
-    // Sociedades anual - Julio
     if (currentMonth >= 4 && currentMonth <= 7) {
       obligations.push({
         model: '200',
