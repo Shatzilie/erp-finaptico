@@ -3,14 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, DollarSign, Calendar, Download } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, DollarSign, Calendar } from "lucide-react";
 import KpiBoard from "@/components/KpiBoard";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { backendAdapter } from "@/lib/backendAdapter";
 import { PDFGenerator } from "@/components/PDFGenerator";
 
-// Tipos
+// 🔷 TIPOS
 interface DashboardData {
   treasury: {
     total: number;
@@ -56,7 +56,7 @@ const Dashboard = () => {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
 
-  // 🆕 CARGAR TENANT DEL USUARIO AUTENTICADO
+  // 🆕 CARGAR TENANT DEL USUARIO
   useEffect(() => {
     const loadTenant = async () => {
       try {
@@ -70,17 +70,9 @@ const Dashboard = () => {
           return;
         }
 
-        // Obtener tenant del usuario
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select(`
-            tenant_id,
-            tenants (
-              id,
-              name,
-              slug
-            )
-          `)
+          .select('tenant_id, tenants!inner(id, name, slug)')
           .eq('id', user.id)
           .single();
 
@@ -89,16 +81,21 @@ const Dashboard = () => {
         if (!profile?.tenants) {
           toast({
             title: "Error",
-            description: "No se encontró la empresa asociada al usuario",
+            description: "No se encontró la empresa asociada",
             variant: "destructive",
           });
           return;
         }
 
+        // Supabase devuelve el objeto directamente cuando usas !inner
+        const tenantData = Array.isArray(profile.tenants) 
+          ? profile.tenants[0] 
+          : profile.tenants;
+
         setTenant({
-          id: profile.tenants.id,
-          name: profile.tenants.name,
-          slug: profile.tenants.slug,
+          id: tenantData.id,
+          name: tenantData.name,
+          slug: tenantData.slug,
         });
 
       } catch (error) {
@@ -114,7 +111,7 @@ const Dashboard = () => {
     loadTenant();
   }, [toast]);
 
-  // 🔄 CARGAR DASHBOARD SOLO CUANDO TENANT ESTÉ DISPONIBLE
+  // 🔄 CARGAR DASHBOARD
   useEffect(() => {
     if (tenant?.slug) {
       loadDashboardData();
@@ -122,10 +119,7 @@ const Dashboard = () => {
   }, [tenant]);
 
   const loadDashboardData = async () => {
-    if (!tenant?.slug) {
-      console.warn('No tenant available');
-      return;
-    }
+    if (!tenant?.slug) return;
 
     setIsLoading(true);
     try {
@@ -144,7 +138,7 @@ const Dashboard = () => {
     }
   };
 
-  // 🔄 SYNC CORREGIDO - SIN CREDENCIALES HARDCODEADAS
+  // 🔄 SYNC
   const handleSyncNow = async () => {
     if (!tenant?.slug) {
       toast({
@@ -157,7 +151,6 @@ const Dashboard = () => {
 
     setIsSyncing(true);
     try {
-      // Usar método centralizado que internamente usa tenant_slug
       await backendAdapter.syncTreasury(tenant.slug);
       
       toast({
@@ -165,7 +158,6 @@ const Dashboard = () => {
         description: "Datos actualizados correctamente",
       });
       
-      // Recargar dashboard después de sync
       await loadDashboardData();
     } catch (error) {
       console.error('Error syncing:', error);
@@ -183,7 +175,7 @@ const Dashboard = () => {
   const calculateMetrics = () => {
     if (!dashboardData) return null;
 
-    const { revenue, expenses, profitability } = dashboardData;
+    const { revenue, expenses } = dashboardData;
 
     return {
       monthlyGrowth: revenue.monthly > 0 
@@ -195,14 +187,12 @@ const Dashboard = () => {
       yearlyGrowth: revenue.yearly > 0
         ? ((revenue.yearly - expenses.yearly) / revenue.yearly * 100).toFixed(1)
         : "0.0",
-      cashFlow: profitability.monthlyMargin,
-      marginPercentage: profitability.marginPercentage,
     };
   };
 
   const metrics = calculateMetrics();
 
-  // 🎨 RENDER
+  // 🎨 LOADING STATE
   if (isLoading || !tenant) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -215,6 +205,7 @@ const Dashboard = () => {
     );
   }
 
+  // 🎨 ERROR STATE
   if (!dashboardData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -238,21 +229,20 @@ const Dashboard = () => {
     );
   }
 
+  // 🎨 RENDER PRINCIPAL
   return (
     <div className="space-y-6 p-6">
-      {/* Header con nombre del tenant */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Panel de Control</h1>
-          <p className="text-muted-foreground mt-1">
-            {tenant.name}
-          </p>
+          <p className="text-muted-foreground mt-1">{tenant.name}</p>
         </div>
         <div className="flex gap-2">
           {lastSync && (
             <Badge variant="outline" className="flex items-center gap-2">
               <Calendar className="h-3 w-3" />
-              Última actualización: {lastSync.toLocaleString('es-ES')}
+              {lastSync.toLocaleString('es-ES')}
             </Badge>
           )}
           <Button
@@ -262,9 +252,8 @@ const Dashboard = () => {
             size="sm"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+            {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
           </Button>
-          {/* 🆕 PDF GENERATOR CON TENANT DINÁMICO */}
           <PDFGenerator
             data={dashboardData}
             tenantSlug={tenant.slug}
@@ -294,7 +283,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* KPIs principales */}
+      {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -306,7 +295,7 @@ const Dashboard = () => {
               {dashboardData.treasury.total.toLocaleString('es-ES')} {dashboardData.treasury.currency}
             </div>
             <p className="text-xs text-muted-foreground">
-              {dashboardData.treasury.accounts} cuentas activas
+              {dashboardData.treasury.accounts} cuentas
             </p>
           </CardContent>
         </Card>
@@ -321,7 +310,7 @@ const Dashboard = () => {
               {dashboardData.revenue.yearly.toLocaleString('es-ES')} €
             </div>
             <p className="text-xs text-muted-foreground">
-              {dashboardData.revenue.pendingCount} facturas pendientes
+              {dashboardData.revenue.pendingCount} pendientes
             </p>
           </CardContent>
         </Card>
@@ -351,13 +340,13 @@ const Dashboard = () => {
               {dashboardData.profitability.marginPercentage.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
-              {dashboardData.profitability.yearlyMargin.toLocaleString('es-ES')} € beneficio
+              {dashboardData.profitability.yearlyMargin.toLocaleString('es-ES')} €
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs con métricas detalladas */}
+      {/* Tabs */}
       <Tabs defaultValue="monthly" className="space-y-4">
         <TabsList>
           <TabsTrigger value="monthly">Mensual</TabsTrigger>
@@ -368,9 +357,7 @@ const Dashboard = () => {
         <TabsContent value="monthly" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
-              <CardHeader>
-                <CardTitle>Ingresos</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Ingresos</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
                   {dashboardData.revenue.monthly.toLocaleString('es-ES')} €
@@ -378,9 +365,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Gastos</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Gastos</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
                   {dashboardData.expenses.monthly.toLocaleString('es-ES')} €
@@ -388,16 +373,12 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Margen</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Margen</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {dashboardData.profitability.monthlyMargin.toLocaleString('es-ES')} €
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {metrics?.monthlyGrowth}% de margen
-                </p>
+                <p className="text-xs text-muted-foreground">{metrics?.monthlyGrowth}%</p>
               </CardContent>
             </Card>
           </div>
@@ -406,9 +387,7 @@ const Dashboard = () => {
         <TabsContent value="quarterly" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
-              <CardHeader>
-                <CardTitle>Ingresos</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Ingresos</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
                   {dashboardData.revenue.quarterly.toLocaleString('es-ES')} €
@@ -416,9 +395,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Gastos</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Gastos</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
                   {dashboardData.expenses.quarterly.toLocaleString('es-ES')} €
@@ -426,16 +403,12 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Margen</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Margen</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {dashboardData.profitability.quarterlyMargin.toLocaleString('es-ES')} €
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {metrics?.quarterlyGrowth}% de margen
-                </p>
+                <p className="text-xs text-muted-foreground">{metrics?.quarterlyGrowth}%</p>
               </CardContent>
             </Card>
           </div>
@@ -444,9 +417,7 @@ const Dashboard = () => {
         <TabsContent value="yearly" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
-              <CardHeader>
-                <CardTitle>Ingresos</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Ingresos</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
                   {dashboardData.revenue.yearly.toLocaleString('es-ES')} €
@@ -454,9 +425,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Gastos</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Gastos</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
                   {dashboardData.expenses.yearly.toLocaleString('es-ES')} €
@@ -464,23 +433,19 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Margen</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Margen</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {dashboardData.profitability.yearlyMargin.toLocaleString('es-ES')} €
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {metrics?.yearlyGrowth}% de margen
-                </p>
+                <p className="text-xs text-muted-foreground">{metrics?.yearlyGrowth}%</p>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
       </Tabs>
 
-      {/* 🆕 KPIBOARD CON TENANT DINÁMICO */}
+      {/* KpiBoard */}
       <KpiBoard tenantSlug={tenant.slug} />
     </div>
   );
