@@ -63,7 +63,13 @@ export default function KpiBoard() {
   const [syncing, setSyncing] = useState(false);
 
   const fetchDashboardData = async () => {
-    console.log('🎯 Cargando datos del Dashboard...');
+    console.log('🎯 Cargando datos del Dashboard para tenant:', slug);
+    
+    if (!slug) {
+      setError('No se pudo determinar el tenant');
+      setLoading(false);
+      return;
+    }
     
     try {
       const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard', {
@@ -73,7 +79,7 @@ export default function KpiBoard() {
           'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
         },
         body: JSON.stringify({
-          tenant_slug: 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd'
+          tenant_slug: slug  // ← AHORA USA EL SLUG CORRECTO
         })
       });
       
@@ -86,12 +92,10 @@ export default function KpiBoard() {
       const result = await response.json();
       console.log('📊 Respuesta completa de la API:', result);
       
-      // CORRECCIÓN CRÍTICA: Acceder a los datos correctamente
       if (result.ok && result.widget_data?.dashboard?.success) {
         const dashboardPayload = result.widget_data.dashboard.payload;
         console.log('✅ Datos extraídos correctamente:', dashboardPayload);
         
-        // Transformar el formato del backend al formato esperado
         const transformedData: DashboardData = {
           totalCash: dashboardPayload.treasury?.total || 0,
           monthlyRevenue: dashboardPayload.revenue?.monthly || 0,
@@ -113,7 +117,6 @@ export default function KpiBoard() {
         setData(transformedData);
         setError(null);
       } else {
-        // Manejar errores de la API
         const errorMsg = result.error || 'Error desconocido en la respuesta de la API';
         console.error('❌ Error en la respuesta de la API:', errorMsg);
         throw new Error(errorMsg);
@@ -142,10 +145,9 @@ export default function KpiBoard() {
   useEffect(() => {
     fetchDashboardData();
     
-    // Auto-refresh cada 5 minutos
     const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [slug]); // ← IMPORTANTE: Re-cargar cuando cambie el slug
 
   if (loading) {
     return (
@@ -185,11 +187,11 @@ export default function KpiBoard() {
   }
 
   return (
-    <div className="space-y-12"> {/* ESPACIADO AMPLIO - Cambiado de space-y-6 a space-y-12 */}
+    <div className="space-y-12">
       
-      {/* SECCIÓN 1: ESTADO FISCAL - Con separación amplia */}
+      {/* SECCIÓN 1: ESTADO FISCAL */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between mb-8"> {/* Añadido mb-8 para más separación */}
+        <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-bold">📊 Estado Fiscal del Trimestre</h2>
             <p className="text-muted-foreground">Q3 2025 • Situación actualizada</p>
@@ -216,7 +218,7 @@ export default function KpiBoard() {
 
         {/* Alertas */}
         {data.alerts && data.alerts.length > 0 && (
-          <div className="space-y-3 mb-10"> {/* Cambiado mb-6 a mb-10 para más separación */}
+          <div className="space-y-3 mb-10">
             {data.alerts.map((alert, index) => (
               <Alert 
                 key={index} 
@@ -229,8 +231,8 @@ export default function KpiBoard() {
           </div>
         )}
 
-        {/* Tarjetas fiscales - con más espacio */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12"> {/* Cambiado gap-6 a gap-8 y mb-8 a mb-12 */}
+        {/* Tarjetas fiscales */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           {/* Tarjeta IVA */}
           <Card className="border-red-200 bg-red-50/50">
             <CardHeader className="pb-3">
@@ -301,29 +303,29 @@ export default function KpiBoard() {
       </div>
 
       {/* SEPARADOR VISUAL AMPLIO */}
-      <div className="my-16"> {/* Separador más amplio - Cambiado de my-12 a my-16 */}
+      <div className="my-16">
         <hr className="border-gray-200" />
       </div>
 
-      {/* SECCIÓN 2: EVOLUCIÓN DE LA EMPRESA - Con separación amplia */}
+      {/* SECCIÓN 2: EVOLUCIÓN DE LA EMPRESA */}
       <div className="space-y-8">
         <ChartsSection tenantSlug={slug} />
       </div>
 
       {/* SEPARADOR VISUAL AMPLIO */}
-      <div className="my-16"> {/* Separador más amplio */}
+      <div className="my-16">
         <hr className="border-gray-200" />
       </div>
 
-      {/* SECCIÓN 3: GESTIÓN OPERATIVA - Con separación amplia */}
+      {/* SECCIÓN 3: GESTIÓN OPERATIVA */}
       <div className="space-y-8">
-        <div className="flex items-center gap-2 mb-8"> {/* Añadido mb-8 */}
+        <div className="flex items-center gap-2 mb-8">
           <h2 className="text-2xl font-bold">💼 Gestión Operativa</h2>
           <Badge variant="outline">Tesorería, ingresos, gastos y rentabilidad</Badge>
         </div>
 
         {/* KPIs operativos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12"> {/* Cambiado gap-6 a gap-8 y mb-8 a mb-12 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {/* Saldo disponible en bancos */}
           <Card>
             <CardHeader className="pb-2">
@@ -411,7 +413,7 @@ export default function KpiBoard() {
       </div>
 
       {/* Información del período */}
-      <Card className="mt-16"> {/* Añadido mt-16 para más separación final */}
+      <Card className="mt-16">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5" />
@@ -419,7 +421,7 @@ export default function KpiBoard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-sm"> {/* Cambiado gap-6 a gap-8 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
             <div>
               <span className="text-muted-foreground">Año fiscal:</span>
               <p className="font-medium">2025</p>
