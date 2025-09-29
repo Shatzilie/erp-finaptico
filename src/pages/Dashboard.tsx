@@ -1,480 +1,343 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  PiggyBank,
-  AlertCircle,
-  Download,
-  RefreshCw,
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useParams, Navigate } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DashboardHeader } from '@/components/DashboardHeader';
+import { DashboardSidebar } from '@/components/DashboardSidebar';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/integrations/supabase/client';
-import { FiscalCard } from '@/components/dashboard/FiscalComponents';
-import { generateDashboardPDF } from '@/components/PDFGenerator';
-import {
-  fetchDashboardData,
-  fetchIVAData,
-  fetchIRPFData,
-  fetchSociedadesData,
-  type DashboardData,
-  type FiscalData,
-  type SmartAlert,
-} from '@/lib/backendAdapter';
+import { useAuth } from '@/contexts/AuthContext';
+import { SyncNow } from '@/components/SyncNow';
+import { FreshnessBadge } from '@/components/FreshnessBadge';
+import { TrendingUp, DollarSign, FileText } from 'lucide-react';
+import KpiBoard from '@/components/dashboard/KpiBoard';
+import StubPage from '@/pages/stubs/StubPage';
+import { PDFGenerator } from '@/components/PDFGenerator';
+import { PageHeader } from '@/components/PageHeader';
 
-export default function Dashboard() {
-  const navigate = useNavigate();
-  const { toast } = useToast();
+type ChangeType = 'positive' | 'negative' | 'neutral';
+
+interface DashboardCard {
+  title: string;
+  description: string;
+  value: string;
+  change: string;
+  changeType: ChangeType;
+  icon: any;
+}
+
+interface Tenant {
+  name: string;
+  id: string;
+}
+
+interface WidgetData {
+  payload: { amount: number; currency: string };
+  freshness_seconds: number;
+}
+
+type KPIData = {
+  revenue?: number;
+  expenses?: number;
+  invoices?: number;
+};
+
+const DashboardContent = () => {
+  const { tenant: tenantSlug, section } = useParams<{ tenant: string; section?: string }>();
+  const { user } = useAuth();
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [tenantSlug, setTenantSlug] = useState<string>('');
-  const [companyName, setCompanyName] = useState<string>('');
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [ivaData, setIvaData] = useState<FiscalData | null>(null);
-  const [irpfData, setIrpfData] = useState<FiscalData | null>(null);
-  const [sociedadesData, setSociedadesData] = useState<FiscalData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [widgetData, setWidgetData] = useState<WidgetData | null>(null);
+  const [kpi, setKpi] = useState<KPIData>({});
+  const [syncing, setSyncing] = useState(false);
 
-  const checkAuth = async (): Promise<boolean> => {
+  const fetchWidgetData = async (tenantId: string) => {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const { data: wd, error } = await (supabase as any)
+        .from('widget_data')
+        .select('payload, freshness_seconds')
+        .eq('tenant_id', tenantId)
+        .eq('key', 'cash_balance')
+        .maybeSingle();
       
       if (error) {
-        console.error('❌ Error checking session:', error);
-        return false;
+        console.error('Error fetching widget data:', error);
+      } else {
+        setWidgetData(wd);
       }
-
-      if (!session) {
-        console.log('❌ No hay sesión activa');
-        return false;
-      }
-
-      console.log('✅ Sesión activa encontrada');
-      return true;
-    } catch (error) {
-      console.error('💥 Error en checkAuth:', error);
-      return false;
+    } catch (err) {
+      console.error('Unexpected error fetching widget data:', err);
     }
   };
 
-  const loadTenantInfo = async (): Promise<string | null> => {
+  const fetchKPIs = async (tenantId: string) => {
     try {
-      console.log('🔍 Cargando información del tenant...');
-      
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      // Get the 3 KPI widgets
+      const { data: widgets, error: werr } = await (supabase as any)
+        .from("widget_data")
+        .select("key, payload")
+        .eq("tenant_id", tenantId)
+        .in("key", ["revenue_month", "expenses_month", "invoices_month_count"]);
 
-      if (userError || !user) {
-        console.error('❌ Error obteniendo usuario:', userError);
-        throw new Error('No se pudo obtener la información del usuario');
+      if (werr) {
+        console.error("widget_data error", werr);
+        return;
       }
 
-      console.log('✅ Usuario autenticado:', user.id);
+      // Map to state
+      const revenue = widgets?.find((w: any) => w.key === "revenue_month")?.payload?.amount ?? 0;
+      const expenses = widgets?.find((w: any) => w.key === "expenses_month")?.payload?.amount ?? 0;
+      const invoices = widgets?.find((w: any) => w.key === "invoices_month_count")?.payload?.count ?? 0;
 
-      // Bypass de tipos para Supabase
-      const supabaseClient = supabase as any;
-
-      const { data: profileData, error: profileError } = await supabaseClient
-        .from('profiles')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error('❌ Error obteniendo profile:', profileError);
-        throw new Error(`Error al obtener perfil: ${profileError.message}`);
-      }
-
-      console.log('📋 Profile data:', profileData);
-
-      if (!profileData || !profileData.tenant_id) {
-        console.error('❌ Profile sin tenant_id');
-        throw new Error('Tu usuario no tiene una empresa asignada. Contacta al administrador.');
-      }
-
-      const tenantId = profileData.tenant_id;
-      console.log('✅ Tenant ID encontrado:', tenantId);
-
-      const { data: tenantData, error: tenantError } = await supabaseClient
-        .from('tenants')
-        .select('slug, name')
-        .eq('id', tenantId)
-        .maybeSingle();
-
-      if (tenantError) {
-        console.error('❌ Error obteniendo tenant:', tenantError);
-        throw new Error(`Error al obtener empresa: ${tenantError.message}`);
-      }
-
-      console.log('🏢 Tenant data:', tenantData);
-
-      if (!tenantData) {
-        console.error('❌ Tenant no encontrado');
-        throw new Error('La empresa no existe en el sistema');
-      }
-
-      console.log('✅ Tenant encontrado:', tenantData.slug, '-', tenantData.name);
-
-      setTenantSlug(tenantData.slug);
-      setCompanyName(tenantData.name);
-      
-      return tenantData.slug;
-    } catch (error: any) {
-      console.error('💥 Error en loadTenantInfo:', error);
-      
-      toast({
-        title: 'Error',
-        description: error.message || 'No se pudo cargar la información del tenant',
-        variant: 'destructive',
-      });
-      
-      return null;
+      setKpi({ revenue, expenses, invoices });
+    } catch (err) {
+      console.error('Unexpected error fetching KPIs:', err);
     }
   };
 
-  const loadAllData = async (slug: string) => {
-    try {
-      console.log('📊 Cargando datos del dashboard para:', slug);
-
-      const [dashboard, iva, irpf, sociedades] = await Promise.allSettled([
-        fetchDashboardData(slug),
-        fetchIVAData(slug),
-        fetchIRPFData(slug),
-        fetchSociedadesData(slug),
-      ]);
-
-      if (dashboard.status === 'fulfilled') {
-        console.log('✅ Dashboard cargado');
-        setDashboardData(dashboard.value);
-      } else {
-        console.error('❌ Error loading dashboard:', dashboard.reason);
-      }
-
-      if (iva.status === 'fulfilled') {
-        console.log('✅ IVA cargado');
-        setIvaData(iva.value);
-      } else {
-        console.error('❌ Error loading IVA:', iva.reason);
-      }
-
-      if (irpf.status === 'fulfilled') {
-        console.log('✅ IRPF cargado');
-        setIrpfData(irpf.value);
-      } else {
-        console.error('❌ Error loading IRPF:', irpf.reason);
-      }
-
-      if (sociedades.status === 'fulfilled') {
-        console.log('✅ Sociedades cargado');
-        setSociedadesData(sociedades.value);
-      } else {
-        console.error('❌ Error loading Sociedades:', sociedades.reason);
-      }
-
-      toast({
-        title: 'Datos actualizados',
-        description: 'Dashboard cargado correctamente',
-      });
-    } catch (error: any) {
-      console.error('💥 Error loading data:', error);
-      toast({
-        title: 'Error',
-        description: 'Error al cargar los datos del dashboard',
-        variant: 'destructive',
-      });
+  const handleSyncComplete = () => {
+    if (tenant?.id) {
+      fetchWidgetData(tenant.id);
+      fetchKPIs(tenant.id);
     }
   };
 
-  const handleRefresh = async () => {
-    if (!tenantSlug) {
-      toast({
-        title: 'Error',
-        description: 'No hay empresa seleccionada',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setRefreshing(true);
-    await loadAllData(tenantSlug);
-    setRefreshing(false);
-  };
-
-  const handleExportPDF = async () => {
-    if (!dashboardData) {
-      toast({
-        title: 'Error',
-        description: 'No hay datos para exportar',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const handleSyncNow = async () => {
+    if (!tenantSlug) return;
+    setSyncing(true);
 
     try {
-      await generateDashboardPDF(dashboardData, companyName);
-      toast({
-        title: 'PDF generado',
-        description: 'El dashboard se ha exportado correctamente',
+      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          baseUrl: 'https://young-minds-big-ideas-sl.odoo.com',
+          db: 'young-minds-big-ideas-sl',
+          username: 'finances@ymbi.eu',
+          password: '@77313325kK@'
+        })
       });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast({
-        title: 'Error',
-        description: 'Error al generar el PDF',
-        variant: 'destructive',
-      });
+
+      const data = await response.json();
+      if (!data.ok) {
+        console.error("sync error", data.error);
+      } else {
+        console.log("sync ok", data);
+        // Refresh KPIs
+        if (tenant?.id) {
+          await fetchKPIs(tenant.id);
+          await fetchWidgetData(tenant.id);
+        }
+      }
+    } catch (err) {
+      console.error("Sync error:", err);
+    } finally {
+      setSyncing(false);
     }
   };
 
   useEffect(() => {
-    const init = async () => {
-      console.log('🚀 Inicializando Dashboard...');
+    async function getSessionAndAuthorize() {
+      if (!tenantSlug || !user) return;
       
-      // PASO 1: Verificar autenticación
-      const isAuthenticated = await checkAuth();
-      
-      if (!isAuthenticated) {
-        console.log('🔒 Usuario no autenticado, redirigiendo a login...');
-        toast({
-          title: 'Sesión no válida',
-          description: 'Por favor, inicia sesión para continuar',
-          variant: 'destructive',
-        });
-        navigate('/auth');
-        return;
-      }
+      try {
+        // First, get the user's profile and tenant_id
+        const { data: profileData, error: profileError } = await (supabase as any)
+          .from('profiles')
+          .select('tenant_id')
+          .eq('user_id', user.id)
+          .single();
 
-      // PASO 2: Cargar tenant info
-      const slug = await loadTenantInfo();
-      
-      if (!slug) {
+        if (profileError || !profileData) {
+          throw new Error('PROFILE_NOT_FOUND');
+        }
+
+        // Then, get the tenant information
+        const { data: tenantData, error: tenantError } = await (supabase as any)
+          .from('tenants')
+          .select('id, slug, name')
+          .eq('id', profileData.tenant_id)
+          .single();
+
+        if (tenantError || !tenantData) {
+          throw new Error('TENANT_NOT_FOUND');
+        }
+
+        // Verify user belongs to the requested tenant
+        if (tenantData.slug !== tenantSlug) {
+          setUnauthorized(true);
+          throw new Error('FORBIDDEN');
+        }
+
+        // If authorized, set the tenant data
+        setTenant({ name: tenantData.name, id: tenantData.id });
+        
+        // Fetch widget data
+        await fetchWidgetData(tenantData.id);
+        await fetchKPIs(tenantData.id);
+      } catch (err: any) {
+        if (err.message === 'FORBIDDEN') {
+          setUnauthorized(true);
+          setError('No tienes acceso a este tenant');
+        } else {
+          setError('Error al verificar permisos');
+        }
+      } finally {
         setLoading(false);
-        return;
       }
+    }
 
-      // PASO 3: Cargar datos del dashboard
-      await loadAllData(slug);
-      setLoading(false);
-    };
-
-    init();
-  }, [navigate]);
+    getSessionAndAuthorize();
+  }, [tenantSlug, user]);
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Cargando dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!tenantSlug) {
-    return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-              <h2 className="text-xl font-semibold">No se pudo cargar el dashboard</h2>
-              <p className="text-muted-foreground">
-                Tu usuario no tiene una empresa asignada. Por favor, contacta al administrador.
-              </p>
-              <div className="flex gap-2 justify-center">
-                <Button onClick={() => navigate('/auth')} variant="outline">
-                  Volver al login
-                </Button>
-                <Button onClick={() => window.location.reload()}>
-                  Reintentar
-                </Button>
-              </div>
-            </div>
-          </CardContent>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Cargando...</CardTitle>
+            <CardDescription>Verificando permisos y obteniendo información del tenant</CardDescription>
+          </CardHeader>
         </Card>
       </div>
     );
   }
 
-  if (!dashboardData) {
+  if (unauthorized) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (error || !tenant) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <AlertCircle className="h-12 w-12 text-yellow-600 mx-auto" />
-              <h2 className="text-xl font-semibold">Datos no disponibles</h2>
-              <p className="text-muted-foreground">
-                No se pudieron cargar los datos del dashboard para {companyName}
-              </p>
-              <Button onClick={handleRefresh} disabled={refreshing}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                Reintentar
-              </Button>
-            </div>
-          </CardContent>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Acceso denegado</CardTitle>
+            <CardDescription>
+              {error || `No tienes permisos para acceder al tenant "${tenantSlug}".`}
+            </CardDescription>
+          </CardHeader>
         </Card>
       </div>
     );
   }
 
-  const getAlertIcon = (type: SmartAlert['type']) => {
-    switch (type) {
-      case 'warning':
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-      case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-600" />;
-      case 'info':
-        return <AlertCircle className="h-4 w-4 text-blue-600" />;
-      case 'success':
-        return <AlertCircle className="h-4 w-4 text-green-600" />;
+  const cards: DashboardCard[] = [
+    {
+      title: 'Ingresos (mes)',
+      description: 'Ingresos del mes actual',
+      value: kpi.revenue !== undefined ? 
+        `€${kpi.revenue.toLocaleString('es-ES', { minimumFractionDigits: 2 })}` : 
+        'Sin datos',
+      change: 'mes en curso',
+      changeType: 'positive',
+      icon: TrendingUp,
+    },
+    {
+      title: 'Gastos (mes)',
+      description: 'Gastos del mes actual',
+      value: kpi.expenses !== undefined ? 
+        `€${kpi.expenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}` : 
+        'Sin datos',
+      change: 'mes en curso',
+      changeType: 'neutral',
+      icon: DollarSign,
+    },
+    {
+      title: 'Nº Facturas (mes)',
+      description: 'Facturas emitidas este mes',
+      value: kpi.invoices !== undefined ? 
+        kpi.invoices.toString() : 
+        'Sin datos',
+      change: 'mes en curso',
+      changeType: 'neutral',
+      icon: FileText,
+    },
+  ];
+
+  const getSectionTitle = (section?: string) => {
+    switch (section) {
+      case 'dashboard':
+        return 'Dashboard Principal';
+      case 'treasury':
+        return 'Tesorería';
+      case 'invoicing':
+        return 'Facturación';
+      case 'expenses':
+        return 'Gastos';
+      case 'vat':
+        return 'IVA';
+      case 'irpf':
+        return 'IRPF';
+      case 'is':
+        return 'Impuesto de Sociedades';
+      case 'calendar':
+        return 'Calendario Fiscal';
+      case 'docs':
+        return 'Documentación';
+      case 'advisory':
+        return 'Asesoría';
+      case 'company':
+        return 'Mi Empresa';
+      default:
+        return 'Dashboard Principal';
     }
   };
 
+  const renderMainContent = () => {
+    // Default to dashboard if no section specified
+    const currentSection = section || 'dashboard';
+    
+    if (currentSection === 'dashboard') {
+      return <KpiBoard />;
+    }
+    
+    return <StubPage title={getSectionTitle(currentSection)} />;
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard Financiero</h1>
-          <p className="text-muted-foreground">{companyName}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Actualizar
-          </Button>
-          <Button onClick={handleExportPDF} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* Alertas */}
-      {dashboardData.alerts && dashboardData.alerts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5" />
-              Alertas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {dashboardData.alerts.map((alert, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-2 rounded bg-muted">
-                  {getAlertIcon(alert.type)}
-                  <span className="text-sm">{alert.message}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Métricas principales */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tesorería Total</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardData.treasury.total.toLocaleString('es-ES')} €
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.treasury.accounts.length} cuentas
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ingresos Anuales</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardData.revenue.annual_revenue.toLocaleString('es-ES')} €
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.revenue.outstanding_invoices_count} facturas pendientes
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gastos Anuales</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardData.expenses.annual_expenses.toLocaleString('es-ES')} €
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.expenses.pending_invoices_count} por pagar
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Margen Anual</CardTitle>
-            <PiggyBank className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardData.profitability.yearlyMargin.toLocaleString('es-ES')} €
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.profitability.marginPercentage.toFixed(2)}% de margen
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Información Fiscal */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {ivaData && <FiscalCard data={ivaData} title="IVA Trimestral" type="iva" />}
-        {irpfData && <FiscalCard data={irpfData} title="IRPF Trimestral" type="irpf" />}
-        {sociedadesData && (
-          <FiscalCard data={sociedadesData} title="Impuesto Sociedades" type="sociedades" />
-        )}
-      </div>
-
-      {/* Cuentas de Tesorería */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Cuentas Bancarias</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {dashboardData.treasury.accounts.map((account) => (
-              <div
-                key={account.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div>
-                  <p className="font-medium">{account.name}</p>
-                  {account.iban && <p className="text-sm text-muted-foreground">{account.iban}</p>}
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">{account.balance.toLocaleString('es-ES')} €</p>
-                  <p className="text-sm text-muted-foreground">{account.currency}</p>
-                </div>
+    <div className="flex min-h-screen bg-background">
+      <DashboardSidebar />
+      
+      <div className="flex-1">
+        <DashboardHeader />
+        
+        {/* Header con botón PDF */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div>
+                <PageHeader 
+                  title="Dashboard Ejecutivo" 
+                  subtitle="Resumen financiero y fiscal en tiempo real"
+                />
               </div>
-            ))}
+              <div className="flex space-x-4">
+                <PDFGenerator 
+                  tenantSlug="c4002f55-f7d5-4dd4-9942-d7ca65a551fd"
+                  className="shadow-lg"
+                />
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        
+        <main className="p-6">
+          {renderMainContent()}
+        </main>
+      </div>
     </div>
+  );
+};
+
+export default function Dashboard() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }
