@@ -1,162 +1,215 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
+
+// ==================== TIPOS EXPORTADOS ====================
+export interface FiscalData {
+  period: {
+    quarter: number;
+    year: number;
+    date_from: string;
+    date_to: string;
+  };
+  iva_repercutido?: number;
+  iva_soportado?: number;
+  iva_diferencia?: number;
+  retenciones_practicadas?: number;
+  retenciones_soportadas?: number;
+  diferencia?: number;
+  resultado_ejercicio?: number;
+  base_imponible?: number;
+  cuota_integra?: number;
+  cuota_diferencial?: number;
+  status: string;
+}
+
+export interface SmartAlert {
+  type: 'warning' | 'info' | 'success' | 'error';
+  message: string;
+  module: string;
+}
+
+export interface TreasuryData {
+  total: number;
+  currency: string;
+  accounts: Array<{
+    id: number;
+    name: string;
+    balance: number;
+    currency: string;
+    iban?: string;
+  }>;
+  movements?: Array<{
+    id: number;
+    name: string;
+    amount: number;
+    date: string;
+    partner_name?: string;
+  }>;
+}
+
+export interface RevenueData {
+  monthly_revenue: number;
+  quarterly_revenue: number;
+  annual_revenue: number;
+  outstanding_invoices_count: number;
+  outstanding_invoices_amount: number;
+  total_invoices: number;
+  period: {
+    from: string;
+    to: string;
+  };
+}
+
+export interface ExpensesData {
+  monthly_expenses: number;
+  quarterly_expenses: number;
+  annual_expenses: number;
+  pending_invoices_count: number;
+  total_pending_amount: number;
+  total_invoices: number;
+  period?: {
+    from: string;
+    to: string;
+  };
+}
+
+export interface DashboardData {
+  treasury: TreasuryData;
+  revenue: RevenueData;
+  expenses: ExpensesData;
+  profitability: {
+    monthlyMargin: number;
+    quarterlyMargin: number;
+    yearlyMargin: number;
+    marginPercentage: number;
+  };
+  alerts: SmartAlert[];
+  message?: string;
+}
+
+// ==================== FUNCIONES DE LLAMADA A EDGE FUNCTIONS ====================
 
 const LOVABLE_SECRET = 'lovable_sync_2024_LP%#tGxa@Q';
 
-// 🔷 TIPOS EXPORTADOS
-export interface SmartAlert {
-  type: string;
-  title: string;
-  message: string;
-  module: string;
-  severity: string;
-  actionable?: boolean;
-  action?: string;
-}
-
-export interface IVAData {
-  quarter: number;
-  year: number;
-  iva_repercutido: number;
-  iva_soportado: number;
-  iva_diferencia: number;
-  base_imponible_ventas: number;
-  base_imponible_compras: number;
-  status: string;
-}
-
-export interface IRPFData {
-  quarter: number;
-  year: number;
-  retenciones_practicadas: number;
-  retenciones_soportadas: number;
-  diferencia: number;
-  status: string;
-}
-
-export interface SociedadesData {
-  year: number;
-  empresa_tipo: string;
-  resultado_ejercicio: number;
-  base_imponible: number;
-  tipo_impositivo: number;
-  cuota_diferencial: number;
-  status: string;
-}
-
-export interface FiscalData {
-  iva: IVAData;
-  irpf: IRPFData;
-  sociedades: SociedadesData;
-}
-
-// 🔴 VALIDACIÓN OBLIGATORIA DE TENANT
-const validateTenant = (tenantSlug?: string): string => {
-  if (!tenantSlug || tenantSlug.trim() === '') {
-    throw new Error('tenant_slug is required for all operations');
-  }
-  return tenantSlug;
-};
-
-// 🌐 HELPER PARA LLAMADAS CON TENANT OBLIGATORIO
-const callEdgeFunction = async (
+async function callEdgeFunction<T>(
   functionName: string,
-  tenantSlug: string,
-  additionalParams: Record<string, any> = {}
-) => {
-  const validatedTenant = validateTenant(tenantSlug);
+  payload: Record<string, unknown>
+): Promise<T> {
+  try {
+    const { data, error } = await supabase.functions.invoke(functionName, {
+      body: payload,
+      headers: {
+        'x-lovable-secret': LOVABLE_SECRET,
+      },
+    });
 
-  const { data, error } = await supabase.functions.invoke(functionName, {
-    body: {
-      tenant_slug: validatedTenant,
-      ...additionalParams
-    },
-    headers: {
-      'x-lovable-secret': LOVABLE_SECRET
+    if (error) {
+      console.error(`Error calling ${functionName}:`, error);
+      throw new Error(error.message || `Failed to call ${functionName}`);
     }
+
+    if (!data.ok) {
+      throw new Error(data.error || `${functionName} returned error`);
+    }
+
+    return data;
+  } catch (err) {
+    console.error(`Exception in ${functionName}:`, err);
+    throw err;
+  }
+}
+
+// ==================== FUNCIONES PÚBLICAS ====================
+
+export async function fetchDashboardData(tenantSlug: string): Promise<DashboardData> {
+  const response = await callEdgeFunction<{
+    widget_data: { dashboard: { payload: DashboardData } };
+  }>('odoo-dashboard', { tenant_slug: tenantSlug });
+
+  return response.widget_data.dashboard.payload;
+}
+
+export async function fetchTreasuryData(tenantSlug: string): Promise<TreasuryData> {
+  const response = await callEdgeFunction<{
+    widget_data: { treasury_balance: { payload: TreasuryData } };
+  }>('odoo-sync', { tenant_slug: tenantSlug, include_movements: true });
+
+  return response.widget_data.treasury_balance.payload;
+}
+
+export async function fetchRevenueData(
+  tenantSlug: string,
+  dateFrom?: string,
+  dateTo?: string
+): Promise<RevenueData> {
+  const response = await callEdgeFunction<{
+    widget_data: { revenue: { payload: RevenueData } };
+  }>('odoo-revenue', {
+    tenant_slug: tenantSlug,
+    date_from: dateFrom,
+    date_to: dateTo,
   });
 
-  if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error || 'Request failed');
-  
-  return data;
-};
+  return response.widget_data.revenue.payload;
+}
 
-// 🎯 ADAPTER EXPORTADO
-export const backendAdapter = {
-  // ===== DASHBOARD =====
-  async getDashboard(tenantSlug: string) {
-    const data = await callEdgeFunction('odoo-dashboard', tenantSlug);
-    return data.widget_data.dashboard.payload;
-  },
+export async function fetchExpensesData(
+  tenantSlug: string,
+  dateFrom?: string,
+  dateTo?: string
+): Promise<ExpensesData> {
+  const response = await callEdgeFunction<{
+    widget_data: { expenses: { payload: ExpensesData } };
+  }>('odoo-expenses', {
+    tenant_slug: tenantSlug,
+    date_from: dateFrom,
+    date_to: dateTo,
+  });
 
-  // ===== TREASURY (TESORERÍA) =====
-  async syncTreasury(tenantSlug: string) {
-    const data = await callEdgeFunction('odoo-sync', tenantSlug, {
-      include_movements: true
-    });
-    return data.widget_data.treasury_balance.payload;
-  },
+  return response.widget_data.expenses.payload;
+}
 
-  async getTreasuryBalance(tenantSlug: string) {
-    return this.syncTreasury(tenantSlug);
-  },
+export async function fetchIVAData(
+  tenantSlug: string,
+  quarter?: number,
+  year?: number
+): Promise<FiscalData> {
+  const response = await callEdgeFunction<{
+    widget_data: { iva: { payload: FiscalData } };
+  }>('odoo-iva', {
+    tenant_slug: tenantSlug,
+    quarter,
+    year,
+  });
 
-  // ===== REVENUE (FACTURACIÓN) =====
-  async getRevenue(tenantSlug: string, dateFrom?: string, dateTo?: string) {
-    const data = await callEdgeFunction('odoo-revenue', tenantSlug, {
-      date_from: dateFrom,
-      date_to: dateTo
-    });
-    return data.widget_data.revenue.payload;
-  },
+  return response.widget_data.iva.payload;
+}
 
-  // ===== EXPENSES (GASTOS) =====
-  async getExpenses(tenantSlug: string, dateFrom?: string, dateTo?: string) {
-    const data = await callEdgeFunction('odoo-expenses', tenantSlug, {
-      date_from: dateFrom,
-      date_to: dateTo
-    });
-    return data.widget_data.expenses.payload;
-  },
+export async function fetchIRPFData(
+  tenantSlug: string,
+  quarter?: number,
+  year?: number
+): Promise<FiscalData> {
+  const response = await callEdgeFunction<{
+    widget_data: { irpf: { payload: FiscalData } };
+  }>('odoo-irpf', {
+    tenant_slug: tenantSlug,
+    quarter,
+    year,
+  });
 
-  // ===== IVA =====
-  async getIVA(tenantSlug: string, quarter?: number, year?: number) {
-    const currentDate = new Date();
-    const data = await callEdgeFunction('odoo-iva', tenantSlug, {
-      quarter: quarter || Math.ceil((currentDate.getMonth() + 1) / 3),
-      year: year || currentDate.getFullYear()
-    });
-    return data.widget_data.iva.payload;
-  },
+  return response.widget_data.irpf.payload;
+}
 
-  // ===== IRPF =====
-  async getIRPF(tenantSlug: string, quarter?: number, year?: number) {
-    const currentDate = new Date();
-    const data = await callEdgeFunction('odoo-irpf', tenantSlug, {
-      quarter: quarter || Math.ceil((currentDate.getMonth() + 1) / 3),
-      year: year || currentDate.getFullYear()
-    });
-    return data.widget_data.irpf.payload;
-  },
+export async function fetchSociedadesData(
+  tenantSlug: string,
+  year?: number
+): Promise<FiscalData> {
+  const response = await callEdgeFunction<{
+    widget_data: { sociedades: { payload: FiscalData } };
+  }>('odoo-sociedades', {
+    tenant_slug: tenantSlug,
+    year,
+  });
 
-  // ===== SOCIEDADES =====
-  async getSociedades(tenantSlug: string, year?: number) {
-    const data = await callEdgeFunction('odoo-sociedades', tenantSlug, {
-      year: year || new Date().getFullYear()
-    });
-    return data.widget_data.sociedades.payload;
-  },
-
-  // ===== MÉTODOS AUXILIARES =====
-  async testConnection(tenantSlug: string) {
-    try {
-      await this.getTreasuryBalance(tenantSlug);
-      return { ok: true, message: 'Connection successful' };
-    } catch (error) {
-      return { 
-        ok: false, 
-        message: error instanceof Error ? error.message : 'Connection failed' 
-      };
-    }
-  }
-};
+  return response.widget_data.sociedades.payload;
+}
