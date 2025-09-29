@@ -1,46 +1,5 @@
 import jsPDF from 'jspdf';
 
-// Declaración de tipos para jspdf-autotable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: AutoTableOptions) => jsPDF;
-    lastAutoTable?: {
-      finalY: number;
-    };
-  }
-}
-
-interface AutoTableOptions {
-  head?: string[][];
-  body?: (string | number)[][];
-  startY?: number;
-  theme?: 'striped' | 'grid' | 'plain';
-  headStyles?: {
-    fillColor?: number[];
-    textColor?: number[];
-    fontSize?: number;
-    fontStyle?: string;
-  };
-  styles?: {
-    fontSize?: number;
-    cellPadding?: number;
-  };
-  columnStyles?: Record<number, { cellWidth?: number | 'auto' }>;
-  margin?: { top?: number; left?: number };
-}
-
-// Importación dinámica de autoTable
-const loadAutoTable = async () => {
-  try {
-    // @ts-ignore - Importación dinámica
-    const autoTable = (await import('jspdf-autotable')).default;
-    return autoTable;
-  } catch (error) {
-    console.warn('jspdf-autotable no disponible, usando funcionalidad básica');
-    return null;
-  }
-};
-
 interface DashboardData {
   treasury: {
     total: number;
@@ -79,13 +38,10 @@ export async function generateDashboardPDF(
 ): Promise<void> {
   const doc = new jsPDF();
   
-  // Cargar autoTable si está disponible
-  await loadAutoTable();
-
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPosition = 20;
 
-  // Título
+  // Título principal
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.text('Dashboard Financiero', pageWidth / 2, yPosition, { align: 'center' });
@@ -105,14 +61,23 @@ export async function generateDashboardPDF(
   );
   yPosition += 15;
 
-  // Sección Tesorería
+  // Función helper para dibujar línea separadora
+  const drawLine = () => {
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, yPosition, pageWidth - 14, yPosition);
+    yPosition += 8;
+  };
+
+  // ==================== TESORERÍA ====================
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Tesorería', 14, yPosition);
+  doc.setTextColor(66, 139, 202);
+  doc.text('TESORERÍA', 14, yPosition);
   yPosition += 8;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
   doc.text(
     `Balance Total: ${data.treasury.total.toLocaleString('es-ES')} ${data.treasury.currency}`,
     14,
@@ -120,37 +85,54 @@ export async function generateDashboardPDF(
   );
   yPosition += 6;
   doc.text(`Número de cuentas: ${data.treasury.accounts.length}`, 14, yPosition);
-  yPosition += 10;
+  yPosition += 8;
 
-  // Tabla de cuentas si autoTable está disponible
-  if (doc.autoTable) {
-    const accountsData = data.treasury.accounts.map((acc) => [
-      acc.name,
-      `${acc.balance.toLocaleString('es-ES')} €`,
-      acc.iban || 'N/A',
-    ]);
+  // Lista de cuentas
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Cuentas:', 14, yPosition);
+  yPosition += 6;
 
-    doc.autoTable({
-      head: [['Cuenta', 'Balance', 'IBAN']],
-      body: accountsData,
-      startY: yPosition,
-      theme: 'striped',
-      headStyles: { fillColor: [66, 139, 202] },
-      styles: { fontSize: 9 },
-    });
+  doc.setFont('helvetica', 'normal');
+  data.treasury.accounts.forEach((account, index) => {
+    if (yPosition > 270) {
+      doc.addPage();
+      yPosition = 20;
+    }
+    
+    doc.text(`${index + 1}. ${account.name}`, 18, yPosition);
+    yPosition += 5;
+    doc.text(
+      `   Balance: ${account.balance.toLocaleString('es-ES')} €`,
+      18,
+      yPosition
+    );
+    yPosition += 5;
+    if (account.iban) {
+      doc.text(`   IBAN: ${account.iban}`, 18, yPosition);
+      yPosition += 5;
+    }
+    yPosition += 2;
+  });
 
-    yPosition = doc.lastAutoTable?.finalY || yPosition + 10;
+  yPosition += 5;
+  drawLine();
+
+  // ==================== INGRESOS ====================
+  if (yPosition > 240) {
+    doc.addPage();
+    yPosition = 20;
   }
-  yPosition += 10;
 
-  // Sección Ingresos
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Ingresos', 14, yPosition);
+  doc.setTextColor(34, 139, 34);
+  doc.text('INGRESOS', 14, yPosition);
   yPosition += 8;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
   doc.text(
     `Mensual: ${data.revenue.monthly_revenue.toLocaleString('es-ES')} €`,
     14,
@@ -176,14 +158,23 @@ export async function generateDashboardPDF(
   );
   yPosition += 10;
 
-  // Sección Gastos
+  drawLine();
+
+  // ==================== GASTOS ====================
+  if (yPosition > 240) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Gastos', 14, yPosition);
+  doc.setTextColor(220, 53, 69);
+  doc.text('GASTOS', 14, yPosition);
   yPosition += 8;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
   doc.text(
     `Mensual: ${data.expenses.monthly_expenses.toLocaleString('es-ES')} €`,
     14,
@@ -209,14 +200,23 @@ export async function generateDashboardPDF(
   );
   yPosition += 10;
 
-  // Sección Rentabilidad
+  drawLine();
+
+  // ==================== RENTABILIDAD ====================
+  if (yPosition > 240) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Rentabilidad', 14, yPosition);
+  doc.setTextColor(255, 193, 7);
+  doc.text('RENTABILIDAD', 14, yPosition);
   yPosition += 8;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
   doc.text(
     `Margen Mensual: ${data.profitability.monthlyMargin.toLocaleString('es-ES')} €`,
     14,
@@ -240,7 +240,57 @@ export async function generateDashboardPDF(
     14,
     yPosition
   );
+  yPosition += 10;
+
+  // ==================== RESUMEN FINAL ====================
+  drawLine();
+
+  if (yPosition > 240) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('RESUMEN EJECUTIVO', 14, yPosition);
+  yPosition += 8;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  
+  const netProfit = data.revenue.annual_revenue - data.expenses.annual_expenses;
+  const profitColor = netProfit >= 0 ? [34, 139, 34] : [220, 53, 69];
+  
+  doc.text(`Ingresos Anuales: ${data.revenue.annual_revenue.toLocaleString('es-ES')} €`, 14, yPosition);
+  yPosition += 6;
+  doc.text(`Gastos Anuales: ${data.expenses.annual_expenses.toLocaleString('es-ES')} €`, 14, yPosition);
+  yPosition += 6;
+  
+  doc.setTextColor(profitColor[0], profitColor[1], profitColor[2]);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Beneficio Neto: ${netProfit.toLocaleString('es-ES')} €`, 14, yPosition);
+  yPosition += 6;
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Margen de Beneficio: ${data.profitability.marginPercentage.toFixed(2)}%`, 14, yPosition);
+
+  // Pie de página
+  const totalPages = doc.internal.pages.length - 1;
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text(
+      `Generado por ERP Multi-tenant - Página ${i} de ${totalPages}`,
+      pageWidth / 2,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'center' }
+    );
+  }
 
   // Guardar PDF
-  doc.save(`dashboard-${companyName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.pdf`);
+  const fileName = `dashboard-${companyName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.pdf`;
+  doc.save(fileName);
 }
