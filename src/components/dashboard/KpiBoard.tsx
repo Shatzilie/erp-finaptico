@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, TrendingUp, TrendingDown, DollarSign, 
-         AlertTriangle, CheckCircle, XCircle, Euro, CreditCard, 
-         Receipt, Target } from 'lucide-react';
+         AlertTriangle, CheckCircle, Euro, Target } from 'lucide-react';
 import { ChartsSection } from './ChartsSection';
+import { IvaCard, IrpfCard, SociedadesCard } from './FiscalComponents';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardData {
@@ -26,6 +26,12 @@ interface DashboardData {
   marginPercentage?: number;
   alerts?: Array<{ type: string; message: string; module: string; }>;
   lastUpdated?: string;
+}
+
+interface FiscalData {
+  iva?: any;
+  irpf?: any;
+  sociedades?: any;
 }
 
 function useTenantSlug() {
@@ -59,6 +65,7 @@ const formatNumber = (value: number, decimals = 2) => {
 export default function KpiBoard() {
   const slug = useTenantSlug();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [fiscalData, setFiscalData] = useState<FiscalData>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -88,30 +95,65 @@ export default function KpiBoard() {
       const tenantId = tenantData.id;
       console.log('✅ Tenant ID obtenido:', tenantId);
 
-      // PASO 2: Llamar al backend con el tenant_id
-      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-        },
-        body: JSON.stringify({
-          tenant_slug: tenantId
+      // PASO 2: Llamar a todas las Edge Functions en paralelo
+      const [dashboardResponse, ivaResponse, irpfResponse, sociedadesResponse] = await Promise.all([
+        fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({ tenant_slug: tenantId })
+        }),
+        fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({ 
+            tenant_slug: slug,
+            quarter: 3,
+            year: 2025
+          })
+        }),
+        fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-irpf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({ 
+            tenant_slug: slug,
+            quarter: 3,
+            year: 2025
+          })
+        }),
+        fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({ 
+            tenant_slug: slug,
+            year: 2025
+          })
         })
-      });
+      ]);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Error response:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      // Procesar respuesta del dashboard
+      if (!dashboardResponse.ok) {
+        const errorText = await dashboardResponse.text();
+        console.error('❌ Error response dashboard:', errorText);
+        throw new Error(`HTTP ${dashboardResponse.status}: ${errorText}`);
       }
       
-      const result = await response.json();
-      console.log('📊 Respuesta completa de la API:', result);
+      const dashboardResult = await dashboardResponse.json();
+      console.log('📊 Dashboard:', dashboardResult);
       
-      if (result.ok && result.widget_data?.dashboard?.success) {
-        const dashboardPayload = result.widget_data.dashboard.payload;
-        console.log('✅ Datos extraídos correctamente:', dashboardPayload);
+      if (dashboardResult.ok && dashboardResult.widget_data?.dashboard?.success) {
+        const dashboardPayload = dashboardResult.widget_data.dashboard.payload;
         
         const transformedData: DashboardData = {
           totalCash: dashboardPayload.treasury?.total || 0,
@@ -128,18 +170,30 @@ export default function KpiBoard() {
           yearlyMargin: dashboardPayload.profitability?.yearlyMargin || 0,
           marginPercentage: dashboardPayload.profitability?.marginPercentage || 0,
           alerts: dashboardPayload.alerts || [],
-          lastUpdated: result.meta?.execution_time
+          lastUpdated: dashboardResult.meta?.execution_time
         };
         
         setData(transformedData);
-        setError(null);
-      } else {
-        const errorMsg = result.error || 'Error desconocido en la respuesta de la API';
-        console.error('❌ Error en la respuesta de la API:', errorMsg);
-        throw new Error(errorMsg);
       }
+
+      // Procesar respuestas fiscales
+      const ivaResult = await ivaResponse.json();
+      const irpfResult = await irpfResponse.json();
+      const sociedadesResult = await sociedadesResponse.json();
+
+      console.log('📊 IVA:', ivaResult);
+      console.log('📊 IRPF:', irpfResult);
+      console.log('📊 Sociedades:', sociedadesResult);
+
+      setFiscalData({
+        iva: ivaResult.ok ? ivaResult.widget_data?.iva?.payload : null,
+        irpf: irpfResult.ok ? irpfResult.widget_data?.irpf?.payload : null,
+        sociedades: sociedadesResult.ok ? sociedadesResult.widget_data?.sociedades?.payload : null
+      });
+
+      setError(null);
     } catch (err: any) {
-      console.error('❌ Error cargando datos del Dashboard:', err);
+      console.error('❌ Error cargando datos:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -210,12 +264,12 @@ export default function KpiBoard() {
       <div className="space-y-6">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold">📊 Estado Fiscal del Trimestre</h2>
+            <h2 className="text-2xl font-bold">Estado Fiscal del Trimestre</h2>
             <p className="text-muted-foreground">Q3 2025 • Situación actualizada</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="bg-blue-50">
-              🚀 Backend Nuevo
+              Backend Nuevo
             </Badge>
             <Button
               variant="outline"
@@ -239,7 +293,7 @@ export default function KpiBoard() {
             {data.alerts.map((alert, index) => (
               <Alert 
                 key={index} 
-                variant={alert.type === 'warning' ? 'destructive' : alert.type === 'info' ? 'default' : 'destructive'}
+                variant={alert.type === 'warning' ? 'destructive' : 'default'}
               >
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{alert.message}</AlertDescription>
@@ -248,78 +302,41 @@ export default function KpiBoard() {
           </div>
         )}
 
-        {/* Tarjetas fiscales */}
+        {/* Tarjetas fiscales - USANDO COMPONENTES REALES */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          {/* Tarjeta IVA */}
-          <Card className="border-red-200 bg-red-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-red-600" />
-                IVA - Tercer Trimestre
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600 mb-2">
-                Previsión: pagar 1765,74 €
-              </div>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p>IVA cobrado (facturas): 2520 €</p>
-                <p>IVA pagado (gastos): 754,26 €</p>
-              </div>
-              <Badge variant="destructive" className="mt-3">
-                Hay que pagar a Hacienda
-              </Badge>
-            </CardContent>
-          </Card>
+          {fiscalData.iva ? (
+            <IvaCard data={fiscalData.iva} />
+          ) : (
+            <Card className="border-gray-200">
+              <CardContent className="pt-6">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Tarjeta IRPF */}
-          <Card className="border-blue-200 bg-blue-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-blue-600" />
-                IRPF - Tercer Trimestre
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600 mb-2">
-                Previsión: a tu favor 1597,82 €
-              </div>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p>IRPF aplicado en servicios</p>
-                <p>IRPF soportado: 2497,66 €</p>
-                <p>IRPF practicado: 869,84 €</p>
-              </div>
-              <Badge variant="default" className="mt-3">
-                No hay que hacer nada
-              </Badge>
-            </CardContent>
-          </Card>
+          {fiscalData.irpf ? (
+            <IrpfCard data={fiscalData.irpf} />
+          ) : (
+            <Card className="border-gray-200">
+              <CardContent className="pt-6">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Tarjeta Impuesto de Sociedades */}
-          <Card className="border-gray-200 bg-gray-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-gray-600" />
-                Impuesto de Sociedades - 2025
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-600 mb-2">
-                Previsión actual: 0 €
-              </div>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p>Sin ingresos proyectos (a día de hoy)</p>
-                <p>Resultado empresarial: <span className="text-red-600 font-medium">-9437 €</span></p>
-              </div>
-              <Badge variant="secondary" className="mt-3">
-                No hay que pagar a Hacienda
-              </Badge>
-            </CardContent>
-          </Card>
+          {fiscalData.sociedades ? (
+            <SociedadesCard data={fiscalData.sociedades} />
+          ) : (
+            <Card className="border-gray-200">
+              <CardContent className="pt-6">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
-      {/* SEPARADOR VISUAL AMPLIO */}
+      {/* SEPARADOR VISUAL */}
       <div className="my-16">
         <hr className="border-gray-200" />
       </div>
@@ -329,7 +346,7 @@ export default function KpiBoard() {
         <ChartsSection tenantSlug={slug} />
       </div>
 
-      {/* SEPARADOR VISUAL AMPLIO */}
+      {/* SEPARADOR VISUAL */}
       <div className="my-16">
         <hr className="border-gray-200" />
       </div>
@@ -337,13 +354,13 @@ export default function KpiBoard() {
       {/* SECCIÓN 3: GESTIÓN OPERATIVA */}
       <div className="space-y-8">
         <div className="flex items-center gap-2 mb-8">
-          <h2 className="text-2xl font-bold">💼 Gestión Operativa</h2>
+          <h2 className="text-2xl font-bold">Gestión Operativa</h2>
           <Badge variant="outline">Tesorería, ingresos, gastos y rentabilidad</Badge>
         </div>
 
         {/* KPIs operativos */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {/* Saldo disponible en bancos */}
+          {/* Saldo disponible */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -356,7 +373,7 @@ export default function KpiBoard() {
                 {formatEuro(data.totalCash || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                6 cuentas activas
+                Cuentas bancarias
               </p>
               <Badge variant={(data.totalCash || 0) >= 0 ? "default" : "destructive"} className="mt-2">
                 {(data.totalCash || 0) >= 0 ? 'Positivo' : 'Negativo'}
@@ -377,10 +394,10 @@ export default function KpiBoard() {
                 {formatEuro(data.yearlyRevenue || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Facturación del mes actual
+                Año actual
               </p>
               <p className="text-xs text-muted-foreground">
-                Sep: {formatEuro(data.monthlyRevenue || 0)}
+                Mes: {formatEuro(data.monthlyRevenue || 0)}
               </p>
             </CardContent>
           </Card>
@@ -398,10 +415,10 @@ export default function KpiBoard() {
                 {formatEuro(data.yearlyExpenses || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Pagos del mes actual
+                Año actual
               </p>
               <p className="text-xs text-muted-foreground">
-                Sep: {formatEuro(data.monthlyExpenses || 0)}
+                Mes: {formatEuro(data.monthlyExpenses || 0)}
               </p>
             </CardContent>
           </Card>
@@ -419,7 +436,7 @@ export default function KpiBoard() {
                 {formatEuro(data.yearlyMargin || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Margen estimado entre ingresos y gastos
+                Margen anual
               </p>
               <p className={`text-xs mt-1 font-medium ${(data.marginPercentage || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatNumber(data.marginPercentage || 0, 1)}%
