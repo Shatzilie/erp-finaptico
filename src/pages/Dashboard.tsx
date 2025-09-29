@@ -28,6 +28,7 @@ interface DashboardCard {
 interface Tenant {
   name: string;
   id: string;
+  slug: string;
 }
 
 interface WidgetData {
@@ -104,7 +105,7 @@ const DashboardContent = () => {
   };
 
   const handleSyncNow = async () => {
-    if (!tenantSlug) return;
+    if (!tenantSlug || !tenant) return;
     setSyncing(true);
 
     try {
@@ -115,10 +116,7 @@ const DashboardContent = () => {
           'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
         },
         body: JSON.stringify({
-          baseUrl: 'https://young-minds-big-ideas-sl.odoo.com',
-          db: 'young-minds-big-ideas-sl',
-          username: 'finances@ymbi.eu',
-          password: '@77313325kK@'
+          tenant_slug: tenantSlug  // ← AHORA USA EL TENANT CORRECTO
         })
       });
 
@@ -145,8 +143,10 @@ const DashboardContent = () => {
       if (!tenantSlug || !user) return;
       
       try {
+        const supabaseClient = supabase as any;
+
         // First, get the user's profile and tenant_id
-        const { data: profileData, error: profileError } = await (supabase as any)
+        const { data: profileData, error: profileError } = await supabaseClient
           .from('profiles')
           .select('tenant_id')
           .eq('user_id', user.id)
@@ -157,7 +157,7 @@ const DashboardContent = () => {
         }
 
         // Then, get the tenant information
-        const { data: tenantData, error: tenantError } = await (supabase as any)
+        const { data: tenantData, error: tenantError } = await supabaseClient
           .from('tenants')
           .select('id, slug, name')
           .eq('id', profileData.tenant_id)
@@ -174,9 +174,13 @@ const DashboardContent = () => {
         }
 
         // If authorized, set the tenant data
-        setTenant({ name: tenantData.name, id: tenantData.id });
+        setTenant({ 
+          name: tenantData.name, 
+          id: tenantData.id,
+          slug: tenantData.slug 
+        });
         
-        // Fetch widget data
+        // Fetch widget data for THIS tenant
         await fetchWidgetData(tenantData.id);
         await fetchKPIs(tenantData.id);
       } catch (err: any) {
@@ -312,13 +316,13 @@ const DashboardContent = () => {
             <div className="flex justify-between items-center py-6">
               <div>
                 <PageHeader 
-                  title="Dashboard Ejecutivo" 
+                  title={`Dashboard Ejecutivo - ${tenant.name}`}
                   subtitle="Resumen financiero y fiscal en tiempo real"
                 />
               </div>
               <div className="flex space-x-4">
                 <PDFGenerator 
-                  tenantSlug="c4002f55-f7d5-4dd4-9942-d7ca65a551fd"
+                  tenantSlug={tenant.slug}
                   className="shadow-lg"
                 />
               </div>
