@@ -51,6 +51,7 @@ export default function Login() {
           description: error.message,
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -59,64 +60,61 @@ export default function Login() {
           title: "Registro exitoso",
           description: "Revisa tu email para confirmar tu cuenta",
         });
+        setIsLoading(false);
         return;
       }
 
-      // Tras login, descubre su tenant y redirige
+      // Tras login exitoso, buscar tenant del usuario
       if (data.user) {
-        // Use direct fetch instead of typed client due to type issues
-        const profileResponse = await fetch(
-          `https://dtmrywilxpilpzokxxif.supabase.co/rest/v1/profiles?user_id=eq.${data.user.id}&select=tenant_id`,
-          {
-            headers: {
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bXJ5d2lseHBpbHB6b2t4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MTQ3NDcsImV4cCI6MjA3MzA5MDc0N30.2oV-SA1DS-nM72udb-I_IGYM1vIRxRp66np3N_ZVYbY',
-              'Authorization': `Bearer ${data.session?.access_token}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
+        const supabaseClient = supabase as any;
 
-        const profiles = await profileResponse.json();
-        
-        if (!profiles || profiles.length === 0) {
+        // 1. Obtener tenant_id del perfil del usuario
+        const { data: profileData, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('tenant_id')
+          .eq('user_id', data.user.id)
+          .single();
+
+        if (profileError || !profileData) {
+          console.error('Profile error:', profileError);
           toast({
             title: "Error",
             description: "Perfil sin tenant asignado",
             variant: "destructive",
           });
+          setIsLoading(false);
           return;
         }
 
-        const tenantResponse = await fetch(
-          `https://dtmrywilxpilpzokxxif.supabase.co/rest/v1/tenants?id=eq.${profiles[0].tenant_id}&select=slug`,
-          {
-            headers: {
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bXJ5d2lseHBpbHB6b2t4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MTQ3NDcsImV4cCI6MjA3MzA5MDc0N30.2oV-SA1DS-nM72udb-I_IGYM1vIRxRp66np3N_ZVYbY',
-              'Authorization': `Bearer ${data.session?.access_token}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
+        // 2. Obtener slug del tenant
+        const { data: tenantData, error: tenantError } = await supabaseClient
+          .from('tenants')
+          .select('slug')
+          .eq('id', profileData.tenant_id)
+          .single();
 
-        const tenants = await tenantResponse.json();
-          
-        if (tenants && tenants.length > 0 && tenants[0].slug) {
-          navigate(`/${tenants[0].slug}/dashboard`, { replace: true });
-        } else {
+        if (tenantError || !tenantData) {
+          console.error('Tenant error:', tenantError);
           toast({
             title: "Error",
             description: "Tenant no encontrado",
             variant: "destructive",
           });
+          setIsLoading(false);
+          return;
         }
+
+        // 3. Redirigir al dashboard del tenant
+        console.log('Redirecting to:', `/${tenantData.slug}/dashboard`);
+        navigate(`/${tenantData.slug}/dashboard`, { replace: true });
       }
     } catch (err) {
+      console.error('Auth error:', err);
       toast({
         title: "Error",
         description: "Error de conexión",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
