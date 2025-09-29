@@ -24,15 +24,6 @@ import {
   type SmartAlert,
 } from '@/lib/backendAdapter';
 
-interface Profile {
-  tenant_id: string;
-}
-
-interface Tenant {
-  slug: string;
-  name: string;
-}
-
 export default function Dashboard() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -44,54 +35,91 @@ export default function Dashboard() {
   const [irpfData, setIrpfData] = useState<FiscalData | null>(null);
   const [sociedadesData, setSociedadesData] = useState<FiscalData | null>(null);
 
-  const loadTenantInfo = async () => {
+  const loadTenantInfo = async (): Promise<string | null> => {
     try {
+      console.log('🔍 Cargando información del tenant...');
+      
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
 
-      // Bypass de tipos usando any para evitar conflictos con tipos generados
+      if (userError) {
+        console.error('❌ Error obteniendo usuario:', userError);
+        throw new Error('Error de autenticación');
+      }
+
+      if (!user) {
+        console.error('❌ No hay usuario autenticado');
+        throw new Error('Usuario no autenticado');
+      }
+
+      console.log('✅ Usuario autenticado:', user.id);
+
+      // Bypass de tipos para Supabase
       const supabaseClient = supabase as any;
-      
+
       const { data: profileData, error: profileError } = await supabaseClient
         .from('profiles')
         .select('tenant_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError) throw profileError;
-      
-      const profile = profileData as Profile | null;
-      if (!profile?.tenant_id) throw new Error('No tenant assigned');
+      if (profileError) {
+        console.error('❌ Error obteniendo profile:', profileError);
+        throw new Error(`Error al obtener perfil: ${profileError.message}`);
+      }
+
+      console.log('📋 Profile data:', profileData);
+
+      if (!profileData || !profileData.tenant_id) {
+        console.error('❌ Profile sin tenant_id');
+        throw new Error('Tu usuario no tiene una empresa asignada. Contacta al administrador.');
+      }
+
+      const tenantId = profileData.tenant_id;
+      console.log('✅ Tenant ID encontrado:', tenantId);
 
       const { data: tenantData, error: tenantError } = await supabaseClient
         .from('tenants')
         .select('slug, name')
-        .eq('id', profile.tenant_id)
-        .single();
+        .eq('id', tenantId)
+        .maybeSingle();
 
-      if (tenantError) throw tenantError;
+      if (tenantError) {
+        console.error('❌ Error obteniendo tenant:', tenantError);
+        throw new Error(`Error al obtener empresa: ${tenantError.message}`);
+      }
+
+      console.log('🏢 Tenant data:', tenantData);
+
+      if (!tenantData) {
+        console.error('❌ Tenant no encontrado');
+        throw new Error('La empresa no existe en el sistema');
+      }
+
+      console.log('✅ Tenant encontrado:', tenantData.slug, '-', tenantData.name);
+
+      setTenantSlug(tenantData.slug);
+      setCompanyName(tenantData.name);
       
-      const tenant = tenantData as Tenant | null;
-      if (!tenant) throw new Error('Tenant not found');
-
-      setTenantSlug(tenant.slug);
-      setCompanyName(tenant.name);
-      return tenant.slug;
-    } catch (error) {
-      console.error('Error loading tenant:', error);
+      return tenantData.slug;
+    } catch (error: any) {
+      console.error('💥 Error en loadTenantInfo:', error);
+      
       toast({
         title: 'Error',
-        description: 'No se pudo cargar la información del tenant',
+        description: error.message || 'No se pudo cargar la información del tenant',
         variant: 'destructive',
       });
+      
       return null;
     }
   };
 
   const loadAllData = async (slug: string) => {
     try {
+      console.log('📊 Cargando datos del dashboard para:', slug);
       setLoading(true);
 
       const [dashboard, iva, irpf, sociedades] = await Promise.allSettled([
@@ -102,35 +130,39 @@ export default function Dashboard() {
       ]);
 
       if (dashboard.status === 'fulfilled') {
+        console.log('✅ Dashboard cargado');
         setDashboardData(dashboard.value);
       } else {
-        console.error('Error loading dashboard:', dashboard.reason);
+        console.error('❌ Error loading dashboard:', dashboard.reason);
       }
 
       if (iva.status === 'fulfilled') {
+        console.log('✅ IVA cargado');
         setIvaData(iva.value);
       } else {
-        console.error('Error loading IVA:', iva.reason);
+        console.error('❌ Error loading IVA:', iva.reason);
       }
 
       if (irpf.status === 'fulfilled') {
+        console.log('✅ IRPF cargado');
         setIrpfData(irpf.value);
       } else {
-        console.error('Error loading IRPF:', irpf.reason);
+        console.error('❌ Error loading IRPF:', irpf.reason);
       }
 
       if (sociedades.status === 'fulfilled') {
+        console.log('✅ Sociedades cargado');
         setSociedadesData(sociedades.value);
       } else {
-        console.error('Error loading Sociedades:', sociedades.reason);
+        console.error('❌ Error loading Sociedades:', sociedades.reason);
       }
 
       toast({
         title: 'Datos actualizados',
         description: 'Dashboard cargado correctamente',
       });
-    } catch (error) {
-      console.error('Error loading data:', error);
+    } catch (error: any) {
+      console.error('💥 Error loading data:', error);
       toast({
         title: 'Error',
         description: 'Error al cargar los datos del dashboard',
@@ -142,7 +174,15 @@ export default function Dashboard() {
   };
 
   const handleRefresh = async () => {
-    if (!tenantSlug) return;
+    if (!tenantSlug) {
+      toast({
+        title: 'Error',
+        description: 'No hay empresa seleccionada',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setRefreshing(true);
     await loadAllData(tenantSlug);
     setRefreshing(false);
@@ -176,9 +216,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     const init = async () => {
+      console.log('🚀 Inicializando Dashboard...');
       const slug = await loadTenantInfo();
       if (slug) {
         await loadAllData(slug);
+      } else {
+        setLoading(false);
       }
     };
     init();
@@ -187,9 +230,34 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
           <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Cargando dashboard...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!tenantSlug) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+              <h2 className="text-xl font-semibold">No se pudo cargar el dashboard</h2>
+              <p className="text-muted-foreground">
+                Tu usuario no tiene una empresa asignada. Por favor, contacta al administrador.
+              </p>
+              <Button
+                onClick={() => window.location.reload()}
+                variant="outline"
+              >
+                Reintentar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -199,9 +267,17 @@ export default function Dashboard() {
       <div className="container mx-auto p-6">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              No se pudieron cargar los datos del dashboard
-            </p>
+            <div className="text-center space-y-4">
+              <AlertCircle className="h-12 w-12 text-yellow-600 mx-auto" />
+              <h2 className="text-xl font-semibold">Datos no disponibles</h2>
+              <p className="text-muted-foreground">
+                No se pudieron cargar los datos del dashboard para {companyName}
+              </p>
+              <Button onClick={handleRefresh} disabled={refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Reintentar
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
