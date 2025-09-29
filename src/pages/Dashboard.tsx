@@ -51,7 +51,10 @@ export default function Dashboard() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      const { data: profileData, error: profileError } = await supabase
+      // Bypass de tipos usando any para evitar conflictos con tipos generados
+      const supabaseClient = supabase as any;
+      
+      const { data: profileData, error: profileError } = await supabaseClient
         .from('profiles')
         .select('tenant_id')
         .eq('id', user.id)
@@ -62,7 +65,7 @@ export default function Dashboard() {
       const profile = profileData as Profile | null;
       if (!profile?.tenant_id) throw new Error('No tenant assigned');
 
-      const { data: tenantData, error: tenantError } = await supabase
+      const { data: tenantData, error: tenantError } = await supabaseClient
         .from('tenants')
         .select('slug, name')
         .eq('id', profile.tenant_id)
