@@ -24,6 +24,15 @@ import {
   type SmartAlert,
 } from '@/lib/backendAdapter';
 
+interface Profile {
+  tenant_id: string;
+}
+
+interface Tenant {
+  slug: string;
+  name: string;
+}
+
 export default function Dashboard() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -42,22 +51,26 @@ export default function Dashboard() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      const { data: profile, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('tenant_id')
         .eq('id', user.id)
         .single();
 
       if (profileError) throw profileError;
+      
+      const profile = profileData as Profile | null;
       if (!profile?.tenant_id) throw new Error('No tenant assigned');
 
-      const { data: tenant, error: tenantError } = await supabase
+      const { data: tenantData, error: tenantError } = await supabase
         .from('tenants')
         .select('slug, name')
         .eq('id', profile.tenant_id)
         .single();
 
       if (tenantError) throw tenantError;
+      
+      const tenant = tenantData as Tenant | null;
       if (!tenant) throw new Error('Tenant not found');
 
       setTenantSlug(tenant.slug);
