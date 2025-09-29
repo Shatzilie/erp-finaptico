@@ -8,6 +8,7 @@ import { Loader2, RefreshCw, TrendingUp, TrendingDown, DollarSign,
          AlertTriangle, CheckCircle, XCircle, Euro, CreditCard, 
          Receipt, Target } from 'lucide-react';
 import { ChartsSection } from './ChartsSection';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardData {
   totalCash?: number;
@@ -70,8 +71,24 @@ export default function KpiBoard() {
       setLoading(false);
       return;
     }
-    
+
     try {
+      // PASO 1: Obtener el tenant_id desde el slug
+      const { data: tenantData, error: tenantError } = await (supabase as any)
+        .from('tenants')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+
+      if (tenantError || !tenantData) {
+        console.error('❌ Tenant no encontrado:', tenantError);
+        throw new Error('Tenant no encontrado');
+      }
+
+      const tenantId = tenantData.id;
+      console.log('✅ Tenant ID obtenido:', tenantId);
+
+      // PASO 2: Llamar al backend con el tenant_id
       const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard', {
         method: 'POST',
         headers: {
@@ -79,7 +96,7 @@ export default function KpiBoard() {
           'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
         },
         body: JSON.stringify({
-          tenant_slug: slug  // ← AHORA USA EL SLUG CORRECTO
+          tenant_slug: tenantId
         })
       });
       
@@ -147,7 +164,7 @@ export default function KpiBoard() {
     
     const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [slug]); // ← IMPORTANTE: Re-cargar cuando cambie el slug
+  }, [slug]);
 
   if (loading) {
     return (
