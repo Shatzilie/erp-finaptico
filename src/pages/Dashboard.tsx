@@ -42,20 +42,22 @@ export default function Dashboard() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('tenant_id')
         .eq('id', user.id)
         .single();
 
+      if (profileError) throw profileError;
       if (!profile?.tenant_id) throw new Error('No tenant assigned');
 
-      const { data: tenant } = await supabase
+      const { data: tenant, error: tenantError } = await supabase
         .from('tenants')
         .select('slug, name')
         .eq('id', profile.tenant_id)
         .single();
 
+      if (tenantError) throw tenantError;
       if (!tenant) throw new Error('Tenant not found');
 
       setTenantSlug(tenant.slug);
