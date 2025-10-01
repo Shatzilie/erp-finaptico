@@ -107,10 +107,10 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         const currentYear = currentDate.getFullYear();
 
         const [dashboard, iva, irpf, sociedades] = await Promise.all([
-          backendAdapter.fetchDashboard(tenantId),
-          backendAdapter.fetchIVA(tenantId, currentQuarter, currentYear),
-          backendAdapter.fetchIRPF(tenantId, currentQuarter, currentYear),
-          backendAdapter.fetchSociedades(tenantId, currentYear)
+          backendAdapter.fetchDashboardData(tenantId),
+          backendAdapter.fetchIVAData(tenantId, currentQuarter, currentYear),
+          backendAdapter.fetchIRPFData(tenantId, currentQuarter, currentYear),
+          backendAdapter.fetchSociedadesData(tenantId, currentYear)
         ]);
 
         if (dashboard.ok && dashboard.widget_data?.dashboard?.success) {
