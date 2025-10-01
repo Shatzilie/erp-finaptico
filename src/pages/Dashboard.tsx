@@ -1,15 +1,14 @@
 import { useParams, Navigate } from 'react-router-dom';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { SyncNow } from '@/components/SyncNow';
-import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { TrendingUp, DollarSign, FileText } from 'lucide-react';
 import KpiBoard from '@/components/dashboard/KpiBoard';
+import { ChartsSection } from '@/components/dashboard/ChartsSection';
 import StubPage from '@/pages/stubs/StubPage';
 import { PDFGenerator } from '@/components/PDFGenerator';
 import { PageHeader } from '@/components/PageHeader';
@@ -31,9 +30,51 @@ interface Tenant {
   slug: string;
 }
 
-interface WidgetData {
-  payload: { amount: number; currency: string };
-  freshness_seconds: number;
+interface MonthlyData {
+  month: string;
+  total: number;
+  currency: string;
+}
+
+interface RevenueData {
+  monthly_revenue: number;
+  quarterly_revenue: number;
+  annual_revenue: number;
+  monthly_history: MonthlyData[];
+  outstanding_invoices_count: number;
+  outstanding_invoices_amount: number;
+  total_invoices: number;
+}
+
+interface ExpensesData {
+  monthly_expenses: number;
+  quarterly_expenses: number;
+  annual_expenses: number;
+  monthly_history: MonthlyData[];
+  pending_invoices_count: number;
+  total_pending_amount: number;
+  total_invoices: number;
+}
+
+interface DashboardData {
+  treasury?: {
+    total: number;
+    accounts: number;
+    currency: string;
+  };
+  revenue?: RevenueData;
+  expenses?: ExpensesData;
+  profitability?: {
+    monthlyMargin: number;
+    quarterlyMargin: number;
+    yearlyMargin: number;
+    marginPercentage: number;
+  };
+  alerts?: Array<{
+    type: string;
+    message: string;
+    module: string;
+  }>;
 }
 
 type KPIData = {
@@ -49,58 +90,71 @@ const DashboardContent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [widgetData, setWidgetData] = useState<WidgetData | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [revenueData, setRevenueData] = useState<{ widget_data?: { revenue?: { payload?: RevenueData } } } | null>(null);
+  const [expensesData, setExpensesData] = useState<{ widget_data?: { expenses?: { payload?: ExpensesData } } } | null>(null);
   const [kpi, setKpi] = useState<KPIData>({});
   const [syncing, setSyncing] = useState(false);
 
-  const fetchWidgetData = async (tenantId: string) => {
+  const fetchDashboardData = async (tenantId: string, slug: string) => {
     try {
-      const { data: wd, error } = await (supabase as any)
-        .from('widget_data')
-        .select('payload, freshness_seconds')
-        .eq('tenant_id', tenantId)
-        .eq('key', 'cash_balance')
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error fetching widget data:', error);
-      } else {
-        setWidgetData(wd);
-      }
-    } catch (err) {
-      console.error('Unexpected error fetching widget data:', err);
-    }
-  };
+      // Llamar a odoo-dashboard
+      const dashboardResponse = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({ tenant_slug: slug })
+      });
 
-  const fetchKPIs = async (tenantId: string) => {
-    try {
-      // Get the 3 KPI widgets
-      const { data: widgets, error: werr } = await (supabase as any)
-        .from("widget_data")
-        .select("key, payload")
-        .eq("tenant_id", tenantId)
-        .in("key", ["revenue_month", "expenses_month", "invoices_month_count"]);
-
-      if (werr) {
-        console.error("widget_data error", werr);
-        return;
+      if (dashboardResponse.ok) {
+        const dashData = await dashboardResponse.json();
+        if (dashData.ok && dashData.widget_data?.dashboard?.payload) {
+          setDashboardData(dashData.widget_data.dashboard.payload);
+          
+          // Actualizar KPIs desde dashboard
+          const payload = dashData.widget_data.dashboard.payload;
+          setKpi({
+            revenue: payload.revenue?.monthly || 0,
+            expenses: payload.expenses?.monthly || 0,
+            invoices: payload.revenue?.pendingCount || 0
+          });
+        }
       }
 
-      // Map to state
-      const revenue = widgets?.find((w: any) => w.key === "revenue_month")?.payload?.amount ?? 0;
-      const expenses = widgets?.find((w: any) => w.key === "expenses_month")?.payload?.amount ?? 0;
-      const invoices = widgets?.find((w: any) => w.key === "invoices_month_count")?.payload?.count ?? 0;
+      // Llamar a odoo-revenue para obtener histórico
+      const revenueResponse = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-revenue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({ tenant_slug: slug })
+      });
 
-      setKpi({ revenue, expenses, invoices });
+      if (revenueResponse.ok) {
+        const revData = await revenueResponse.json();
+        setRevenueData(revData);
+      }
+
+      // Llamar a odoo-expenses para obtener histórico
+      const expensesResponse = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-expenses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({ tenant_slug: slug })
+      });
+
+      if (expensesResponse.ok) {
+        const expData = await expensesResponse.json();
+        setExpensesData(expData);
+      }
+
     } catch (err) {
-      console.error('Unexpected error fetching KPIs:', err);
-    }
-  };
-
-  const handleSyncComplete = () => {
-    if (tenant?.id) {
-      fetchWidgetData(tenant.id);
-      fetchKPIs(tenant.id);
+      console.error('Error fetching dashboard data:', err);
     }
   };
 
@@ -116,7 +170,7 @@ const DashboardContent = () => {
           'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
         },
         body: JSON.stringify({
-          tenant_slug: tenantSlug  // ← AHORA USA EL TENANT CORRECTO
+          tenant_slug: tenantSlug
         })
       });
 
@@ -125,10 +179,9 @@ const DashboardContent = () => {
         console.error("sync error", data.error);
       } else {
         console.log("sync ok", data);
-        // Refresh KPIs
+        // Refresh data
         if (tenant?.id) {
-          await fetchKPIs(tenant.id);
-          await fetchWidgetData(tenant.id);
+          await fetchDashboardData(tenant.id, tenant.slug);
         }
       }
     } catch (err) {
@@ -180,9 +233,8 @@ const DashboardContent = () => {
           slug: tenantData.slug 
         });
         
-        // Fetch widget data for THIS tenant
-        await fetchWidgetData(tenantData.id);
-        await fetchKPIs(tenantData.id);
+        // Fetch all dashboard data
+        await fetchDashboardData(tenantData.id, tenantData.slug);
       } catch (err: any) {
         if (err.message === 'FORBIDDEN') {
           setUnauthorized(true);
@@ -297,7 +349,21 @@ const DashboardContent = () => {
     const currentSection = section || 'dashboard';
     
     if (currentSection === 'dashboard') {
-      return <KpiBoard />;
+      return (
+        <div className="space-y-8">
+          {/* KPIs */}
+          <KpiBoard data={dashboardData} isLoading={loading} />
+
+          {/* Gráficas */}
+          <ChartsSection
+            data={{
+              revenue_history: revenueData?.widget_data?.revenue?.payload?.monthly_history || [],
+              expenses_history: expensesData?.widget_data?.expenses?.payload?.monthly_history || []
+            }}
+            isLoading={loading}
+          />
+        </div>
+      );
     }
     
     return <StubPage title={getSectionTitle(currentSection)} />;
@@ -328,10 +394,6 @@ const DashboardContent = () => {
               </div>
             </div>
           </div>
-        </div>
-        
-        <main className="p-6">
-          {renderMainContent()}
         </main>
       </div>
     </div>
