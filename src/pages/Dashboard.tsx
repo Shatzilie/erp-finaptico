@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection from "@/components/dashboard/ChartsSection";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ interface ChartsData {
 }
 
 const Dashboard = () => {
-  const { user, tenant, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
@@ -37,7 +36,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchChartsData = async () => {
-      if (!tenant?.id) {
+      if (!user?.tenant_id) {
         setIsLoadingCharts(false);
         return;
       }
@@ -46,8 +45,8 @@ const Dashboard = () => {
         setIsLoadingCharts(true);
 
         const [revenueResponse, expensesResponse] = await Promise.all([
-          backendAdapter.fetchRevenue(tenant.id),
-          backendAdapter.fetchExpenses(tenant.id)
+          backendAdapter.fetchRevenueData(user.tenant_id),
+          backendAdapter.fetchExpensesData(user.tenant_id)
         ]);
 
         const revenueHistory = revenueResponse?.widget_data?.revenue?.payload?.monthly_history || [];
@@ -66,23 +65,32 @@ const Dashboard = () => {
     };
 
     fetchChartsData();
-  }, [tenant?.id]);
+  }, [user?.tenant_id]);
 
   const handleSyncNow = async () => {
-    if (!tenant?.slug) {
-      console.error("No tenant slug available");
+    if (!user?.tenant_id) {
+      console.error("No tenant ID available");
       return;
     }
 
     try {
       setIsSyncing(true);
-      await backendAdapter.triggerSync(tenant.slug);
+      await backendAdapter.syncOdooData(user.tenant_id);
       
       window.location.reload();
     } catch (error) {
       console.error("Error during sync:", error);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
     }
   };
 
@@ -94,43 +102,51 @@ const Dashboard = () => {
     );
   }
 
-  if (!user || !tenant) {
+  if (!user) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader 
-        userName={user.email || "Usuario"}
-        tenantName={tenant.name || "Mi Empresa"}
-      />
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard Financiero</h1>
+              <p className="text-sm text-gray-600">{user.email}</p>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleSyncNow}
+                disabled={isSyncing}
+                variant="outline"
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  "Sincronizar Ahora"
+                )}
+              </Button>
+              <Button 
+                onClick={handleLogout}
+                variant="ghost"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Cerrar Sesión
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard Financiero</h1>
-            <p className="text-gray-600 mt-1">Resumen de tu actividad empresarial</p>
-          </div>
-          <Button 
-            onClick={handleSyncNow}
-            disabled={isSyncing}
-            variant="outline"
-          >
-            {isSyncing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Sincronizando...
-              </>
-            ) : (
-              "Sincronizar Ahora"
-            )}
-          </Button>
-        </div>
-
         <div className="space-y-8">
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={tenant.id} />
+            <KpiBoard tenantId={user.tenant_id} />
           </section>
 
           <section>
