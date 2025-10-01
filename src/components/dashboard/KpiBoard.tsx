@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, TrendingUp, TrendingDown, DollarSign, 
          AlertTriangle, CheckCircle, Euro, Target } from 'lucide-react';
-import { ChartsSection } from './ChartsSection';
 import { IvaCard, IrpfCard, SociedadesCard } from './FiscalComponents';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -32,6 +31,11 @@ interface FiscalData {
   iva?: any;
   irpf?: any;
   sociedades?: any;
+}
+
+interface KpiBoardProps {
+  data?: DashboardData | null;
+  isLoading?: boolean;
 }
 
 function useTenantSlug() {
@@ -62,11 +66,11 @@ const formatNumber = (value: number, decimals = 2) => {
   }).format(value);
 };
 
-export default function KpiBoard() {
+export default function KpiBoard({ data: propData, isLoading: propLoading }: KpiBoardProps) {
   const slug = useTenantSlug();
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<DashboardData | null>(propData || null);
   const [fiscalData, setFiscalData] = useState<FiscalData>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(propLoading ?? true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
@@ -214,11 +218,16 @@ export default function KpiBoard() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    if (propData) {
+      setData(propData);
+      setLoading(false);
+    } else {
+      fetchDashboardData();
+    }
     
     const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [slug]);
+  }, [slug, propData]);
 
   if (loading) {
     return (
@@ -334,16 +343,6 @@ export default function KpiBoard() {
             </Card>
           )}
         </div>
-      </div>
-
-      {/* SEPARADOR VISUAL */}
-      <div className="my-16">
-        <hr className="border-gray-200" />
-      </div>
-
-      {/* SECCIÓN 2: EVOLUCIÓN DE LA EMPRESA */}
-      <div className="space-y-8">
-        <ChartsSection tenantSlug={slug} />
       </div>
 
       {/* SEPARADOR VISUAL */}
