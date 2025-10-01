@@ -82,7 +82,11 @@ function prepareChartData(monthlyData: MonthlyData[]) {
       [`${previousYear}`]: Math.round(values.previousYear)
     }));
 
-  const hasData = chartData.some(d => d[`${currentYear}`] > 0 || d[`${previousYear}`] > 0);
+  const hasData = chartData.some(d => {
+    const current = d[`${currentYear}`] as number;
+    const previous = d[`${previousYear}`] as number;
+    return current > 0 || previous > 0;
+  });
   
   return { chartData, hasData };
 }
@@ -148,10 +152,15 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
   
   const profitChartData = revenueChart.chartData.map((item, index) => {
     const expenseItem = expensesChart.chartData[index];
+    const currentRevenue = item[`${currentYear}`] as number || 0;
+    const previousRevenue = item[`${previousYear}`] as number || 0;
+    const currentExpense = expenseItem?.[`${currentYear}`] as number || 0;
+    const previousExpense = expenseItem?.[`${previousYear}`] as number || 0;
+    
     return {
       month: item.month,
-      [`${currentYear}`]: (item[`${currentYear}`] || 0) - (expenseItem?.[`${currentYear}`] || 0),
-      [`${previousYear}`]: (item[`${previousYear}`] || 0) - (expenseItem?.[`${previousYear}`] || 0)
+      [`${currentYear}`]: currentRevenue - currentExpense,
+      [`${previousYear}`]: previousRevenue - previousExpense
     };
   });
 
@@ -176,9 +185,23 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
       [`${previousYear}`]: values.previousYear
     }));
 
-  const hasProfitData = profitChartData.some(d => d[`${currentYear}`] !== 0 || d[`${previousYear}`] !== 0);
-  const hasInvoiceData = invoiceCountData.some(d => d[`${currentYear}`] > 0 || d[`${previousYear}`] > 0);
-  const hasPurchaseData = purchaseCountData.some(d => d[`${currentYear}`] > 0 || d[`${previousYear}`] > 0);
+  const hasProfitData = profitChartData.some(d => {
+    const current = d[`${currentYear}`] as number;
+    const previous = d[`${previousYear}`] as number;
+    return current !== 0 || previous !== 0;
+  });
+  
+  const hasInvoiceData = invoiceCountData.some(d => {
+    const current = d[`${currentYear}`] as number;
+    const previous = d[`${previousYear}`] as number;
+    return current > 0 || previous > 0;
+  });
+  
+  const hasPurchaseData = purchaseCountData.some(d => {
+    const current = d[`${currentYear}`] as number;
+    const previous = d[`${previousYear}`] as number;
+    return current > 0 || previous > 0;
+  });
 
   if (isLoading) {
     return (
