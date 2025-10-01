@@ -1,460 +1,417 @@
-// src/components/dashboard/FiscalComponents.tsx
-// ===============================================
-// COMPONENTES FISCALES PARA EL DASHBOARD
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrendingUp, TrendingDown, AlertCircle, FileText } from "lucide-react";
+import { FiscalData } from "@/types/dashboard";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
-import { 
-  TrendingUp, TrendingDown, Calculator, Receipt, Building,
-  AlertTriangle, Info, CheckCircle, Calendar, Euro,
-  FileText, Target, Percent
-} from 'lucide-react';
-
-import { FiscalData, SmartAlert } from '@/lib/backendAdapter';
-
-// 💶 FORMATEO DE MONEDA
-const formatEuro = (amount: number) => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
-
-const formatPercentage = (value: number) => {
-  return `${value.toFixed(1)}%`;
-};
-
-// 🚨 COMPONENTE: ALERTAS INTELIGENTES
-interface SmartAlertsProps {
-  alerts: SmartAlert[];
+interface FiscalComponentsProps {
+  fiscalData: FiscalData;
 }
 
-export function SmartAlerts({ alerts }: SmartAlertsProps) {
-  if (!alerts || alerts.length === 0) return null;
-
-  const getAlertIcon = (type: string) => {
-    switch (type) {
-      case 'fiscal': return Calculator;
-      case 'operational': return Receipt;
-      case 'deadline': return Calendar;
-      default: return Info;
+export const FiscalComponents = ({ fiscalData }: FiscalComponentsProps) => {
+  // Función helper para determinar el color del estado
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "A INGRESAR":
+        return "text-red-600";
+      case "A COMPENSAR":
+        return "text-green-600";
+      case "NEUTRO":
+        return "text-gray-600";
+      default:
+        return "text-gray-600";
     }
   };
 
-  const getAlertVariant = (severity: string) => {
-    switch (severity) {
-      case 'error': return 'destructive';
-      case 'warning': return 'default';
-      case 'success': return 'default';
-      default: return 'default';
-    }
+  // Función helper para formatear números
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
   };
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-lg font-semibold flex items-center gap-2">
-        <AlertTriangle className="h-5 w-5" />
-        Alertas y Recomendaciones
-      </h3>
-      
-      <div className="grid gap-2">
-        {alerts.slice(0, 4).map((alert, index) => {
-          const Icon = getAlertIcon(alert.type);
-          return (
-            <Alert key={index} variant={getAlertVariant(alert.severity)}>
-              <Icon className="h-4 w-4" />
-              <AlertDescription>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <strong>{alert.title}:</strong> {alert.message}
-                  </div>
-                  {alert.actionable && (
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      {alert.action}
-                    </Badge>
-                  )}
+    <div className="space-y-6">
+      {/* Tarjetas de resumen fiscal */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* IVA Card */}
+        {fiscalData.iva && (
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                IVA Q{fiscalData.iva.period?.quarter || 'N/A'} {fiscalData.iva.period?.year || ''}
+              </CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(fiscalData.iva.iva_diferencia)}
+              </div>
+              <p className={`text-xs ${getStatusColor(fiscalData.iva.status)}`}>
+                {fiscalData.iva.status}
+              </p>
+              <div className="mt-4 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Repercutido:</span>
+                  <span className="font-medium">
+                    {formatCurrency(fiscalData.iva.iva_repercutido)}
+                  </span>
                 </div>
-              </AlertDescription>
-            </Alert>
-          );
-        })}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Soportado:</span>
+                  <span className="font-medium">
+                    {formatCurrency(fiscalData.iva.iva_soportado)}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* IRPF Card */}
+        {fiscalData.irpf && (
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                IRPF Q{fiscalData.irpf.period?.quarter || 'N/A'} {fiscalData.irpf.period?.year || ''}
+              </CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(fiscalData.irpf.diferencia)}
+              </div>
+              <p className={`text-xs ${getStatusColor(fiscalData.irpf.status)}`}>
+                {fiscalData.irpf.status}
+              </p>
+              <div className="mt-4 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Practicadas:</span>
+                  <span className="font-medium">
+                    {formatCurrency(fiscalData.irpf.retenciones_practicadas)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Soportadas:</span>
+                  <span className="font-medium">
+                    {formatCurrency(fiscalData.irpf.retenciones_soportadas)}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sociedades Card */}
+        {fiscalData.sociedades && (
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Impuesto Sociedades {fiscalData.sociedades.period?.year || ''}
+              </CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(fiscalData.sociedades.cuota_diferencial)}
+              </div>
+              <p className={`text-xs ${getStatusColor(fiscalData.sociedades.status)}`}>
+                {fiscalData.sociedades.status}
+              </p>
+              <div className="mt-4 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Base Imponible:</span>
+                  <span className="font-medium">
+                    {formatCurrency(fiscalData.sociedades.base_imponible)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tipo:</span>
+                  <span className="font-medium">
+                    {fiscalData.sociedades.tipo_impositivo}%
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Alertas fiscales */}
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Alertas Fiscales
+            </CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {fiscalData.iva && fiscalData.iva.status === "A INGRESAR" && (
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-medium">IVA a ingresar</p>
+                    <p className="text-muted-foreground">
+                      {formatCurrency(fiscalData.iva.iva_diferencia)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {fiscalData.irpf && fiscalData.irpf.status === "A INGRESAR" && (
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-medium">IRPF a ingresar</p>
+                    <p className="text-muted-foreground">
+                      {formatCurrency(fiscalData.irpf.diferencia)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {fiscalData.sociedades && fiscalData.sociedades.status === "A PAGAR" && (
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-medium">Sociedades a pagar</p>
+                    <p className="text-muted-foreground">
+                      {formatCurrency(fiscalData.sociedades.cuota_diferencial)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {(!fiscalData.iva || fiscalData.iva.status !== "A INGRESAR") &&
+                (!fiscalData.irpf || fiscalData.irpf.status !== "A INGRESAR") &&
+                (!fiscalData.sociedades || fiscalData.sociedades.status !== "A PAGAR") && (
+                  <div className="text-xs text-muted-foreground">
+                    No hay alertas fiscales pendientes
+                  </div>
+                )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Detalles ampliados IVA */}
+      {fiscalData.iva && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Detalle IVA Trimestral</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium flex items-center">
+                  <TrendingUp className="mr-2 h-4 w-4 text-green-500" />
+                  Ventas
+                </h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Base Imponible:</span>
+                    <span className="font-medium">
+                      {formatCurrency(fiscalData.iva.base_imponible_ventas)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">IVA Repercutido:</span>
+                    <span className="font-medium">
+                      {formatCurrency(fiscalData.iva.iva_repercutido)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1">
+                    <span className="font-medium">Total Ventas:</span>
+                    <span className="font-bold">
+                      {formatCurrency(
+                        fiscalData.iva.base_imponible_ventas +
+                          fiscalData.iva.iva_repercutido
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium flex items-center">
+                  <TrendingDown className="mr-2 h-4 w-4 text-red-500" />
+                  Compras
+                </h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Base Imponible:</span>
+                    <span className="font-medium">
+                      {formatCurrency(fiscalData.iva.base_imponible_compras)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">IVA Soportado:</span>
+                    <span className="font-medium">
+                      {formatCurrency(fiscalData.iva.iva_soportado)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1">
+                    <span className="font-medium">Total Compras:</span>
+                    <span className="font-bold">
+                      {formatCurrency(
+                        fiscalData.iva.base_imponible_compras +
+                          fiscalData.iva.iva_soportado
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-muted rounded-lg">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Resultado Trimestral IVA
+                  </p>
+                  <p className={`text-2xl font-bold ${getStatusColor(fiscalData.iva.status)}`}>
+                    {formatCurrency(fiscalData.iva.iva_diferencia)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Estado</p>
+                  <p className={`text-lg font-semibold ${getStatusColor(fiscalData.iva.status)}`}>
+                    {fiscalData.iva.status}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Detalles ampliados IRPF */}
+      {fiscalData.irpf && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Detalle IRPF Trimestral</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Retenciones Practicadas</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Importe:</span>
+                    <span className="font-medium">
+                      {formatCurrency(fiscalData.irpf.retenciones_practicadas)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Operaciones:</span>
+                    <span className="font-medium">
+                      {fiscalData.irpf.retenciones_practicadas_count || 0}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Retenciones Soportadas</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Importe:</span>
+                    <span className="font-medium">
+                      {formatCurrency(fiscalData.irpf.retenciones_soportadas)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Operaciones:</span>
+                    <span className="font-medium">
+                      {fiscalData.irpf.retenciones_soportadas_count || 0}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-muted rounded-lg">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Resultado Trimestral IRPF
+                  </p>
+                  <p className={`text-2xl font-bold ${getStatusColor(fiscalData.irpf.status)}`}>
+                    {formatCurrency(fiscalData.irpf.diferencia)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Estado</p>
+                  <p className={`text-lg font-semibold ${getStatusColor(fiscalData.irpf.status)}`}>
+                    {fiscalData.irpf.status}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Detalles Impuesto de Sociedades */}
+      {fiscalData.sociedades && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Detalle Impuesto de Sociedades</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Resultado del Ejercicio</h4>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(fiscalData.sociedades.resultado_ejercicio)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Ingresos: {formatCurrency(fiscalData.sociedades.ingresos_anuales || 0)}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Base Imponible</h4>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(fiscalData.sociedades.base_imponible)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Tipo: {fiscalData.sociedades.tipo_impositivo}%
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Cuota Íntegra</h4>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(fiscalData.sociedades.cuota_integra)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Empresa: {fiscalData.sociedades.empresa_tipo || 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Cuota Diferencial
+                    </p>
+                    <p className={`text-2xl font-bold ${getStatusColor(fiscalData.sociedades.status)}`}>
+                      {formatCurrency(fiscalData.sociedades.cuota_diferencial)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Estado</p>
+                    <p className={`text-lg font-semibold ${getStatusColor(fiscalData.sociedades.status)}`}>
+                      {fiscalData.sociedades.status}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
-}
-
-// 📊 COMPONENTE: TARJETA IVA
-interface IvaCardProps {
-  data: FiscalData['iva'];
-}
-
-export function IvaCard({ data }: IvaCardProps) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'A INGRESAR': return 'text-red-600 bg-red-50';
-      case 'A COMPENSAR': return 'text-green-600 bg-green-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'A INGRESAR': return TrendingUp;
-      case 'A COMPENSAR': return TrendingDown;
-      default: return CheckCircle;
-    }
-  };
-
-  const StatusIcon = getStatusIcon(data.status);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm font-medium">
-          IVA Q{data.period?.quarter || 'N/A'} {data.period?.year || ''}
-      </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-muted-foreground">Repercutido:</span>
-            <div className="font-semibold text-blue-600">
-              {formatEuro(data.iva_repercutido)}
-            </div>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Soportado:</span>
-            <div className="font-semibold text-orange-600">
-              {formatEuro(data.iva_soportado)}
-            </div>
-          </div>
-        </div>
-        
-        <div className="border-t pt-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Resultado:</span>
-            <Badge className={getStatusColor(data.status)}>
-              <StatusIcon className="h-3 w-3 mr-1" />
-              {data.status}
-            </Badge>
-          </div>
-          <div className={`text-xl font-bold ${data.iva_diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-            {formatEuro(Math.abs(data.iva_diferencia))}
-          </div>
-        </div>
-
-        <div className="text-xs text-muted-foreground space-y-1">
-          <div>Base ventas: {formatEuro(data.base_imponible_ventas)}</div>
-          <div>Base compras: {formatEuro(data.base_imponible_compras)}</div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// 🏢 COMPONENTE: TARJETA IRPF
-interface IrpfCardProps {
-  data: FiscalData['irpf'];
-}
-
-export function IrpfCard({ data }: IrpfCardProps) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'A INGRESAR': return 'text-red-600 bg-red-50';
-      case 'A COMPENSAR': return 'text-green-600 bg-green-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const StatusIcon = data.diferencia >= 0 ? TrendingUp : TrendingDown;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm font-medium">
-          IRPF Q{data.period?.quarter || 'N/A'} {data.period?.year || ''}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-muted-foreground">Practicadas:</span>
-            <div className="font-semibold text-blue-600">
-              {formatEuro(data.retenciones_practicadas)}
-            </div>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Soportadas:</span>
-            <div className="font-semibold text-green-600">
-              {formatEuro(data.retenciones_soportadas)}
-            </div>
-          </div>
-        </div>
-        
-        <div className="border-t pt-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Diferencia:</span>
-            <Badge className={getStatusColor(data.status)}>
-              <StatusIcon className="h-3 w-3 mr-1" />
-              {data.status}
-            </Badge>
-          </div>
-          <div className={`text-xl font-bold ${data.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-            {formatEuro(Math.abs(data.diferencia))}
-          </div>
-        </div>
-
-        {data.diferencia < 0 && (
-          <div className="text-xs text-green-700 bg-green-50 p-2 rounded">
-            💡 Saldo favorable: puedes compensar en próximos trimestres
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// 🏛️ COMPONENTE: TARJETA SOCIEDADES
-interface SociedadesCardProps {
-  data: FiscalData['sociedades'];
-}
-
-export function SociedadesCard({ data }: SociedadesCardProps) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'A PAGAR': return 'text-red-600 bg-red-50';
-      case 'A DEVOLVER': return 'text-green-600 bg-green-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const getEmpresaTypeColor = (tipo: string) => {
-    return tipo === 'PYME' ? 'text-blue-600 bg-blue-50' : 'text-purple-600 bg-purple-50';
-  };
-
-  const StatusIcon = data.cuota_diferencial > 0 ? TrendingUp : data.cuota_diferencial < 0 ? TrendingDown : CheckCircle;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Building className="h-5 w-5" />
-          Sociedades {data.year}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">Tipo empresa:</span>
-          <Badge className={getEmpresaTypeColor(data.empresa_tipo)}>
-            {data.empresa_tipo} ({formatPercentage(data.tipo_impositivo)})
-          </Badge>
-        </div>
-
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Resultado ejercicio:</span>
-            <span className={`font-semibold ${data.resultado_ejercicio >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatEuro(data.resultado_ejercicio)}
-            </span>
-          </div>
-          
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Base imponible:</span>
-            <span className="font-semibold">
-              {formatEuro(data.base_imponible)}
-            </span>
-          </div>
-        </div>
-        
-        <div className="border-t pt-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Cuota estimada:</span>
-            <Badge className={getStatusColor(data.status)}>
-              <StatusIcon className="h-3 w-3 mr-1" />
-              {data.status}
-            </Badge>
-          </div>
-          <div className={`text-xl font-bold ${data.cuota_diferencial > 0 ? 'text-red-600' : data.cuota_diferencial < 0 ? 'text-green-600' : 'text-gray-600'}`}>
-            {data.cuota_diferencial === 0 ? '0€' : formatEuro(Math.abs(data.cuota_diferencial))}
-          </div>
-        </div>
-
-        {data.resultado_ejercicio < 0 && (
-          <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded">
-            ℹ️ Pérdidas contables: no tributas en Sociedades este ejercicio
-          </div>
-        )}
-
-        {data.empresa_tipo === 'PYME' && data.resultado_ejercicio > 200000 && (
-          <div className="text-xs text-orange-700 bg-orange-50 p-2 rounded">
-            ⚠️ Cerca del límite PYME (300k€). Planifica gastos antes de fin de año.
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// 📅 COMPONENTE: PRÓXIMAS OBLIGACIONES
-interface ObligationsCardProps {
-  currentMonth: number;
-  currentYear: number;
-}
-
-export function ObligationsCard({ currentMonth, currentYear }: ObligationsCardProps) {
-  // Lógica simple para determinar próximas obligaciones
-  const getNextObligations = () => {
-    const obligations = [];
-    
-    // IVA trimestral - cada 3 meses
-    if (currentMonth % 3 === 1) { // Enero, Abril, Julio, Octubre
-      obligations.push({
-        model: '303',
-        description: 'IVA Trimestral',
-        dueDate: `20 de ${getMonthName(currentMonth)}`,
-        status: 'pending' as const,
-        type: 'iva'
-      });
-    }
-    
-    // IRPF trimestral - cada 3 meses  
-    if (currentMonth % 3 === 1) {
-      obligations.push({
-        model: '115',
-        description: 'IRPF Trimestral',
-        dueDate: `20 de ${getMonthName(currentMonth)}`,
-        status: 'pending' as const,
-        type: 'irpf'
-      });
-    }
-    
-    // Sociedades anual - Julio
-    if (currentMonth >= 4 && currentMonth <= 7) {
-      obligations.push({
-        model: '200',
-        description: 'Impuesto Sociedades',
-        dueDate: '25 de Julio',
-        status: 'pending' as const,
-        type: 'sociedades'
-      });
-    }
-
-    return obligations;
-  };
-
-  const getMonthName = (month: number) => {
-    const months = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    return months[month];
-  };
-
-  const obligations = getNextObligations();
-
-  if (obligations.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Obligaciones Fiscales
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">
-            <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              No hay obligaciones fiscales inmediatas
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Próximas Obligaciones
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {obligations.map((obligation, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-              <div>
-                <div className="font-medium text-sm">{obligation.description}</div>
-                <div className="text-xs text-muted-foreground">Modelo {obligation.model}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-medium text-orange-600">{obligation.dueDate}</div>
-                <Badge variant="outline" className="text-xs">
-                  Pendiente
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// 📈 COMPONENTE: MEDIDOR DE EFICIENCIA FISCAL
-interface TaxEfficiencyProps {
-  marginPercentage: number;
-  ivaImpact: number;
-  irpfImpact: number;
-}
-
-export function TaxEfficiencyMeter({ marginPercentage, ivaImpact, irpfImpact }: TaxEfficiencyProps) {
-  const getEfficiencyLevel = (percentage: number) => {
-    if (percentage >= 40) return { level: 'Excelente', color: 'text-green-600', bg: 'bg-green-500' };
-    if (percentage >= 25) return { level: 'Buena', color: 'text-blue-600', bg: 'bg-blue-500' };
-    if (percentage >= 10) return { level: 'Regular', color: 'text-yellow-600', bg: 'bg-yellow-500' };
-    return { level: 'Mejorable', color: 'text-red-600', bg: 'bg-red-500' };
-  };
-
-  const efficiency = getEfficiencyLevel(marginPercentage);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Target className="h-5 w-5" />
-          Eficiencia Fiscal
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-center">
-          <div className={`text-3xl font-bold ${efficiency.color}`}>
-            {marginPercentage.toFixed(1)}%
-          </div>
-          <div className="text-sm text-muted-foreground">Margen neto</div>
-          <Badge className={efficiency.color}>
-            {efficiency.level}
-          </Badge>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Progreso</span>
-            <span>{marginPercentage.toFixed(0)}%</span>
-          </div>
-          <Progress value={Math.min(marginPercentage, 100)} className="h-2" />
-        </div>
-
-        <div className="text-xs space-y-1 text-muted-foreground">
-          <div>• IVA impacto: {ivaImpact > 0 ? '-' : '+'}{Math.abs(ivaImpact).toFixed(0)}€</div>
-          <div>• IRPF impacto: {irpfImpact > 0 ? '-' : '+'}{Math.abs(irpfImpact).toFixed(0)}€</div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+};
