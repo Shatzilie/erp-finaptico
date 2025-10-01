@@ -7,7 +7,9 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  LineChart,
+  Line
 } from "recharts";
 
 interface MonthlyData {
@@ -26,268 +28,287 @@ interface ChartsSectionProps {
   isLoading?: boolean;
 }
 
-export function ChartsSection({ data, isLoading }: ChartsSectionProps) {
+const MONTH_NAMES: Record<string, string> = {
+  '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr',
+  '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Ago',
+  '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic'
+};
+
+const CORPORATE_COLORS = {
+  primary: '#6C5CE7',
+  primaryLight: '#C8A2C8',
+  secondary: '#00BFA5',
+  secondaryLight: '#9ADB91',
+  tertiary: '#FB670A',
+  tertiaryLight: '#FFAC49',
+  quaternary: '#272F7A',
+  quaternaryMid: '#458CCC',
+  quinary: '#293696',
+  quinaryLight: '#6AA6DA'
+};
+
+function prepareChartData(monthlyData: MonthlyData[]) {
+  if (!monthlyData || monthlyData.length === 0) {
+    return { chartData: [], hasData: false };
+  }
+
+  const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
+
+  const dataByMonth = monthlyData.reduce((acc, item) => {
+    if (!item.month) return acc;
+    
+    const [year, month] = item.month.split('-');
+    const monthKey = month;
+    
+    if (!acc[monthKey]) {
+      acc[monthKey] = { month: monthKey, currentYear: 0, previousYear: 0 };
+    }
+    
+    if (parseInt(year) === currentYear) {
+      acc[monthKey].currentYear = item.total;
+    } else if (parseInt(year) === previousYear) {
+      acc[monthKey].previousYear = item.total;
+    }
+    
+    return acc;
+  }, {} as Record<string, { month: string; currentYear: number; previousYear: number }>);
+
+  const chartData = Object.entries(dataByMonth)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([monthKey, values]) => ({
+      month: MONTH_NAMES[monthKey] || monthKey,
+      [`${currentYear}`]: Math.round(values.currentYear),
+      [`${previousYear}`]: Math.round(values.previousYear)
+    }));
+
+  const hasData = chartData.some(d => d[`${currentYear}`] > 0 || d[`${previousYear}`] > 0);
+  
+  return { chartData, hasData };
+}
+
+function prepareCountChartData(revenueData: MonthlyData[], expensesData: MonthlyData[]) {
+  const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
+
+  const revenueCount = revenueData.reduce((acc, item) => {
+    if (!item.month) return acc;
+    const [year, month] = item.month.split('-');
+    const monthKey = month;
+    
+    if (!acc[monthKey]) {
+      acc[monthKey] = { currentYear: 0, previousYear: 0 };
+    }
+    
+    if (parseInt(year) === currentYear && item.total > 0) {
+      acc[monthKey].currentYear++;
+    } else if (parseInt(year) === previousYear && item.total > 0) {
+      acc[monthKey].previousYear++;
+    }
+    
+    return acc;
+  }, {} as Record<string, { currentYear: number; previousYear: number }>);
+
+  const expensesCount = expensesData.reduce((acc, item) => {
+    if (!item.month) return acc;
+    const [year, month] = item.month.split('-');
+    const monthKey = month;
+    
+    if (!acc[monthKey]) {
+      acc[monthKey] = { currentYear: 0, previousYear: 0 };
+    }
+    
+    if (parseInt(year) === currentYear && item.total > 0) {
+      acc[monthKey].currentYear++;
+    } else if (parseInt(year) === previousYear && item.total > 0) {
+      acc[monthKey].previousYear++;
+    }
+    
+    return acc;
+  }, {} as Record<string, { currentYear: number; previousYear: number }>);
+
+  return { revenueCount, expensesCount };
+}
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value);
+};
+
+const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
+  const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
+
+  const revenueChart = prepareChartData(data.revenue_history || []);
+  const expensesChart = prepareChartData(data.expenses_history || []);
+  
+  const profitChartData = revenueChart.chartData.map((item, index) => {
+    const expenseItem = expensesChart.chartData[index];
+    return {
+      month: item.month,
+      [`${currentYear}`]: (item[`${currentYear}`] || 0) - (expenseItem?.[`${currentYear}`] || 0),
+      [`${previousYear}`]: (item[`${previousYear}`] || 0) - (expenseItem?.[`${previousYear}`] || 0)
+    };
+  });
+
+  const { revenueCount, expensesCount } = prepareCountChartData(
+    data.revenue_history || [],
+    data.expenses_history || []
+  );
+
+  const invoiceCountData = Object.entries(revenueCount)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([monthKey, values]) => ({
+      month: MONTH_NAMES[monthKey] || monthKey,
+      [`${currentYear}`]: values.currentYear,
+      [`${previousYear}`]: values.previousYear
+    }));
+
+  const purchaseCountData = Object.entries(expensesCount)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([monthKey, values]) => ({
+      month: MONTH_NAMES[monthKey] || monthKey,
+      [`${currentYear}`]: values.currentYear,
+      [`${previousYear}`]: values.previousYear
+    }));
+
+  const hasProfitData = profitChartData.some(d => d[`${currentYear}`] !== 0 || d[`${previousYear}`] !== 0);
+  const hasInvoiceData = invoiceCountData.some(d => d[`${currentYear}`] > 0 || d[`${previousYear}`] > 0);
+  const hasPurchaseData = purchaseCountData.some(d => d[`${currentYear}`] > 0 || d[`${previousYear}`] > 0);
+
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-pulse">
-        {[1, 2, 3, 4, 5].map(i => (
-          <Card key={i} className="p-6 h-80 bg-gray-100" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Card key={i} className="p-6">
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
+              <div className="h-64 bg-gray-100 rounded"></div>
+            </div>
+          </Card>
         ))}
       </div>
     );
   }
 
-  // Preparar datos combinados para gráfica de beneficio
-  const profitData = prepareComparisonData(
-    data.revenue_history,
-    data.expenses_history
-  );
-
-  // Preparar datos de importe facturado
-  const revenueAmountData = prepareYearComparisonData(data.revenue_history);
-
-  // Preparar datos de importe de compras
-  const expensesAmountData = prepareYearComparisonData(data.expenses_history);
+  if (!revenueChart.hasData && !expensesChart.hasData) {
+    return (
+      <Card className="p-6 text-center">
+        <p className="text-gray-500">No hay datos históricos suficientes para mostrar gráficas</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Análisis Financiero Comparativo</h2>
-
-      {/* Gráfica 1: Beneficio neto antes de impuestos */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">
-          Beneficio Neto Antes de Impuestos (Año Actual vs Anterior)
-        </h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={profitData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis
-              dataKey="monthLabel"
-              tick={{ fill: '#6b7280', fontSize: 12 }}
-            />
-            <YAxis
-              tick={{ fill: '#6b7280', fontSize: 12 }}
-              tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
-            />
-            <Tooltip
-              formatter={(value: number) => `${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-              contentStyle={{
-                backgroundColor: 'white',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px'
-              }}
-            />
-            <Legend />
-            <Bar
-              dataKey="currentYear"
-              name="Año Actual"
-              fill="#1e40af"
-              radius={[8, 8, 0, 0]}
-            />
-            <Bar
-              dataKey="previousYear"
-              name="Año Anterior"
-              fill="#93c5fd"
-              radius={[8, 8, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
-
-      {/* Grid de 2 columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfica 2: Importe total facturado */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800">
-            Importe Facturado (sin IVA)
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={revenueAmountData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="monthLabel"
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-              />
-              <YAxis
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
-              />
-              <Tooltip
-                formatter={(value: number) => `${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px'
-                }}
-              />
-              <Legend />
-              <Bar
-                dataKey="currentYear"
-                name="Año Actual"
-                fill="#f97316"
-                radius={[6, 6, 0, 0]}
-              />
-              <Bar
-                dataKey="previousYear"
-                name="Año Anterior"
-                fill="#fed7aa"
-                radius={[6, 6, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
+        {hasProfitData && (
+          <Card className="p-6 col-span-full">
+            <h3 className="text-lg font-semibold mb-4">Beneficio Neto (Comparativa Anual)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={profitChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" stroke="#666" />
+                <YAxis stroke="#666" tickFormatter={formatCurrency} />
+                <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey={`${currentYear}`}
+                  stroke={CORPORATE_COLORS.primary}
+                  strokeWidth={2}
+                  dot={{ fill: CORPORATE_COLORS.primary, r: 4 }}
+                  activeDot={{ r: 6 }}
+                  name={`${currentYear}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey={`${previousYear}`}
+                  stroke={CORPORATE_COLORS.primaryLight}
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={{ fill: CORPORATE_COLORS.primaryLight, r: 4 }}
+                  name={`${previousYear}`}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+        )}
 
-        {/* Gráfica 3: Importe total de compras */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800">
-            Importe de Compras (sin IVA)
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={expensesAmountData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="monthLabel"
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                tickFormatter={(value) => value}
-              />
-              <YAxis
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
-              />
-              <Tooltip
-                formatter={(value: number) => `${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px'
-                }}
-              />
-              <Legend />
-              <Bar
-                dataKey="currentYear"
-                name="Año Actual"
-                fill="#8b5cf6"
-                radius={[6, 6, 0, 0]}
-              />
-              <Bar
-                dataKey="previousYear"
-                name="Año Anterior"
-                fill="#ddd6fe"
-                radius={[6, 6, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
+        {revenueChart.hasData && (
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Importe Facturado (Comparativa Anual)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={revenueChart.chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" stroke="#666" />
+                <YAxis stroke="#666" tickFormatter={formatCurrency} />
+                <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                <Legend />
+                <Bar dataKey={`${currentYear}`} fill={CORPORATE_COLORS.secondary} name={`${currentYear}`} />
+                <Bar dataKey={`${previousYear}`} fill={CORPORATE_COLORS.secondaryLight} name={`${previousYear}`} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        )}
+
+        {expensesChart.hasData && (
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Importe de Compras (Comparativa Anual)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={expensesChart.chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" stroke="#666" />
+                <YAxis stroke="#666" tickFormatter={formatCurrency} />
+                <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                <Legend />
+                <Bar dataKey={`${currentYear}`} fill={CORPORATE_COLORS.tertiary} name={`${currentYear}`} />
+                <Bar dataKey={`${previousYear}`} fill={CORPORATE_COLORS.tertiaryLight} name={`${previousYear}`} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        )}
+
+        {hasInvoiceData && (
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Número de Facturas Emitidas (Comparativa Anual)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={invoiceCountData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" stroke="#666" />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey={`${currentYear}`} fill={CORPORATE_COLORS.quaternary} name={`${currentYear}`} />
+                <Bar dataKey={`${previousYear}`} fill={CORPORATE_COLORS.quaternaryMid} name={`${previousYear}`} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        )}
+
+        {hasPurchaseData && (
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Número de Facturas de Compra (Comparativa Anual)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={purchaseCountData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" stroke="#666" />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey={`${currentYear}`} fill={CORPORATE_COLORS.quinary} name={`${currentYear}`} />
+                <Bar dataKey={`${previousYear}`} fill={CORPORATE_COLORS.quinaryLight} name={`${previousYear}`} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        )}
       </div>
     </div>
   );
-}
+};
 
-// ========== FUNCIONES HELPER CORREGIDAS ==========
-
-function formatMonthLabel(monthStr: string): string {
-  const months = [
-    "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-    "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
-  ];
-  const parts = monthStr.split("-");
-  if (parts.length === 2) {
-    const monthNum = parseInt(parts[1]) - 1;
-    return months[monthNum] || monthStr;
-  }
-  return monthStr;
-}
-
-function prepareYearComparisonData(history: MonthlyData[]) {
-  if (!history || history.length === 0) {
-    return [];
-  }
-
-  const currentYear = new Date().getFullYear();
-  const previousYear = currentYear - 1;
-
-  // Agrupar por mes (solo MM)
-  const monthMap = new Map<string, { currentYear: number; previousYear: number; monthLabel: string }>();
-
-  history.forEach(item => {
-    const [year, month] = item.month.split("-");
-    const yearNum = parseInt(year);
-    const monthNum = parseInt(month);
-
-    if (!monthMap.has(month)) {
-      monthMap.set(month, {
-        currentYear: 0,
-        previousYear: 0,
-        monthLabel: formatMonthLabel(`0-${month}`)
-      });
-    }
-
-    const entry = monthMap.get(month)!;
-    if (yearNum === currentYear) {
-      entry.currentYear = Math.round(item.total * 100) / 100;
-    } else if (yearNum === previousYear) {
-      entry.previousYear = Math.round(item.total * 100) / 100;
-    }
-  });
-
-  // Convertir a array y ordenar por mes
-  return Array.from(monthMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([_, value]) => value);
-}
-
-function prepareComparisonData(
-  revenueHistory: MonthlyData[],
-  expensesHistory: MonthlyData[]
-) {
-  if (!revenueHistory || !expensesHistory) {
-    return [];
-  }
-
-  const currentYear = new Date().getFullYear();
-  const previousYear = currentYear - 1;
-
-  // Crear mapa de revenue por mes completo (YYYY-MM)
-  const revenueMap = new Map<string, number>();
-  revenueHistory.forEach(r => {
-    revenueMap.set(r.month, r.total);
-  });
-
-  // Crear mapa de expenses por mes completo (YYYY-MM)
-  const expensesMap = new Map<string, number>();
-  expensesHistory.forEach(e => {
-    expensesMap.set(e.month, e.total);
-  });
-
-  // Obtener todos los meses únicos
-  const allMonths = new Set<string>();
-  revenueHistory.forEach(r => {
-    const [_, month] = r.month.split("-");
-    allMonths.add(month);
-  });
-  expensesHistory.forEach(e => {
-    const [_, month] = e.month.split("-");
-    allMonths.add(month);
-  });
-
-  // Crear array de resultados
-  const results: any[] = [];
-
-  Array.from(allMonths).sort().forEach(month => {
-    const currentYearKey = `${currentYear}-${month}`;
-    const previousYearKey = `${previousYear}-${month}`;
-
-    const currentRevenue = revenueMap.get(currentYearKey) || 0;
-    const currentExpenses = expensesMap.get(currentYearKey) || 0;
-    const previousRevenue = revenueMap.get(previousYearKey) || 0;
-    const previousExpenses = expensesMap.get(previousYearKey) || 0;
-
-    results.push({
-      monthLabel: formatMonthLabel(`0-${month}`),
-      currentYear: Math.round((currentRevenue - currentExpenses) * 100) / 100,
-      previousYear: Math.round((previousRevenue - previousExpenses) * 100) / 100
-    });
-  });
-
-  return results;
-}
+export default ChartsSection;
