@@ -115,10 +115,9 @@ export function IvaCard({ data }: IvaCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Receipt className="h-5 w-5" />
-          IVA Q{data.quarter} {data.year}
-        </CardTitle>
+        <CardTitle className="text-sm font-medium">
+          IVA Q{data.period?.quarter || 'N/A'} {data.period?.year || ''}
+      </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -177,9 +176,8 @@ export function IrpfCard({ data }: IrpfCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          IRPF Q{data.quarter} {data.year}
+        <CardTitle className="text-sm font-medium">
+          IRPF Q{data.period?.quarter || 'N/A'} {data.period?.year || ''}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
