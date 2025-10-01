@@ -43,42 +43,34 @@ export function ChartsSection({ data, isLoading }: ChartsSectionProps) {
     data.expenses_history
   );
 
-  // Preparar datos de facturas emitidas (conteo)
-  const invoiceCountData = prepareInvoiceCountData(data.revenue_history);
-
   // Preparar datos de importe facturado
   const revenueAmountData = prepareYearComparisonData(data.revenue_history);
-
-  // Preparar datos de facturas de compra (conteo)
-  const purchaseCountData = prepareInvoiceCountData(data.expenses_history);
 
   // Preparar datos de importe de compras
   const expensesAmountData = prepareYearComparisonData(data.expenses_history);
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Análisis Financiero</h2>
+      <h2 className="text-2xl font-bold text-gray-900">Análisis Financiero Comparativo</h2>
 
       {/* Gráfica 1: Beneficio neto antes de impuestos */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">
-          Beneficio Neto Antes de Impuestos (Mensual)
+          Beneficio Neto Antes de Impuestos (Año Actual vs Anterior)
         </h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={profitData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
-              dataKey="month"
+              dataKey="monthLabel"
               tick={{ fill: '#6b7280', fontSize: 12 }}
-              tickFormatter={(value) => formatMonthLabel(value)}
             />
             <YAxis
               tick={{ fill: '#6b7280', fontSize: 12 }}
               tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
             />
             <Tooltip
-              formatter={(value: number) => `${value.toLocaleString('es-ES')} €`}
-              labelFormatter={(label) => formatMonthLabel(label)}
+              formatter={(value: number) => `${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
               contentStyle={{
                 backgroundColor: 'white',
                 border: '1px solid #e5e7eb',
@@ -102,48 +94,9 @@ export function ChartsSection({ data, isLoading }: ChartsSectionProps) {
         </ResponsiveContainer>
       </Card>
 
-      {/* Grid de 2 columnas para el resto */}
+      {/* Grid de 2 columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfica 2: Número de facturas emitidas */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800">
-            Facturas Emitidas (Número)
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={invoiceCountData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                tickFormatter={(value) => formatMonthLabel(value)}
-              />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} />
-              <Tooltip
-                labelFormatter={(label) => formatMonthLabel(label)}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px'
-                }}
-              />
-              <Legend />
-              <Bar
-                dataKey="currentYear"
-                name="Año Actual"
-                fill="#10b981"
-                radius={[6, 6, 0, 0]}
-              />
-              <Bar
-                dataKey="previousYear"
-                name="Año Anterior"
-                fill="#86efac"
-                radius={[6, 6, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Gráfica 3: Importe total facturado */}
+        {/* Gráfica 2: Importe total facturado */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-800">
             Importe Facturado (sin IVA)
@@ -152,17 +105,15 @@ export function ChartsSection({ data, isLoading }: ChartsSectionProps) {
             <BarChart data={revenueAmountData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
-                dataKey="month"
+                dataKey="monthLabel"
                 tick={{ fill: '#6b7280', fontSize: 11 }}
-                tickFormatter={(value) => formatMonthLabel(value)}
               />
               <YAxis
                 tick={{ fill: '#6b7280', fontSize: 11 }}
                 tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
               />
               <Tooltip
-                formatter={(value: number) => `${value.toLocaleString('es-ES')} €`}
-                labelFormatter={(label) => formatMonthLabel(label)}
+                formatter={(value: number) => `${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
                 contentStyle={{
                   backgroundColor: 'white',
                   border: '1px solid #e5e7eb',
@@ -186,46 +137,7 @@ export function ChartsSection({ data, isLoading }: ChartsSectionProps) {
           </ResponsiveContainer>
         </Card>
 
-        {/* Gráfica 4: Número de facturas de compra */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800">
-            Facturas de Compra (Número)
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={purchaseCountData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                tickFormatter={(value) => formatMonthLabel(value)}
-              />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} />
-              <Tooltip
-                labelFormatter={(label) => formatMonthLabel(label)}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px'
-                }}
-              />
-              <Legend />
-              <Bar
-                dataKey="currentYear"
-                name="Año Actual"
-                fill="#3b82f6"
-                radius={[6, 6, 0, 0]}
-              />
-              <Bar
-                dataKey="previousYear"
-                name="Año Anterior"
-                fill="#bfdbfe"
-                radius={[6, 6, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Gráfica 5: Importe total de compras */}
+        {/* Gráfica 3: Importe total de compras */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-800">
             Importe de Compras (sin IVA)
@@ -234,17 +146,16 @@ export function ChartsSection({ data, isLoading }: ChartsSectionProps) {
             <BarChart data={expensesAmountData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
-                dataKey="month"
+                dataKey="monthLabel"
                 tick={{ fill: '#6b7280', fontSize: 11 }}
-                tickFormatter={(value) => formatMonthLabel(value)}
+                tickFormatter={(value) => value}
               />
               <YAxis
                 tick={{ fill: '#6b7280', fontSize: 11 }}
                 tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
               />
               <Tooltip
-                formatter={(value: number) => `${value.toLocaleString('es-ES')} €`}
-                labelFormatter={(label) => formatMonthLabel(label)}
+                formatter={(value: number) => `${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
                 contentStyle={{
                   backgroundColor: 'white',
                   border: '1px solid #e5e7eb',
@@ -272,92 +183,111 @@ export function ChartsSection({ data, isLoading }: ChartsSectionProps) {
   );
 }
 
-// ========== FUNCIONES HELPER ==========
+// ========== FUNCIONES HELPER CORREGIDAS ==========
 
 function formatMonthLabel(monthStr: string): string {
   const months = [
     "Ene", "Feb", "Mar", "Abr", "May", "Jun",
     "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
   ];
-  const [year, month] = monthStr.split("-");
-  return `${months[parseInt(month) - 1]} ${year.slice(2)}`;
+  const parts = monthStr.split("-");
+  if (parts.length === 2) {
+    const monthNum = parseInt(parts[1]) - 1;
+    return months[monthNum] || monthStr;
+  }
+  return monthStr;
+}
+
+function prepareYearComparisonData(history: MonthlyData[]) {
+  if (!history || history.length === 0) {
+    return [];
+  }
+
+  const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
+
+  // Agrupar por mes (solo MM)
+  const monthMap = new Map<string, { currentYear: number; previousYear: number; monthLabel: string }>();
+
+  history.forEach(item => {
+    const [year, month] = item.month.split("-");
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+
+    if (!monthMap.has(month)) {
+      monthMap.set(month, {
+        currentYear: 0,
+        previousYear: 0,
+        monthLabel: formatMonthLabel(`0-${month}`)
+      });
+    }
+
+    const entry = monthMap.get(month)!;
+    if (yearNum === currentYear) {
+      entry.currentYear = Math.round(item.total * 100) / 100;
+    } else if (yearNum === previousYear) {
+      entry.previousYear = Math.round(item.total * 100) / 100;
+    }
+  });
+
+  // Convertir a array y ordenar por mes
+  return Array.from(monthMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([_, value]) => value);
 }
 
 function prepareComparisonData(
   revenueHistory: MonthlyData[],
   expensesHistory: MonthlyData[]
 ) {
+  if (!revenueHistory || !expensesHistory) {
+    return [];
+  }
+
   const currentYear = new Date().getFullYear();
   const previousYear = currentYear - 1;
 
-  const allMonths = new Set([
-    ...revenueHistory.map(r => r.month),
-    ...expensesHistory.map(e => e.month)
-  ]);
+  // Crear mapa de revenue por mes completo (YYYY-MM)
+  const revenueMap = new Map<string, number>();
+  revenueHistory.forEach(r => {
+    revenueMap.set(r.month, r.total);
+  });
 
-  const revenueMap = new Map(revenueHistory.map(r => [r.month, r.total]));
-  const expensesMap = new Map(expensesHistory.map(e => [e.month, e.total]));
+  // Crear mapa de expenses por mes completo (YYYY-MM)
+  const expensesMap = new Map<string, number>();
+  expensesHistory.forEach(e => {
+    expensesMap.set(e.month, e.total);
+  });
 
-  return Array.from(allMonths)
-    .sort()
-    .map(month => {
-      const revenue = revenueMap.get(month) || 0;
-      const expenses = expensesMap.get(month) || 0;
-      const profit = Math.round((revenue - expenses) * 100) / 100;
-      const year = parseInt(month.split("-")[0]);
+  // Obtener todos los meses únicos
+  const allMonths = new Set<string>();
+  revenueHistory.forEach(r => {
+    const [_, month] = r.month.split("-");
+    allMonths.add(month);
+  });
+  expensesHistory.forEach(e => {
+    const [_, month] = e.month.split("-");
+    allMonths.add(month);
+  });
 
-      return {
-        month,
-        [year === currentYear ? "currentYear" : "previousYear"]: profit
-      };
-    })
-    .reduce((acc, curr) => {
-      const existing = acc.find(item => item.month === curr.month);
-      if (existing) {
-        Object.assign(existing, curr);
-      } else {
-        acc.push(curr);
-      }
-      return acc;
-    }, [] as any[])
-    .slice(-12);
-}
+  // Crear array de resultados
+  const results: any[] = [];
 
-function prepareYearComparisonData(history: MonthlyData[]) {
-  const currentYear = new Date().getFullYear();
-  
-  return history
-    .slice(-24) // Últimos 24 meses (2 años)
-    .reduce((acc, item) => {
-      const year = parseInt(item.month.split("-")[0]);
-      const monthKey = item.month.slice(5); // Solo MM
-      
-      const existing = acc.find(x => x.month === monthKey);
-      if (existing) {
-        if (year === currentYear) {
-          existing.currentYear = Math.round(item.total * 100) / 100;
-        } else {
-          existing.previousYear = Math.round(item.total * 100) / 100;
-        }
-      } else {
-        acc.push({
-          month: monthKey,
-          currentYear: year === currentYear ? Math.round(item.total * 100) / 100 : 0,
-          previousYear: year !== currentYear ? Math.round(item.total * 100) / 100 : 0
-        });
-      }
-      
-      return acc;
-    }, [] as any[])
-    .sort((a, b) => a.month.localeCompare(b.month));
-}
+  Array.from(allMonths).sort().forEach(month => {
+    const currentYearKey = `${currentYear}-${month}`;
+    const previousYearKey = `${previousYear}-${month}`;
 
-function prepareInvoiceCountData(history: MonthlyData[]) {
-  // Por ahora usamos un mock del conteo
-  // TODO: Implementar conteo real cuando las Edge Functions lo devuelvan
-  return prepareYearComparisonData(history).map(item => ({
-    ...item,
-    currentYear: Math.floor(item.currentYear / 1000), // Mock: ~1 factura por cada 1000€
-    previousYear: Math.floor(item.previousYear / 1000)
-  }));
+    const currentRevenue = revenueMap.get(currentYearKey) || 0;
+    const currentExpenses = expensesMap.get(currentYearKey) || 0;
+    const previousRevenue = revenueMap.get(previousYearKey) || 0;
+    const previousExpenses = expensesMap.get(previousYearKey) || 0;
+
+    results.push({
+      monthLabel: formatMonthLabel(`0-${month}`),
+      currentYear: Math.round((currentRevenue - currentExpenses) * 100) / 100,
+      previousYear: Math.round((previousRevenue - previousExpenses) * 100) / 100
+    });
+  });
+
+  return results;
 }
