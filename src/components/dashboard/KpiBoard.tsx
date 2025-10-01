@@ -1,481 +1,311 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, RefreshCw, TrendingUp, TrendingDown, DollarSign, 
-         AlertTriangle, CheckCircle, Euro, Target } from 'lucide-react';
-import { IvaCard, IrpfCard, SociedadesCard } from './FiscalComponents';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText } from "lucide-react";
+import { backendAdapter } from "@/lib/backendAdapter";
+import { IvaCard, IrpfCard } from "./FiscalComponents";
+
+interface KpiBoardProps {
+  tenantId: string;
+}
 
 interface DashboardData {
-  totalCash?: number;
-  monthlyRevenue?: number;
-  quarterlyRevenue?: number;
-  yearlyRevenue?: number;
-  pendingInvoices?: number;
-  monthlyExpenses?: number;
-  quarterlyExpenses?: number;
-  yearlyExpenses?: number;
-  pendingPayments?: number;
-  monthlyMargin?: number;
-  quarterlyMargin?: number;
-  yearlyMargin?: number;
-  marginPercentage?: number;
-  alerts?: Array<{ type: string; message: string; module: string; }>;
-  lastUpdated?: string;
+  treasury: {
+    total: number;
+    accounts: number;
+    currency: string;
+  };
+  revenue: {
+    monthly: number;
+    quarterly: number;
+    yearly: number;
+    pendingCount: number;
+  };
+  expenses: {
+    monthly: number;
+    quarterly: number;
+    yearly: number;
+    pendingCount: number;
+  };
+  profitability: {
+    monthlyMargin: number;
+    quarterlyMargin: number;
+    yearlyMargin: number;
+    marginPercentage: number;
+  };
+  alerts: Array<{
+    type: string;
+    message: string;
+    module: string;
+  }>;
 }
 
 interface FiscalData {
-  iva?: any;
-  irpf?: any;
-  sociedades?: any;
+  iva_repercutido: number;
+  iva_soportado: number;
+  iva_diferencia: number;
+  status: string;
+  period: {
+    quarter: number;
+    year: number;
+  };
 }
 
-interface KpiBoardProps {
-  data?: DashboardData | null;
-  isLoading?: boolean;
+interface IRPFData {
+  retenciones_practicadas: number;
+  retenciones_soportadas: number;
+  diferencia: number;
+  status: string;
+  period: {
+    quarter: number;
+    year: number;
+  };
 }
 
-function useTenantSlug() {
-  const params = useParams();
-  const location = useLocation();
-
-  let slug = (params as any)?.tenant || (params as any)?.tenantSlug || "";
-  if (!slug) {
-    const first = location.pathname.split("/").filter(Boolean)[0];
-    slug = first || "";
-  }
-  return slug;
+interface SociedadesData {
+  resultado_ejercicio: number;
+  base_imponible: number;
+  cuota_integra: number;
+  cuota_diferencial: number;
+  tipo_impositivo: number;
+  status: string;
+  period: {
+    year: number;
+  };
 }
 
-const formatEuro = (amount: number) => {
+const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('es-ES', {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
-
-const formatNumber = (value: number, decimals = 2) => {
-  return new Intl.NumberFormat('es-ES', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    maximumFractionDigits: 0
   }).format(value);
 };
 
-export default function KpiBoard({ data: propData, isLoading: propLoading }: KpiBoardProps) {
-  const slug = useTenantSlug();
-  const [data, setData] = useState<DashboardData | null>(propData || null);
-  const [fiscalData, setFiscalData] = useState<FiscalData>({});
-  const [loading, setLoading] = useState(propLoading ?? true);
+const KpiBoard = ({ tenantId }: KpiBoardProps) => {
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [ivaData, setIvaData] = useState<FiscalData | null>(null);
+  const [irpfData, setIRPFData] = useState<IRPFData | null>(null);
+  const [sociedadesData, setSociedadesData] = useState<SociedadesData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState(false);
-
-  const fetchDashboardData = async () => {
-    console.log('🎯 Cargando datos del Dashboard para tenant:', slug);
-    
-    if (!slug) {
-      setError('No se pudo determinar el tenant');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // PASO 1: Obtener el tenant_id desde el slug
-      const { data: tenantData, error: tenantError } = await (supabase as any)
-        .from('tenants')
-        .select('id')
-        .eq('slug', slug)
-        .single();
-
-      if (tenantError || !tenantData) {
-        console.error('❌ Tenant no encontrado:', tenantError);
-        throw new Error('Tenant no encontrado');
-      }
-
-      const tenantId = tenantData.id;
-      console.log('✅ Tenant ID obtenido:', tenantId);
-
-      // PASO 2: Llamar a todas las Edge Functions en paralelo
-      const [dashboardResponse, ivaResponse, irpfResponse, sociedadesResponse] = await Promise.all([
-        fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-          },
-          body: JSON.stringify({ tenant_slug: tenantId })
-        }),
-        fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-          },
-          body: JSON.stringify({ 
-            tenant_slug: slug,
-            quarter: 3,
-            year: 2025
-          })
-        }),
-        fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-irpf', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-          },
-          body: JSON.stringify({ 
-            tenant_slug: slug,
-            quarter: 3,
-            year: 2025
-          })
-        }),
-        fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-          },
-          body: JSON.stringify({ 
-            tenant_slug: slug,
-            year: 2025
-          })
-        })
-      ]);
-      
-      // Procesar respuesta del dashboard
-      if (!dashboardResponse.ok) {
-        const errorText = await dashboardResponse.text();
-        console.error('❌ Error response dashboard:', errorText);
-        throw new Error(`HTTP ${dashboardResponse.status}: ${errorText}`);
-      }
-      
-      const dashboardResult = await dashboardResponse.json();
-      console.log('📊 Dashboard:', dashboardResult);
-      
-      if (dashboardResult.ok && dashboardResult.widget_data?.dashboard?.success) {
-        const dashboardPayload = dashboardResult.widget_data.dashboard.payload;
-        
-        const transformedData: DashboardData = {
-          totalCash: dashboardPayload.treasury?.total || 0,
-          monthlyRevenue: dashboardPayload.revenue?.monthly || 0,
-          quarterlyRevenue: dashboardPayload.revenue?.quarterly || 0,
-          yearlyRevenue: dashboardPayload.revenue?.yearly || 0,
-          pendingInvoices: dashboardPayload.revenue?.pendingCount || 0,
-          monthlyExpenses: dashboardPayload.expenses?.monthly || 0,
-          quarterlyExpenses: dashboardPayload.expenses?.quarterly || 0,
-          yearlyExpenses: dashboardPayload.expenses?.yearly || 0,
-          pendingPayments: dashboardPayload.expenses?.pendingCount || 0,
-          monthlyMargin: dashboardPayload.profitability?.monthlyMargin || 0,
-          quarterlyMargin: dashboardPayload.profitability?.quarterlyMargin || 0,
-          yearlyMargin: dashboardPayload.profitability?.yearlyMargin || 0,
-          marginPercentage: dashboardPayload.profitability?.marginPercentage || 0,
-          alerts: dashboardPayload.alerts || [],
-          lastUpdated: dashboardResult.meta?.execution_time
-        };
-        
-        setData(transformedData);
-      }
-
-      // Procesar respuestas fiscales
-      const ivaResult = await ivaResponse.json();
-      const irpfResult = await irpfResponse.json();
-      const sociedadesResult = await sociedadesResponse.json();
-
-      console.log('📊 IVA:', ivaResult);
-      console.log('📊 IRPF:', irpfResult);
-      console.log('📊 Sociedades:', sociedadesResult);
-
-      setFiscalData({
-        iva: ivaResult.ok ? ivaResult.widget_data?.iva?.payload : null,
-        irpf: irpfResult.ok ? irpfResult.widget_data?.irpf?.payload : null,
-        sociedades: sociedadesResult.ok ? sociedadesResult.widget_data?.sociedades?.payload : null
-      });
-
-      setError(null);
-    } catch (err: any) {
-      console.error('❌ Error cargando datos:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSyncNow = async () => {
-    console.log('🔄 Sincronizando Dashboard...');
-    setSyncing(true);
-    try {
-      await fetchDashboardData();
-      console.log('✅ Sincronización completada');
-    } catch (err) {
-      console.error('❌ Error en sincronización:', err);
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   useEffect(() => {
-    if (propData) {
-      setData(propData);
-      setLoading(false);
-    } else {
-      fetchDashboardData();
-    }
-    
-    const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [slug, propData]);
+    const fetchDashboardData = async () => {
+      if (!tenantId) {
+        setError("No se ha especificado tenant");
+        setIsLoading(false);
+        return;
+      }
 
-  if (loading) {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const currentDate = new Date();
+        const currentQuarter = Math.ceil((currentDate.getMonth() + 1) / 3);
+        const currentYear = currentDate.getFullYear();
+
+        const [dashboard, iva, irpf, sociedades] = await Promise.all([
+          backendAdapter.getDashboard(tenantId),
+          backendAdapter.getIVA(tenantId, currentQuarter, currentYear),
+          backendAdapter.getIRPF(tenantId, currentQuarter, currentYear),
+          backendAdapter.getSociedades(tenantId, currentYear)
+        ]);
+
+        if (dashboard.ok && dashboard.widget_data?.dashboard?.success) {
+          setDashboardData(dashboard.widget_data.dashboard.payload);
+        }
+
+        if (iva.ok && iva.widget_data?.iva?.success) {
+          setIvaData(iva.widget_data.iva.payload);
+        }
+
+        if (irpf.ok && irpf.widget_data?.irpf?.success) {
+          setIRPFData(irpf.widget_data.irpf.payload);
+        }
+
+        if (sociedades.ok && sociedades.widget_data?.sociedades?.success) {
+          setSociedadesData(sociedades.widget_data.sociedades.payload);
+        }
+
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+        setError("Error al cargar los datos del dashboard");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [tenantId]);
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Cargando datos del Dashboard...</p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="destructive" className="mx-4">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          Error al cargar el dashboard: {error}
-          <Button variant="outline" size="sm" className="ml-2" onClick={handleSyncNow}>
-            Reintentar
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+        {error}
+      </div>
     );
   }
 
-  if (!data) {
+  if (!dashboardData) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No hay datos disponibles</p>
-        <Button onClick={handleSyncNow} className="mt-4">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Cargar datos
-        </Button>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+        No hay datos disponibles
       </div>
     );
   }
 
   return (
-    <div className="space-y-12">
-      
-      {/* SECCIÓN 1: ESTADO FISCAL */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold">Estado Fiscal del Trimestre</h2>
-            <p className="text-muted-foreground">Q3 2025 • Situación actualizada</p>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Tesoreria</p>
+              <p className="text-2xl font-bold">{formatCurrency(dashboardData.treasury.total)}</p>
+              <p className="text-xs text-gray-500 mt-1">{dashboardData.treasury.accounts} cuenta{dashboardData.treasury.accounts !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-full">
+              <DollarSign className="w-6 h-6 text-blue-600" />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-blue-50">
-              Backend Nuevo
-            </Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSyncNow}
-              disabled={syncing}
-            >
-              {syncing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              Sincronizar
-            </Button>
-          </div>
-        </div>
+        </Card>
 
-        {/* Alertas */}
-        {data.alerts && data.alerts.length > 0 && (
-          <div className="space-y-3 mb-10">
-            {data.alerts.map((alert, index) => (
-              <Alert 
-                key={index} 
-                variant={alert.type === 'warning' ? 'destructive' : 'default'}
-              >
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{alert.message}</AlertDescription>
-              </Alert>
-            ))}
+        <Card className="p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Ingresos (mes)</p>
+              <p className="text-2xl font-bold">{formatCurrency(dashboardData.revenue.monthly)}</p>
+              <p className="text-xs text-gray-500 mt-1">Anual: {formatCurrency(dashboardData.revenue.yearly)}</p>
+            </div>
+            <div className="bg-green-50 p-3 rounded-full">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
           </div>
+        </Card>
+
+        <Card className="p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Gastos (mes)</p>
+              <p className="text-2xl font-bold">{formatCurrency(dashboardData.expenses.monthly)}</p>
+              <p className="text-xs text-gray-500 mt-1">Anual: {formatCurrency(dashboardData.expenses.yearly)}</p>
+            </div>
+            <div className="bg-red-50 p-3 rounded-full">
+              <TrendingDown className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Margen Anual</p>
+              <p className="text-2xl font-bold">{formatCurrency(dashboardData.profitability.yearlyMargin)}</p>
+              <p className="text-xs text-gray-500 mt-1">{dashboardData.profitability.marginPercentage.toFixed(1)}% margen</p>
+            </div>
+            <div className={`p-3 rounded-full ${dashboardData.profitability.yearlyMargin >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+              <CreditCard className={`w-6 h-6 ${dashboardData.profitability.yearlyMargin >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {ivaData && (
+          <IvaCard
+            ivaData={ivaData.iva_repercutido}
+            ivaSoportado={ivaData.iva_soportado}
+            diferencia={ivaData.iva_diferencia}
+            status={ivaData.status}
+            quarter={ivaData.period.quarter}
+            year={ivaData.period.year}
+          />
         )}
 
-        {/* Tarjetas fiscales - USANDO COMPONENTES REALES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          {fiscalData.iva ? (
-            <IvaCard data={fiscalData.iva} />
-          ) : (
-            <Card className="border-gray-200">
-              <CardContent className="pt-6">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-              </CardContent>
-            </Card>
-          )}
+        {irpfData && (
+          <IrpfCard
+            retencionesPracticadas={irpfData.retenciones_practicadas}
+            retencionesSoportadas={irpfData.retenciones_soportadas}
+            diferencia={irpfData.diferencia}
+            status={irpfData.status}
+            quarter={irpfData.period.quarter}
+            year={irpfData.period.year}
+          />
+        )}
 
-          {fiscalData.irpf ? (
-            <IrpfCard data={fiscalData.irpf} />
-          ) : (
-            <Card className="border-gray-200">
-              <CardContent className="pt-6">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-              </CardContent>
-            </Card>
-          )}
-
-          {fiscalData.sociedades ? (
-            <SociedadesCard data={fiscalData.sociedades} />
-          ) : (
-            <Card className="border-gray-200">
-              <CardContent className="pt-6">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {sociedadesData && (
+          <Card className="p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Impuesto de Sociedades {sociedadesData.period.year}</p>
+                <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(sociedadesData.cuota_diferencial)}
+                </p>
+              </div>
+              <div className={`p-3 rounded-full ${sociedadesData.cuota_diferencial < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                <FileText className={`w-6 h-6 ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`} />
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Resultado ejercicio:</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.resultado_ejercicio)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Base imponible:</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.base_imponible)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Tipo impositivo:</span>
+                <span className="font-medium">{sociedadesData.tipo_impositivo.toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Cuota integra:</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.cuota_integra)}</span>
+              </div>
+              <div className="pt-2 border-t">
+                <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                  sociedadesData.status === 'A PAGAR' ? 'bg-red-100 text-red-700' :
+                  sociedadesData.status === 'A DEVOLVER' ? 'bg-green-100 text-green-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {sociedadesData.status}
+                </span>
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
 
-      {/* SEPARADOR VISUAL */}
-      <div className="my-16">
-        <hr className="border-gray-200" />
-      </div>
-
-      {/* SECCIÓN 3: GESTIÓN OPERATIVA */}
-      <div className="space-y-8">
-        <div className="flex items-center gap-2 mb-8">
-          <h2 className="text-2xl font-bold">Gestión Operativa</h2>
-          <Badge variant="outline">Tesorería, ingresos, gastos y rentabilidad</Badge>
-        </div>
-
-        {/* KPIs operativos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {/* Saldo disponible */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Euro className="h-4 w-4" />
-                Saldo disponible en bancos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${(data.totalCash || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatEuro(data.totalCash || 0)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Cuentas bancarias
-              </p>
-              <Badge variant={(data.totalCash || 0) >= 0 ? "default" : "destructive"} className="mt-2">
-                {(data.totalCash || 0) >= 0 ? 'Positivo' : 'Negativo'}
-              </Badge>
-            </CardContent>
-          </Card>
-
-          {/* Facturación */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Facturación
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {formatEuro(data.yearlyRevenue || 0)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Año actual
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Mes: {formatEuro(data.monthlyRevenue || 0)}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Pagos realizados */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingDown className="h-4 w-4" />
-                Pagos realizados
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {formatEuro(data.yearlyExpenses || 0)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Año actual
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Mes: {formatEuro(data.monthlyExpenses || 0)}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Rentabilidad */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Rentabilidad
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${(data.yearlyMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatEuro(data.yearlyMargin || 0)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Margen anual
-              </p>
-              <p className={`text-xs mt-1 font-medium ${(data.marginPercentage || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatNumber(data.marginPercentage || 0, 1)}%
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Información del período */}
-      <Card className="mt-16">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5" />
-            Información del Período
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
-            <div>
-              <span className="text-muted-foreground">Año fiscal:</span>
-              <p className="font-medium">2025</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Trimestre:</span>
-              <p className="font-medium">Q3</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Mes:</span>
-              <p className="font-medium">Septiembre</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Última actualización:</span>
-              <p className="font-medium">
-                {data.lastUpdated ? new Date(data.lastUpdated).toLocaleString('es-ES') : 'Ahora mismo'}
-              </p>
+      {dashboardData.alerts && dashboardData.alerts.length > 0 && (
+        <Card className="p-6 bg-yellow-50 border-yellow-200">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-yellow-900 mb-2">Alertas</h3>
+              <ul className="space-y-1">
+                {dashboardData.alerts.map((alert, index) => (
+                  <li key={index} className="text-sm text-yellow-800">
+                    {alert.message}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
+      )}
     </div>
   );
-}
+};
+
+export default KpiBoard;
