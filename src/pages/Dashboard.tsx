@@ -394,6 +394,10 @@ const DashboardContent = () => {
               </div>
             </div>
           </div>
+        </div>
+        
+        <main className="p-6">
+          {renderMainContent()}
         </main>
       </div>
     </div>
