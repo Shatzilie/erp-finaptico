@@ -98,59 +98,50 @@ const DashboardContent = () => {
 
   const fetchDashboardData = async (tenantId: string, slug: string) => {
     try {
-      // Llamar a odoo-dashboard
-      const dashboardResponse = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-        },
-        body: JSON.stringify({ tenant_slug: slug })
-      });
-
-      if (dashboardResponse.ok) {
-        const dashData = await dashboardResponse.json();
-        if (dashData.ok && dashData.widget_data?.dashboard?.payload) {
-          setDashboardData(dashData.widget_data.dashboard.payload);
-          
-          // Actualizar KPIs desde dashboard
-          const payload = dashData.widget_data.dashboard.payload;
-          setKpi({
-            revenue: payload.revenue?.monthly || 0,
-            expenses: payload.expenses?.monthly || 0,
-            invoices: payload.revenue?.pendingCount || 0
-          });
-        }
-      }
+      console.log('Fetching dashboard data for tenant:', tenantId, 'slug:', slug);
 
       // Llamar a odoo-revenue para obtener histórico
-      const revenueResponse = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-revenue', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-        },
-        body: JSON.stringify({ tenant_slug: slug })
-      });
+      try {
+        const revenueResponse = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-revenue', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({ tenant_slug: slug })
+        });
 
-      if (revenueResponse.ok) {
-        const revData = await revenueResponse.json();
-        setRevenueData(revData);
+        if (revenueResponse.ok) {
+          const revData = await revenueResponse.json();
+          console.log('Revenue data:', revData);
+          setRevenueData(revData);
+        } else {
+          console.error('Revenue response not ok:', revenueResponse.status);
+        }
+      } catch (revErr) {
+        console.error('Revenue fetch error:', revErr);
       }
 
       // Llamar a odoo-expenses para obtener histórico
-      const expensesResponse = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-expenses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
-        },
-        body: JSON.stringify({ tenant_slug: slug })
-      });
+      try {
+        const expensesResponse = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-expenses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
+          body: JSON.stringify({ tenant_slug: slug })
+        });
 
-      if (expensesResponse.ok) {
-        const expData = await expensesResponse.json();
-        setExpensesData(expData);
+        if (expensesResponse.ok) {
+          const expData = await expensesResponse.json();
+          console.log('Expenses data:', expData);
+          setExpensesData(expData);
+        } else {
+          console.error('Expenses response not ok:', expensesResponse.status);
+        }
+      } catch (expErr) {
+        console.error('Expenses fetch error:', expErr);
       }
 
     } catch (err) {
@@ -179,7 +170,6 @@ const DashboardContent = () => {
         console.error("sync error", data.error);
       } else {
         console.log("sync ok", data);
-        // Refresh data
         if (tenant?.id) {
           await fetchDashboardData(tenant.id, tenant.slug);
         }
@@ -198,7 +188,6 @@ const DashboardContent = () => {
       try {
         const supabaseClient = supabase as any;
 
-        // First, get the user's profile and tenant_id
         const { data: profileData, error: profileError } = await supabaseClient
           .from('profiles')
           .select('tenant_id')
@@ -209,7 +198,6 @@ const DashboardContent = () => {
           throw new Error('PROFILE_NOT_FOUND');
         }
 
-        // Then, get the tenant information
         const { data: tenantData, error: tenantError } = await supabaseClient
           .from('tenants')
           .select('id, slug, name')
@@ -220,20 +208,17 @@ const DashboardContent = () => {
           throw new Error('TENANT_NOT_FOUND');
         }
 
-        // Verify user belongs to the requested tenant
         if (tenantData.slug !== tenantSlug) {
           setUnauthorized(true);
           throw new Error('FORBIDDEN');
         }
 
-        // If authorized, set the tenant data
         setTenant({ 
           name: tenantData.name, 
           id: tenantData.id,
           slug: tenantData.slug 
         });
         
-        // Fetch all dashboard data
         await fetchDashboardData(tenantData.id, tenantData.slug);
       } catch (err: any) {
         if (err.message === 'FORBIDDEN') {
@@ -345,16 +330,13 @@ const DashboardContent = () => {
   };
 
   const renderMainContent = () => {
-    // Default to dashboard if no section specified
     const currentSection = section || 'dashboard';
     
     if (currentSection === 'dashboard') {
       return (
         <div className="space-y-8">
-          {/* KPIs */}
           <KpiBoard data={dashboardData} isLoading={loading} />
 
-          {/* Gráficas */}
           <ChartsSection
             data={{
               revenue_history: revenueData?.widget_data?.revenue?.payload?.monthly_history || [],
@@ -376,7 +358,6 @@ const DashboardContent = () => {
       <div className="flex-1">
         <DashboardHeader />
         
-        {/* Header con botón PDF */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
