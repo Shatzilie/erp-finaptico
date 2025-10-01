@@ -39,7 +39,7 @@ interface DashboardData {
   }>;
 }
 
-interface FiscalData {
+interface IVAData {
   iva_repercutido: number;
   iva_soportado: number;
   iva_diferencia: number;
@@ -84,7 +84,7 @@ const formatCurrency = (value: number): string => {
 
 const KpiBoard = ({ tenantId }: KpiBoardProps) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [ivaData, setIvaData] = useState<FiscalData | null>(null);
+  const [ivaData, setIvaData] = useState<IVAData | null>(null);
   const [irpfData, setIRPFData] = useState<IRPFData | null>(null);
   const [sociedadesData, setSociedadesData] = useState<SociedadesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,10 +107,10 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         const currentYear = currentDate.getFullYear();
 
         const [dashboard, iva, irpf, sociedades] = await Promise.all([
-          backendAdapter.getDashboard(tenantId),
-          backendAdapter.getIVA(tenantId, currentQuarter, currentYear),
-          backendAdapter.getIRPF(tenantId, currentQuarter, currentYear),
-          backendAdapter.getSociedades(tenantId, currentYear)
+          backendAdapter.fetchDashboard(tenantId),
+          backendAdapter.fetchIVA(tenantId, currentQuarter, currentYear),
+          backendAdapter.fetchIRPF(tenantId, currentQuarter, currentYear),
+          backendAdapter.fetchSociedades(tenantId, currentYear)
         ]);
 
         if (dashboard.ok && dashboard.widget_data?.dashboard?.success) {
@@ -222,25 +222,11 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {ivaData && (
-          <IvaCard
-            ivaData={ivaData.iva_repercutido}
-            ivaSoportado={ivaData.iva_soportado}
-            diferencia={ivaData.iva_diferencia}
-            status={ivaData.status}
-            quarter={ivaData.period.quarter}
-            year={ivaData.period.year}
-          />
+          <IvaCard data={ivaData} />
         )}
 
         {irpfData && (
-          <IrpfCard
-            retencionesPracticadas={irpfData.retenciones_practicadas}
-            retencionesSoportadas={irpfData.retenciones_soportadas}
-            diferencia={irpfData.diferencia}
-            status={irpfData.status}
-            quarter={irpfData.period.quarter}
-            year={irpfData.period.year}
-          />
+          <IrpfCard data={irpfData} />
         )}
 
         {sociedadesData && (
