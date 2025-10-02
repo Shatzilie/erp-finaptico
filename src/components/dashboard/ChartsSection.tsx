@@ -1,20 +1,10 @@
 import { Card } from "@/components/ui/card";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
 
 interface MonthlyData {
   month: string;
   total: number;
+  count?: number;
   currency: string;
 }
 
@@ -104,10 +94,10 @@ function prepareCountChartData(revenueData: MonthlyData[], expensesData: Monthly
       acc[monthKey] = { currentYear: 0, previousYear: 0 };
     }
     
-    if (parseInt(year) === currentYear && item.total > 0) {
-      acc[monthKey].currentYear++;
-    } else if (parseInt(year) === previousYear && item.total > 0) {
-      acc[monthKey].previousYear++;
+    if (parseInt(year) === currentYear) {
+      acc[monthKey].currentYear = item.count || 0;
+    } else if (parseInt(year) === previousYear) {
+      acc[monthKey].previousYear = item.count || 0;
     }
     
     return acc;
@@ -122,10 +112,10 @@ function prepareCountChartData(revenueData: MonthlyData[], expensesData: Monthly
       acc[monthKey] = { currentYear: 0, previousYear: 0 };
     }
     
-    if (parseInt(year) === currentYear && item.total > 0) {
-      acc[monthKey].currentYear++;
-    } else if (parseInt(year) === previousYear && item.total > 0) {
-      acc[monthKey].previousYear++;
+    if (parseInt(year) === currentYear) {
+      acc[monthKey].currentYear = item.count || 0;
+    } else if (parseInt(year) === previousYear) {
+      acc[monthKey].previousYear = item.count || 0;
     }
     
     return acc;
@@ -239,24 +229,8 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 <YAxis stroke="#666" tickFormatter={formatCurrency} />
                 <Tooltip formatter={(value) => formatCurrency(value as number)} />
                 <Legend />
-                <Line
-                  type="monotone"
-                  dataKey={`${currentYear}`}
-                  stroke={CORPORATE_COLORS.primary}
-                  strokeWidth={2}
-                  dot={{ fill: CORPORATE_COLORS.primary, r: 4 }}
-                  activeDot={{ r: 6 }}
-                  name={`${currentYear}`}
-                />
-                <Line
-                  type="monotone"
-                  dataKey={`${previousYear}`}
-                  stroke={CORPORATE_COLORS.primaryLight}
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={{ fill: CORPORATE_COLORS.primaryLight, r: 4 }}
-                  name={`${previousYear}`}
-                />
+                <Line type="monotone" dataKey={`${currentYear}`} stroke={CORPORATE_COLORS.primary} strokeWidth={2} dot={{ fill: CORPORATE_COLORS.primary, r: 4 }} activeDot={{ r: 6 }} name={`${currentYear}`} />
+                <Line type="monotone" dataKey={`${previousYear}`} stroke={CORPORATE_COLORS.primaryLight} strokeWidth={2} strokeDasharray="5 5" dot={{ fill: CORPORATE_COLORS.primaryLight, r: 4 }} name={`${previousYear}`} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
