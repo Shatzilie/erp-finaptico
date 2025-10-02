@@ -37,29 +37,51 @@ const CORPORATE_COLORS = {
   quinaryLight: '#6AA6DA'
 };
 
+function getLastTwoMonthsData(chartData: any[], year: string) {
+  const monthsWithData = chartData
+    .map((d, idx) => ({
+      value: d[year] as number,
+      month: d.month as string,
+      monthKey: d.monthKey as string,
+      idx
+    }))
+    .filter(item => item.value != null && item.value !== 0)
+    .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+
+  if (monthsWithData.length === 0) return { current: null, previous: null, currentMonth: '' };
+  
+  const current = monthsWithData[monthsWithData.length - 1];
+  const previous = monthsWithData.length > 1 ? monthsWithData[monthsWithData.length - 2] : null;
+  
+  return {
+    current: current.value,
+    previous: previous?.value || null,
+    currentMonth: current.month,
+    previousMonth: previous?.month || ''
+  };
+}
+
 function generateNarrative({
-  current,
-  previous,
+  chartData,
+  year,
   label,
   unit = '€',
-  month,
-  allValues = [],
 }: {
-  current?: number
-  previous?: number
+  chartData: any[]
+  year: string
   label: string
   unit?: string
-  month: string
-  allValues?: number[]
 }) {
+  const { current, previous, currentMonth, previousMonth } = getLastTwoMonthsData(chartData, year);
+
   if (current == null) {
-    return `En ${month}, no hay datos de ${label.toLowerCase()}.`
+    return `Aún no hay suficientes datos de ${label.toLowerCase()} para este año.`
   }
 
   const formatted = unit ? `${current.toFixed(0)} ${unit}` : `${current.toFixed(0)}`
 
   if (current === 0) {
-    return `En ${month}, ${label.toLowerCase()} fue de 0${unit ? ' ' + unit : ''}.`
+    return `En ${currentMonth}, ${label.toLowerCase()} fue de 0${unit ? ' ' + unit : ''}.`
   }
 
   if (previous != null && previous !== 0) {
@@ -67,19 +89,19 @@ function generateNarrative({
     const absDelta = Math.abs(delta)
     
     if (absDelta < 3) {
-      return `En ${month}, ${label.toLowerCase()} se mantuvo estable en ${formatted} respecto al mes anterior.`
+      return `En ${currentMonth}, ${label.toLowerCase()} se mantuvo estable en ${formatted} respecto a ${previousMonth}.`
     }
     
     const direction = delta > 0 ? 'aumentó' : 'disminuyó'
-    return `En ${month}, ${label.toLowerCase()} ${direction} un ${absDelta.toFixed(1)}% respecto al mes anterior.`
+    return `En ${currentMonth}, ${label.toLowerCase()} ${direction} un ${absDelta.toFixed(1)}% respecto a ${previousMonth}.`
   }
 
-  const validValues = allValues.filter(v => v != null && v > 0)
-  if (validValues.length > 0 && current === Math.max(...validValues)) {
-    return `En ${month}, se alcanzó el pico anual de ${label.toLowerCase()} con ${formatted}.`
+  const allValues = chartData.map(d => d[year] as number).filter(v => v != null && v > 0);
+  if (allValues.length > 0 && current === Math.max(...allValues)) {
+    return `En ${currentMonth}, se alcanzó el pico anual de ${label.toLowerCase()} con ${formatted}.`
   }
 
-  return `En ${month}, ${label.toLowerCase()} fue de ${formatted}.`
+  return `En ${currentMonth}, ${label.toLowerCase()} fue de ${formatted}.`
 }
 
 function prepareChartData(monthlyData: MonthlyData[]) {
@@ -321,12 +343,10 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
             </ResponsiveContainer>
             <p className="text-sm text-muted-foreground mt-4">
               {generateNarrative({
-                current: profitChart.chartData.at(-1)?.[`${currentYear}`] as number | undefined,
-                previous: profitChart.chartData.at(-2)?.[`${currentYear}`] as number | undefined,
+                chartData: profitChart.chartData,
+                year: `${currentYear}`,
                 label: "beneficio neto",
-                unit: "€",
-                month: profitChart.chartData.at(-1)?.month || "",
-                allValues: profitChart.chartData.map(d => d[`${currentYear}`] as number)
+                unit: "€"
               })}
             </p>
           </Card>
@@ -348,12 +368,10 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
             </ResponsiveContainer>
             <p className="text-sm text-muted-foreground mt-4">
               {generateNarrative({
-                current: revenueChart.chartData.at(-1)?.[`${currentYear}`] as number | undefined,
-                previous: revenueChart.chartData.at(-2)?.[`${currentYear}`] as number | undefined,
+                chartData: revenueChart.chartData,
+                year: `${currentYear}`,
                 label: "importe facturado",
-                unit: "€",
-                month: revenueChart.chartData.at(-1)?.month || "",
-                allValues: revenueChart.chartData.map(d => d[`${currentYear}`] as number)
+                unit: "€"
               })}
             </p>
           </Card>
@@ -375,12 +393,10 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
             </ResponsiveContainer>
             <p className="text-sm text-muted-foreground mt-4">
               {generateNarrative({
-                current: expensesChart.chartData.at(-1)?.[`${currentYear}`] as number | undefined,
-                previous: expensesChart.chartData.at(-2)?.[`${currentYear}`] as number | undefined,
+                chartData: expensesChart.chartData,
+                year: `${currentYear}`,
                 label: "importe de compras",
-                unit: "€",
-                month: expensesChart.chartData.at(-1)?.month || "",
-                allValues: expensesChart.chartData.map(d => d[`${currentYear}`] as number)
+                unit: "€"
               })}
             </p>
           </Card>
@@ -402,12 +418,10 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
             </ResponsiveContainer>
             <p className="text-sm text-muted-foreground mt-4">
               {generateNarrative({
-                current: invoiceCountData.at(-1)?.[`${currentYear}`] as number | undefined,
-                previous: invoiceCountData.at(-2)?.[`${currentYear}`] as number | undefined,
+                chartData: invoiceCountData,
+                year: `${currentYear}`,
                 label: "número de facturas emitidas",
-                unit: "",
-                month: invoiceCountData.at(-1)?.month || "",
-                allValues: invoiceCountData.map(d => d[`${currentYear}`] as number)
+                unit: ""
               })}
             </p>
           </Card>
@@ -429,12 +443,10 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
             </ResponsiveContainer>
             <p className="text-sm text-muted-foreground mt-4">
               {generateNarrative({
-                current: purchaseCountData.at(-1)?.[`${currentYear}`] as number | undefined,
-                previous: purchaseCountData.at(-2)?.[`${currentYear}`] as number | undefined,
+                chartData: purchaseCountData,
+                year: `${currentYear}`,
                 label: "número de facturas de compra",
-                unit: "",
-                month: purchaseCountData.at(-1)?.month || "",
-                allValues: purchaseCountData.map(d => d[`${currentYear}`] as number)
+                unit: ""
               })}
             </p>
           </Card>
