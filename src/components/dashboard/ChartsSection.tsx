@@ -37,73 +37,6 @@ const CORPORATE_COLORS = {
   quinaryLight: '#6AA6DA'
 };
 
-function getLastTwoMonthsData(chartData: any[], year: string) {
-  const monthsWithData = chartData
-    .map((d, idx) => ({
-      value: d[year] as number,
-      month: d.month as string,
-      monthKey: d.monthKey as string,
-      idx
-    }))
-    .filter(item => item.value != null && item.value !== 0)
-    .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
-
-  if (monthsWithData.length === 0) return { current: null, previous: null, currentMonth: '' };
-  
-  const current = monthsWithData[monthsWithData.length - 1];
-  const previous = monthsWithData.length > 1 ? monthsWithData[monthsWithData.length - 2] : null;
-  
-  return {
-    current: current.value,
-    previous: previous?.value || null,
-    currentMonth: current.month,
-    previousMonth: previous?.month || ''
-  };
-}
-
-function generateNarrative({
-  chartData,
-  year,
-  label,
-  unit = '€',
-}: {
-  chartData: any[]
-  year: string
-  label: string
-  unit?: string
-}) {
-  const { current, previous, currentMonth, previousMonth } = getLastTwoMonthsData(chartData, year);
-
-  if (current == null) {
-    return `Aún no hay suficientes datos de ${label.toLowerCase()} para este año.`
-  }
-
-  const formatted = unit ? `${current.toFixed(0)} ${unit}` : `${current.toFixed(0)}`
-
-  if (current === 0) {
-    return `En ${currentMonth}, ${label.toLowerCase()} fue de 0${unit ? ' ' + unit : ''}.`
-  }
-
-  if (previous != null && previous !== 0) {
-    const delta = ((current - previous) / previous) * 100
-    const absDelta = Math.abs(delta)
-    
-    if (absDelta < 3) {
-      return `En ${currentMonth}, ${label.toLowerCase()} se mantuvo estable en ${formatted} respecto a ${previousMonth}.`
-    }
-    
-    const direction = delta > 0 ? 'aumentó' : 'disminuyó'
-    return `En ${currentMonth}, ${label.toLowerCase()} ${direction} un ${absDelta.toFixed(1)}% respecto a ${previousMonth}.`
-  }
-
-  const allValues = chartData.map(d => d[year] as number).filter(v => v != null && v > 0);
-  if (allValues.length > 0 && current === Math.max(...allValues)) {
-    return `En ${currentMonth}, se alcanzó el pico anual de ${label.toLowerCase()} con ${formatted}.`
-  }
-
-  return `En ${currentMonth}, ${label.toLowerCase()} fue de ${formatted}.`
-}
-
 function prepareChartData(monthlyData: MonthlyData[]) {
   if (!monthlyData || monthlyData.length === 0) {
     return { chartData: [], hasData: false };
@@ -341,14 +274,6 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 <Line type="monotone" dataKey={`${previousYear}`} stroke={CORPORATE_COLORS.primaryLight} strokeWidth={2} strokeDasharray="5 5" dot={{ fill: CORPORATE_COLORS.primaryLight, r: 4 }} name={`${previousYear}`} />
               </LineChart>
             </ResponsiveContainer>
-            <p className="text-sm text-muted-foreground mt-4">
-              {generateNarrative({
-                chartData: profitChart.chartData,
-                year: `${currentYear}`,
-                label: "beneficio neto",
-                unit: "€"
-              })}
-            </p>
           </Card>
         )}
 
@@ -366,14 +291,6 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 <Bar dataKey={`${previousYear}`} fill={CORPORATE_COLORS.secondaryLight} name={`${previousYear}`} />
               </BarChart>
             </ResponsiveContainer>
-            <p className="text-sm text-muted-foreground mt-4">
-              {generateNarrative({
-                chartData: revenueChart.chartData,
-                year: `${currentYear}`,
-                label: "importe facturado",
-                unit: "€"
-              })}
-            </p>
           </Card>
         )}
 
@@ -391,14 +308,6 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 <Bar dataKey={`${previousYear}`} fill={CORPORATE_COLORS.tertiaryLight} name={`${previousYear}`} />
               </BarChart>
             </ResponsiveContainer>
-            <p className="text-sm text-muted-foreground mt-4">
-              {generateNarrative({
-                chartData: expensesChart.chartData,
-                year: `${currentYear}`,
-                label: "importe de compras",
-                unit: "€"
-              })}
-            </p>
           </Card>
         )}
 
@@ -416,14 +325,6 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 <Bar dataKey={`${previousYear}`} fill={CORPORATE_COLORS.quaternaryMid} name={`${previousYear}`} />
               </BarChart>
             </ResponsiveContainer>
-            <p className="text-sm text-muted-foreground mt-4">
-              {generateNarrative({
-                chartData: invoiceCountData,
-                year: `${currentYear}`,
-                label: "número de facturas emitidas",
-                unit: ""
-              })}
-            </p>
           </Card>
         )}
 
@@ -441,14 +342,6 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 <Bar dataKey={`${previousYear}`} fill={CORPORATE_COLORS.quinaryLight} name={`${previousYear}`} />
               </BarChart>
             </ResponsiveContainer>
-            <p className="text-sm text-muted-foreground mt-4">
-              {generateNarrative({
-                chartData: purchaseCountData,
-                year: `${currentYear}`,
-                label: "número de facturas de compra",
-                unit: ""
-              })}
-            </p>
           </Card>
         )}
       </div>
