@@ -68,6 +68,7 @@ function prepareChartData(monthlyData: MonthlyData[]) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([monthKey, values]) => ({
       month: MONTH_NAMES[monthKey] || monthKey,
+      monthKey: monthKey,
       [`${currentYear}`]: Math.round(values.currentYear),
       [`${previousYear}`]: Math.round(values.previousYear)
     }));
@@ -78,6 +79,65 @@ function prepareChartData(monthlyData: MonthlyData[]) {
     return current > 0 || previous > 0;
   });
   
+  return { chartData, hasData };
+}
+
+function prepareProfitChartData(revenueData: MonthlyData[], expensesData: MonthlyData[]) {
+  const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
+
+  const revenueByMonth = revenueData.reduce((acc, item) => {
+    if (!item.month) return acc;
+    const [year, month] = item.month.split('-');
+    const key = `${year}-${month}`;
+    acc[key] = item.total;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const expensesByMonth = expensesData.reduce((acc, item) => {
+    if (!item.month) return acc;
+    const [year, month] = item.month.split('-');
+    const key = `${year}-${month}`;
+    acc[key] = item.total;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const allMonths = new Set([...Object.keys(revenueByMonth), ...Object.keys(expensesByMonth)]);
+
+  const profitByMonth = Array.from(allMonths).reduce((acc, monthKey) => {
+    const [year, month] = monthKey.split('-');
+    
+    if (!acc[month]) {
+      acc[month] = { month: month, currentYear: 0, previousYear: 0 };
+    }
+
+    const revenue = revenueByMonth[monthKey] || 0;
+    const expenses = expensesByMonth[monthKey] || 0;
+    const profit = revenue - expenses;
+
+    if (parseInt(year) === currentYear) {
+      acc[month].currentYear = profit;
+    } else if (parseInt(year) === previousYear) {
+      acc[month].previousYear = profit;
+    }
+
+    return acc;
+  }, {} as Record<string, { month: string; currentYear: number; previousYear: number }>);
+
+  const chartData = Object.entries(profitByMonth)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([monthKey, values]) => ({
+      month: MONTH_NAMES[monthKey] || monthKey,
+      [`${currentYear}`]: Math.round(values.currentYear),
+      [`${previousYear}`]: Math.round(values.previousYear)
+    }));
+
+  const hasData = chartData.some(d => {
+    const current = d[`${currentYear}`] as number;
+    const previous = d[`${previousYear}`] as number;
+    return current !== 0 || previous !== 0;
+  });
+
   return { chartData, hasData };
 }
 
@@ -139,20 +199,7 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
 
   const revenueChart = prepareChartData(data.revenue_history || []);
   const expensesChart = prepareChartData(data.expenses_history || []);
-  
-  const profitChartData = revenueChart.chartData.map((item, index) => {
-    const expenseItem = expensesChart.chartData[index];
-    const currentRevenue = item[`${currentYear}`] as number || 0;
-    const previousRevenue = item[`${previousYear}`] as number || 0;
-    const currentExpense = expenseItem?.[`${currentYear}`] as number || 0;
-    const previousExpense = expenseItem?.[`${previousYear}`] as number || 0;
-    
-    return {
-      month: item.month,
-      [`${currentYear}`]: currentRevenue - currentExpense,
-      [`${previousYear}`]: previousRevenue - previousExpense
-    };
-  });
+  const profitChart = prepareProfitChartData(data.revenue_history || [], data.expenses_history || []);
 
   const { revenueCount, expensesCount } = prepareCountChartData(
     data.revenue_history || [],
@@ -175,12 +222,6 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
       [`${previousYear}`]: values.previousYear
     }));
 
-  const hasProfitData = profitChartData.some(d => {
-    const current = d[`${currentYear}`] as number;
-    const previous = d[`${previousYear}`] as number;
-    return current !== 0 || previous !== 0;
-  });
-  
   const hasInvoiceData = invoiceCountData.some(d => {
     const current = d[`${currentYear}`] as number;
     const previous = d[`${previousYear}`] as number;
@@ -219,11 +260,11 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {hasProfitData && (
+        {profitChart.hasData && (
           <Card className="p-6 col-span-full">
             <h3 className="text-lg font-semibold mb-4">Beneficio Neto (Comparativa Anual)</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={profitChartData}>
+              <LineChart data={profitChart.chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" stroke="#666" />
                 <YAxis stroke="#666" tickFormatter={formatCurrency} />
