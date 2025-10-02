@@ -63,13 +63,15 @@ interface IRPFData {
 
 interface SociedadesData {
   resultado_ejercicio: number;
-  base_imponible: number;
-  cuota_integra: number;
   cuota_diferencial: number;
-  tipo_impositivo: number;
   status: string;
   period: {
     year: number;
+  };
+  annual_summary: {
+    beneficio_bruto: number;
+    impuesto_provision: number;
+    beneficio_neto: number;
   };
 }
 
@@ -106,27 +108,54 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         const currentQuarter = Math.ceil((currentDate.getMonth() + 1) / 3);
         const currentYear = currentDate.getFullYear();
 
-        const [dashboard, iva, irpf, sociedades] = await Promise.all([
+        const [legacyData, ivaResponse, irpfResponse, sociedadesResponse] = await Promise.all([
           backendAdapter.fetchDashboardData(tenantId),
-          backendAdapter.fetchIVAData(tenantId, currentQuarter, currentYear),
-          backendAdapter.fetchIRPFData(tenantId, currentQuarter, currentYear),
-          backendAdapter.fetchSociedadesData(tenantId, currentYear)
+          backendAdapter.fetchIVAData(currentQuarter, currentYear, tenantId),
+          backendAdapter.fetchIRPFData(currentQuarter, currentYear, tenantId),
+          backendAdapter.fetchSociedadesData(currentYear, tenantId)
         ]);
 
-        if (dashboard.ok && dashboard.widget_data?.dashboard?.success) {
-          setDashboardData(dashboard.widget_data.dashboard.payload);
+        // Convertir LegacyDashboardData a DashboardData
+        if (legacyData) {
+          const convertedData: DashboardData = {
+            treasury: {
+              total: legacyData.totalCash || 0,
+              accounts: 1,
+              currency: 'EUR'
+            },
+            revenue: {
+              monthly: legacyData.monthlyRevenue || 0,
+              quarterly: legacyData.quarterlyRevenue || 0,
+              yearly: legacyData.yearlyRevenue || 0,
+              pendingCount: legacyData.pendingInvoices || 0
+            },
+            expenses: {
+              monthly: legacyData.monthlyExpenses || 0,
+              quarterly: legacyData.quarterlyExpenses || 0,
+              yearly: legacyData.yearlyExpenses || 0,
+              pendingCount: legacyData.pendingPayments || 0
+            },
+            profitability: {
+              monthlyMargin: legacyData.monthlyMargin || 0,
+              quarterlyMargin: legacyData.quarterlyMargin || 0,
+              yearlyMargin: legacyData.yearlyMargin || 0,
+              marginPercentage: legacyData.marginPercentage || 0
+            },
+            alerts: legacyData.alerts || []
+          };
+          setDashboardData(convertedData);
         }
 
-        if (iva.ok && iva.widget_data?.iva?.success) {
-          setIvaData(iva.widget_data.iva.payload);
+        if (ivaResponse.ok && ivaResponse.widget_data?.iva?.payload) {
+          setIvaData(ivaResponse.widget_data.iva.payload);
         }
 
-        if (irpf.ok && irpf.widget_data?.irpf?.success) {
-          setIRPFData(irpf.widget_data.irpf.payload);
+        if (irpfResponse.ok && irpfResponse.widget_data?.irpf?.payload) {
+          setIRPFData(irpfResponse.widget_data.irpf.payload);
         }
 
-        if (sociedades.ok && sociedades.widget_data?.sociedades?.success) {
-          setSociedadesData(sociedades.widget_data.sociedades.payload);
+        if (sociedadesResponse.ok && sociedadesResponse.widget_data?.sociedades?.payload) {
+          setSociedadesData(sociedadesResponse.widget_data.sociedades.payload);
         }
 
       } catch (err) {
@@ -248,16 +277,16 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
                 <span className="font-medium">{formatCurrency(sociedadesData.resultado_ejercicio)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Base imponible:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.base_imponible)}</span>
+                <span className="text-gray-600">Beneficio bruto:</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_bruto)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Tipo impositivo:</span>
-                <span className="font-medium">{sociedadesData.tipo_impositivo.toFixed(2)}%</span>
+                <span className="text-gray-600">Provisión impuesto:</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.impuesto_provision)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Cuota integra:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.cuota_integra)}</span>
+                <span className="text-gray-600">Beneficio neto:</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_neto)}</span>
               </div>
               <div className="pt-2 border-t">
                 <span className={`inline-block px-2 py-1 text-xs rounded-full ${
