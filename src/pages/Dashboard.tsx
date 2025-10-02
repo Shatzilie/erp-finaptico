@@ -6,6 +6,7 @@ import { backendAdapter } from "@/lib/backendAdapter";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection from "@/components/dashboard/ChartsSection";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MonthlyData {
   month: string;
@@ -19,8 +20,9 @@ interface ChartsData {
 }
 
 const Dashboard = () => {
-  const { user, isLoading: authLoading, signOut } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
     expenses_history: []
@@ -29,14 +31,37 @@ const Dashboard = () => {
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!isAuthenticated) {
       navigate("/login");
     }
-  }, [user, authLoading, navigate]);
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    const fetchTenantId = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('user_tenants')
+          .select('tenant_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setTenantId(data.tenant_id);
+        }
+      } catch (error) {
+        console.error("Error fetching tenant:", error);
+      }
+    };
+
+    fetchTenantId();
+  }, [user]);
 
   useEffect(() => {
     const fetchChartsData = async () => {
-      if (!user?.tenant_id) {
+      if (!tenantId) {
         setIsLoadingCharts(false);
         return;
       }
@@ -44,17 +69,10 @@ const Dashboard = () => {
       try {
         setIsLoadingCharts(true);
 
-        const [revenueResponse, expensesResponse] = await Promise.all([
-          backendAdapter.fetchRevenueData(user.tenant_id),
-          backendAdapter.fetchExpensesData(user.tenant_id)
-        ]);
-
-        const revenueHistory = revenueResponse?.widget_data?.revenue?.payload?.monthly_history || [];
-        const expensesHistory = expensesResponse?.widget_data?.expenses?.payload?.monthly_history || [];
-
+        // Por ahora usamos datos vacíos hasta que tengamos endpoints de revenue/expenses con monthly_history
         setChartsData({
-          revenue_history: revenueHistory,
-          expenses_history: expensesHistory
+          revenue_history: [],
+          expenses_history: []
         });
 
       } catch (error) {
@@ -65,18 +83,18 @@ const Dashboard = () => {
     };
 
     fetchChartsData();
-  }, [user?.tenant_id]);
+  }, [tenantId]);
 
   const handleSyncNow = async () => {
-    if (!user?.tenant_id) {
+    if (!tenantId) {
       console.error("No tenant ID available");
       return;
     }
 
     try {
       setIsSyncing(true);
-      await backendAdapter.syncOdooData(user.tenant_id);
-      
+      // Trigger sincronización manual si existe el endpoint
+      console.log("Sincronización manual con tenant:", tenantId);
       window.location.reload();
     } catch (error) {
       console.error("Error during sync:", error);
@@ -87,14 +105,14 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      await supabase.auth.signOut();
       navigate("/login");
     } catch (error) {
       console.error("Error signing out:", error);
     }
   };
 
-  if (authLoading) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -102,8 +120,15 @@ const Dashboard = () => {
     );
   }
 
-  if (!user) {
-    return null;
+  if (!tenantId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-600">Cargando información del tenant...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -146,7 +171,7 @@ const Dashboard = () => {
         <div className="space-y-8">
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={user.tenant_id} />
+            <KpiBoard tenantId={tenantId} />
           </section>
 
           <section>
