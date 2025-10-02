@@ -19,13 +19,8 @@ interface ChartsData {
   expenses_history: MonthlyData[];
 }
 
-const USER_TENANT_MAP: Record<string, string> = {
-  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": "c4002f55-f7d5-4dd4-9942-d7ca65a551fd", // Young Minds
-  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": "b345026a-a04d-4ede-9a61-b604d797b191"  // Blacktar
-};
-
 const Dashboard = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, tenantId } = useAuth();
   const navigate = useNavigate();
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
@@ -42,30 +37,27 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchChartsData = async () => {
-      if (!user?.id) {
+      if (!tenantId) {
+        console.log("❌ No tenantId disponible");
         setIsLoadingCharts(false);
         return;
       }
 
       try {
         setIsLoadingCharts(true);
-        
-        // Obtener tenant_slug del mapeo
-        const tenantId = USER_TENANT_MAP[user.id];
-        if (!tenantId) {
-          console.error("❌ Usuario no mapeado:", user.id);
-          setIsLoadingCharts(false);
-          return;
-        }
-
         console.log("📊 Cargando datos del dashboard para tenant:", tenantId);
-        
-        // Llamar al backend para obtener datos completos incluyendo historial
+
+        // Cargar datos completos del dashboard
         const dashboardData = await backendAdapter.fetchDashboardData(tenantId);
         
-        console.log("✅ Datos recibidos:", dashboardData);
+        console.log("✅ Datos recibidos:", {
+          revenue_history_length: dashboardData.revenue_history?.length || 0,
+          expenses_history_length: dashboardData.expenses_history?.length || 0,
+          revenue_history: dashboardData.revenue_history,
+          expenses_history: dashboardData.expenses_history
+        });
 
-        // Extraer historial para las gráficas
+        // Actualizar estado con los datos históricos
         setChartsData({
           revenue_history: dashboardData.revenue_history || [],
           expenses_history: dashboardData.expenses_history || []
@@ -83,17 +75,17 @@ const Dashboard = () => {
     };
 
     fetchChartsData();
-  }, [user?.id]);
+  }, [tenantId]);
 
   const handleSyncNow = async () => {
-    if (!user?.id) {
-      console.error("No user ID available");
+    if (!tenantId) {
+      console.error("No tenant ID available");
       return;
     }
 
     try {
       setIsSyncing(true);
-      console.log("Sincronización manual con user:", user.id);
+      console.log("🔄 Sincronización manual con tenant:", tenantId);
       window.location.reload();
     } catch (error) {
       console.error("Error during sync:", error);
@@ -159,7 +151,7 @@ const Dashboard = () => {
         <div className="space-y-8">
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={user.id} />
+            <KpiBoard tenantId={tenantId} />
           </section>
 
           <section>
