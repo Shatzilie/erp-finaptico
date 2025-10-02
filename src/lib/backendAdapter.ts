@@ -556,4 +556,3 @@ export class DashboardApiClient {
 
 // 🆕 INSTANCIA GLOBAL DEL CLIENTE
 export const backendAdapter = new DashboardApiClient();
-export const backendAdapter = new DashboardApiClient();
