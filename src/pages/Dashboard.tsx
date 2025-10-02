@@ -41,26 +41,18 @@ const Dashboard = () => {
       if (!user) return;
 
       try {
-        const { data: profile, error } = await supabase
-          .from('profiles' as any)
-          .select('tenant_id')
-          .eq('user_id', user.id)
-          .single();
+        const { data, error } = await supabase.rpc('get_user_tenant', {
+          user_uuid: user.id
+        });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching tenant:", error);
+          return;
+        }
         
-        if (profile?.tenant_id) {
-          setTenantId(profile.tenant_id);
-          
-          const { data: tenant } = await supabase
-            .from('tenants' as any)
-            .select('name')
-            .eq('id', profile.tenant_id)
-            .single();
-            
-          if (tenant) {
-            setTenantName(tenant.name);
-          }
+        if (data && data.length > 0) {
+          setTenantId(data[0].tenant_id);
+          setTenantName(data[0].tenant_name);
         }
       } catch (error) {
         console.error("Error fetching tenant:", error);
