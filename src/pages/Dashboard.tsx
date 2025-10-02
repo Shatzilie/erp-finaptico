@@ -90,7 +90,12 @@ export default function Dashboard() {
 
       <KpiBoard tenantId={tenantInfo.tenantId} />
       
-      <ChartsSection data={{ monthly_history: [] }} />
+      <ChartsSection 
+        data={{ 
+          revenue_history: [], 
+          expenses_history: [] 
+        }} 
+      />
       
       <Card className="p-6">
         <div className="space-y-2">
