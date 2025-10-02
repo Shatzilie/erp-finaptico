@@ -22,7 +22,6 @@ interface ChartsData {
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [tenantId, setTenantId] = useState<string | null>(null);
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
     expenses_history: []
@@ -37,31 +36,8 @@ const Dashboard = () => {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    const fetchTenantId = async () => {
-      if (!user) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('user_tenants')
-          .select('tenant_id')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) throw error;
-        if (data) {
-          setTenantId(data.tenant_id);
-        }
-      } catch (error) {
-        console.error("Error fetching tenant:", error);
-      }
-    };
-
-    fetchTenantId();
-  }, [user]);
-
-  useEffect(() => {
     const fetchChartsData = async () => {
-      if (!tenantId) {
+      if (!user?.id) {
         setIsLoadingCharts(false);
         return;
       }
@@ -83,18 +59,17 @@ const Dashboard = () => {
     };
 
     fetchChartsData();
-  }, [tenantId]);
+  }, [user?.id]);
 
   const handleSyncNow = async () => {
-    if (!tenantId) {
-      console.error("No tenant ID available");
+    if (!user?.id) {
+      console.error("No user ID available");
       return;
     }
 
     try {
       setIsSyncing(true);
-      // Trigger sincronización manual si existe el endpoint
-      console.log("Sincronización manual con tenant:", tenantId);
+      console.log("Sincronización manual con user:", user.id);
       window.location.reload();
     } catch (error) {
       console.error("Error during sync:", error);
@@ -116,17 +91,6 @@ const Dashboard = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!tenantId) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-600">Cargando información del tenant...</p>
-        </div>
       </div>
     );
   }
@@ -171,7 +135,7 @@ const Dashboard = () => {
         <div className="space-y-8">
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={tenantId} />
+            <KpiBoard tenantId={user.id} />
           </section>
 
           <section>
