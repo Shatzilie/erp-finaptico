@@ -3,7 +3,7 @@
 // ADAPTADOR BACKEND PARA MIGRACIÓN SEGURA
 // Permite compatibilidad total durante la transición
 
-import { supabase } from '@/integrations/supabase/client';
+import React from 'react';
 
 export interface LegacyDashboardData {
   totalCash?: number;
@@ -216,20 +216,6 @@ export function adaptNewToLegacy(newData: NewBackendResponse): LegacyDashboardDa
   return adapted;
 }
 
-// ✅ HELPER PARA OBTENER TOKEN JWT
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    throw new Error('No hay sesión activa. Por favor, inicia sesión.');
-  }
-
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session.access_token}`
-  };
-}
-
 // 🌐 CLIENTE API CON FALLBACK AUTOMÁTICO + MÉTODOS FISCALES
 export class DashboardApiClient {
   private readonly NEW_ENDPOINT = 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard';
@@ -255,13 +241,13 @@ export class DashboardApiClient {
     try {
       console.log('🎯 Intentando NUEVO backend consolidado...');
       
-      // ✅ OBTENER HEADERS CON JWT
-      const headers = await getAuthHeaders();
-      
       // LLAMADA 1: Dashboard básico
       const dashboardResponse = await fetch(this.NEW_ENDPOINT, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
         body: JSON.stringify({ tenant_slug: tenant })
       });
 
@@ -277,7 +263,10 @@ export class DashboardApiClient {
       try {
         const revenueResponse = await fetch(this.LEGACY_ENDPOINTS.revenue, {
           method: 'POST',
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
           body: JSON.stringify({ tenant_slug: tenant })
         });
 
@@ -297,7 +286,10 @@ export class DashboardApiClient {
       try {
         const expensesResponse = await fetch(this.LEGACY_ENDPOINTS.expenses, {
           method: 'POST',
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          },
           body: JSON.stringify({ tenant_slug: tenant })
         });
 
@@ -321,19 +313,22 @@ export class DashboardApiClient {
     }
   }
 
-  // 🆕 MÉTODO PARA GENERAR PDF
+  // 🆕 MÉTODO PARA GENERAR PDF - CORREGIDO
   async generatePDFReport(tenantSlug?: string): Promise<Blob> {
     const tenant = tenantSlug || this.DEFAULT_TENANT;
     
     console.log('📄 Generando informe PDF...');
 
     try {
-      const headers = await getAuthHeaders();
-      
       const response = await fetch(this.FISCAL_ENDPOINTS.pdfReport, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ tenant_slug: tenant })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
+        body: JSON.stringify({
+          tenant_slug: tenant
+        })
       });
 
       if (!response.ok) {
@@ -372,11 +367,12 @@ export class DashboardApiClient {
     console.log(`🧾 Cargando datos IVA Q${currentQuarter} ${currentYear}...`);
 
     try {
-      const headers = await getAuthHeaders();
-      
       const response = await fetch(this.FISCAL_ENDPOINTS.iva, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
         body: JSON.stringify({
           tenant_slug: tenant,
           quarter: currentQuarter,
@@ -407,11 +403,12 @@ export class DashboardApiClient {
     console.log(`📊 Cargando datos IRPF Q${currentQuarter} ${currentYear}...`);
 
     try {
-      const headers = await getAuthHeaders();
-      
       const response = await fetch(this.FISCAL_ENDPOINTS.irpf, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
         body: JSON.stringify({
           tenant_slug: tenant,
           quarter: currentQuarter,
@@ -440,11 +437,12 @@ export class DashboardApiClient {
     console.log(`🏢 Cargando datos Sociedades ${currentYear}...`);
 
     try {
-      const headers = await getAuthHeaders();
-      
       const response = await fetch(this.FISCAL_ENDPOINTS.sociedades, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        },
         body: JSON.stringify({
           tenant_slug: tenant,
           year: currentYear
@@ -537,11 +535,12 @@ export class DashboardApiClient {
   }
 
   private async fetchEndpoint(url: string, body: any): Promise<any> {
-    const headers = await getAuthHeaders();
-    
     const response = await fetch(url, {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+      },
       body: JSON.stringify(body)
     });
 
