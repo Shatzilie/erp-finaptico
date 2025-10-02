@@ -43,29 +43,43 @@ function generateNarrative({
   label,
   unit = '€',
   month,
+  allValues = [],
 }: {
   current?: number
   previous?: number
   label: string
   unit?: string
   month: string
+  allValues?: number[]
 }) {
-  if (current == null && previous == null) {
-    return `💬 Aún no tengo suficientes datos este mes para analizar ${label.toLowerCase()}.`
+  if (current == null) {
+    return `En ${month}, no hay datos de ${label.toLowerCase()}.`
   }
 
-  if (current != null && previous != null && previous !== 0) {
+  const formatted = unit ? `${current.toFixed(0)} ${unit}` : `${current.toFixed(0)}`
+
+  if (current === 0) {
+    return `En ${month}, ${label.toLowerCase()} fue de 0${unit ? ' ' + unit : ''}.`
+  }
+
+  if (previous != null && previous !== 0) {
     const delta = ((current - previous) / previous) * 100
-    const direction = delta > 0 ? 'más' : 'menos'
-    const absDelta = Math.abs(delta).toFixed(1)
-    return `💬 En ${month}, ${label.toLowerCase()} fue de ${current.toFixed(0)} ${unit}, un ${absDelta}% ${direction} que en el mes anterior.`
+    const absDelta = Math.abs(delta)
+    
+    if (absDelta < 3) {
+      return `En ${month}, ${label.toLowerCase()} se mantuvo estable en ${formatted} respecto al mes anterior.`
+    }
+    
+    const direction = delta > 0 ? 'aumentó' : 'disminuyó'
+    return `En ${month}, ${label.toLowerCase()} ${direction} un ${absDelta.toFixed(1)}% respecto al mes anterior.`
   }
 
-  if (current != null) {
-    return `💬 En ${month}, ${label.toLowerCase()} fue de ${current.toFixed(0)} ${unit}.`
+  const validValues = allValues.filter(v => v != null && v > 0)
+  if (validValues.length > 0 && current === Math.max(...validValues)) {
+    return `En ${month}, se alcanzó el pico anual de ${label.toLowerCase()} con ${formatted}.`
   }
 
-  return `💬 No dispongo del dato de ${label.toLowerCase()} para ${month}.`
+  return `En ${month}, ${label.toLowerCase()} fue de ${formatted}.`
 }
 
 function prepareChartData(monthlyData: MonthlyData[]) {
@@ -311,7 +325,8 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 previous: profitChart.chartData.at(-2)?.[`${currentYear}`] as number | undefined,
                 label: "beneficio neto",
                 unit: "€",
-                month: profitChart.chartData.at(-1)?.month || ""
+                month: profitChart.chartData.at(-1)?.month || "",
+                allValues: profitChart.chartData.map(d => d[`${currentYear}`] as number)
               })}
             </p>
           </Card>
@@ -337,7 +352,8 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 previous: revenueChart.chartData.at(-2)?.[`${currentYear}`] as number | undefined,
                 label: "importe facturado",
                 unit: "€",
-                month: revenueChart.chartData.at(-1)?.month || ""
+                month: revenueChart.chartData.at(-1)?.month || "",
+                allValues: revenueChart.chartData.map(d => d[`${currentYear}`] as number)
               })}
             </p>
           </Card>
@@ -363,7 +379,8 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 previous: expensesChart.chartData.at(-2)?.[`${currentYear}`] as number | undefined,
                 label: "importe de compras",
                 unit: "€",
-                month: expensesChart.chartData.at(-1)?.month || ""
+                month: expensesChart.chartData.at(-1)?.month || "",
+                allValues: expensesChart.chartData.map(d => d[`${currentYear}`] as number)
               })}
             </p>
           </Card>
@@ -389,7 +406,8 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 previous: invoiceCountData.at(-2)?.[`${currentYear}`] as number | undefined,
                 label: "número de facturas emitidas",
                 unit: "",
-                month: invoiceCountData.at(-1)?.month || ""
+                month: invoiceCountData.at(-1)?.month || "",
+                allValues: invoiceCountData.map(d => d[`${currentYear}`] as number)
               })}
             </p>
           </Card>
@@ -415,7 +433,8 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
                 previous: purchaseCountData.at(-2)?.[`${currentYear}`] as number | undefined,
                 label: "número de facturas de compra",
                 unit: "",
-                month: purchaseCountData.at(-1)?.month || ""
+                month: purchaseCountData.at(-1)?.month || "",
+                allValues: purchaseCountData.map(d => d[`${currentYear}`] as number)
               })}
             </p>
           </Card>
