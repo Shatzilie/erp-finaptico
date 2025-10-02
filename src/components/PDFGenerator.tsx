@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Extend window interface for html2pdf
 declare global {
@@ -25,12 +26,26 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
     try {
       setIsGenerating(true);
       
+      // ✅ OBTENER SESIÓN Y TOKEN JWT
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Sesión no encontrada",
+          description: "Por favor, inicia sesión para generar el informe.",
+          variant: "destructive",
+        });
+        setIsGenerating(false);
+        return;
+      }
+
       // Llamar a la Edge Function que devuelve HTML
-      const response = await fetch('/api/v1/financial-report-pdf', {
+      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          // ✅ USAR JWT EN LUGAR DE x-lovable-secret
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: tenantSlug
@@ -70,6 +85,12 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
       }
       
       setIsGenerating(false);
+      
+      toast({
+        title: "Informe generado",
+        description: "El informe PDF se ha generado correctamente.",
+        variant: "default",
+      });
       
     } catch (error) {
       console.error('Error generando PDF:', error);
