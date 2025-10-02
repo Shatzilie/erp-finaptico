@@ -1,109 +1,175 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Loader2, LogOut } from "lucide-react";
+import { backendAdapter } from "@/lib/backendAdapter";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection from "@/components/dashboard/ChartsSection";
-import { Card } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
-// Mapeo temporal de usuarios a tenants
-const USER_TENANT_MAP: Record<string, { tenantId: string; tenantName: string; slug: string }> = {
-  // Young Minds Big Ideas
-  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": {
-    tenantId: "c4002f55-f7d5-4dd4-9942-d7ca65a551fd",
-    tenantName: "Young Minds Big Ideas, S.L.",
-    slug: "young-minds"
-  },
-  // Blacktar Engineering Works
-  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": {
-    tenantId: "b345026a-a04d-4ede-9a61-b604d797b191",
-    tenantName: "Blacktar Engineering Works, S.L.",
-    slug: "blacktar"
-  }
+interface MonthlyData {
+  month: string;
+  total: number;
+  currency: string;
+}
+
+interface ChartsData {
+  revenue_history: MonthlyData[];
+  expenses_history: MonthlyData[];
+}
+
+const USER_TENANT_MAP: Record<string, string> = {
+  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": "c4002f55-f7d5-4dd4-9942-d7ca65a551fd", // Young Minds
+  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": "b345026a-a04d-4ede-9a61-b604d797b191"  // Blacktar
 };
 
-export default function Dashboard() {
-  const { user } = useAuth();
-  const [tenantInfo, setTenantInfo] = useState<{
-    tenantId: string;
-    tenantName: string;
-    slug: string;
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const Dashboard = () => {
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [chartsData, setChartsData] = useState<ChartsData>({
+    revenue_history: [],
+    expenses_history: []
+  });
+  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/login");
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    const fetchChartsData = async () => {
+      if (!user?.id) {
+        setIsLoadingCharts(false);
+        return;
+      }
+
+      try {
+        setIsLoadingCharts(true);
+        
+        // Obtener tenant_slug del mapeo
+        const tenantId = USER_TENANT_MAP[user.id];
+        if (!tenantId) {
+          console.error("❌ Usuario no mapeado:", user.id);
+          setIsLoadingCharts(false);
+          return;
+        }
+
+        console.log("📊 Cargando datos del dashboard para tenant:", tenantId);
+        
+        // Llamar al backend para obtener datos completos incluyendo historial
+        const dashboardData = await backendAdapter.fetchDashboardData(tenantId);
+        
+        console.log("✅ Datos recibidos:", dashboardData);
+
+        // Extraer historial para las gráficas
+        setChartsData({
+          revenue_history: dashboardData.revenue_history || [],
+          expenses_history: dashboardData.expenses_history || []
+        });
+
+      } catch (error) {
+        console.error("❌ Error fetching charts data:", error);
+        setChartsData({
+          revenue_history: [],
+          expenses_history: []
+        });
+      } finally {
+        setIsLoadingCharts(false);
+      }
+    };
+
+    fetchChartsData();
+  }, [user?.id]);
+
+  const handleSyncNow = async () => {
     if (!user?.id) {
-      setIsLoading(false);
+      console.error("No user ID available");
       return;
     }
 
-    const mapped = USER_TENANT_MAP[user.id];
-    
-    if (mapped) {
-      console.log("✅ Usuario mapeado:", mapped);
-      setTenantInfo(mapped);
-    } else {
-      console.error("❌ Usuario no encontrado en mapeo:", user.id);
-      setError(`Usuario ${user.id} no tiene tenant asignado`);
+    try {
+      setIsSyncing(true);
+      console.log("Sincronización manual con user:", user.id);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error during sync:", error);
+    } finally {
+      setIsSyncing(false);
     }
-    
-    setIsLoading(false);
-  }, [user]);
+  };
 
-  if (isLoading) {
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (error || !tenantInfo) {
-    return (
-      <div className="container mx-auto p-6">
-        <Card className="p-6">
-          <div className="flex items-center gap-3 text-destructive">
-            <AlertCircle className="h-5 w-5" />
-            <div>
-              <p className="font-semibold">Error de configuración</p>
-              <p className="text-sm text-muted-foreground">
-                {error || "No se pudo determinar el tenant del usuario"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                User ID: {user?.id}
-              </p>
-            </div>
-          </div>
-        </Card>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">{tenantInfo.tenantName}</p>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard Financiero</h1>
+              <p className="text-sm text-gray-600">{user.email}</p>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleSyncNow}
+                disabled={isSyncing}
+                variant="outline"
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  "Sincronizar Ahora"
+                )}
+              </Button>
+              <Button 
+                onClick={handleLogout}
+                variant="ghost"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Cerrar Sesión
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <KpiBoard tenantId={tenantInfo.tenantId} />
-      
-      <ChartsSection 
-        data={{ 
-          revenue_history: [], 
-          expenses_history: [] 
-        }} 
-      />
-      
-      <Card className="p-6">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Tenant activo:</p>
-          <p className="text-lg font-semibold">{tenantInfo.slug}</p>
-          <p className="text-xs text-muted-foreground">ID: {tenantInfo.tenantId}</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
+            <KpiBoard tenantId={user.id} />
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico</h2>
+            <ChartsSection data={chartsData} isLoading={isLoadingCharts} />
+          </section>
         </div>
-      </Card>
+      </main>
     </div>
   );
-}
+};
+
+export default Dashboard;
