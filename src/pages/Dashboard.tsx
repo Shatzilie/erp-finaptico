@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection from "@/components/dashboard/ChartsSection";
-import { IvaWidget, IrpfWidget, SociedadesWidget } from "@/components/dashboard/FiscalComponents";
 import { Card } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 
@@ -89,15 +88,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <KpiBoard tenantSlug={tenantInfo.slug} />
+      <KpiBoard />
       
-      <ChartsSection tenantSlug={tenantInfo.slug} />
+      <ChartsSection />
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <IvaWidget tenantSlug={tenantInfo.slug} />
-        <IrpfWidget tenantSlug={tenantInfo.slug} />
-        <SociedadesWidget tenantSlug={tenantInfo.slug} />
-      </div>
+      <Card className="p-6">
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">Tenant activo:</p>
+          <p className="text-lg font-semibold">{tenantInfo.slug}</p>
+          <p className="text-xs text-muted-foreground">ID: {tenantInfo.tenantId}</p>
+        </div>
+      </Card>
     </div>
   );
 }
