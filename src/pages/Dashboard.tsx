@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Loader2, LogOut } from "lucide-react";
-import { backendAdapter } from "@/lib/backendAdapter";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection from "@/components/dashboard/ChartsSection";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ const Dashboard = () => {
     revenue_history: [],
     expenses_history: []
   });
-  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
+  const [isLoadingCharts, setIsLoadingCharts] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
@@ -43,9 +42,9 @@ const Dashboard = () => {
 
       try {
         const { data: profile, error } = await supabase
-          .from('profiles')
+          .from('profiles' as any)
           .select('tenant_id')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .single();
 
         if (error) throw error;
@@ -54,7 +53,7 @@ const Dashboard = () => {
           setTenantId(profile.tenant_id);
           
           const { data: tenant } = await supabase
-            .from('tenants')
+            .from('tenants' as any)
             .select('name')
             .eq('id', profile.tenant_id)
             .single();
@@ -71,44 +70,11 @@ const Dashboard = () => {
     fetchTenantFromProfile();
   }, [user]);
 
-  useEffect(() => {
-    const fetchChartsData = async () => {
-      if (!tenantId) {
-        setIsLoadingCharts(false);
-        return;
-      }
-
-      try {
-        setIsLoadingCharts(true);
-        setChartsData({
-          revenue_history: [],
-          expenses_history: []
-        });
-      } catch (error) {
-        console.error("Error fetching charts data:", error);
-      } finally {
-        setIsLoadingCharts(false);
-      }
-    };
-
-    fetchChartsData();
-  }, [tenantId]);
-
-  const handleSyncNow = async () => {
-    if (!tenantId) {
-      console.error("No tenant ID available");
-      return;
-    }
-
-    try {
-      setIsSyncing(true);
-      console.log("Sincronización manual con tenant:", tenantId);
+  const handleSyncNow = () => {
+    setIsSyncing(true);
+    setTimeout(() => {
       window.location.reload();
-    } catch (error) {
-      console.error("Error during sync:", error);
-    } finally {
-      setIsSyncing(false);
-    }
+    }, 1000);
   };
 
   const handleLogout = async () => {
