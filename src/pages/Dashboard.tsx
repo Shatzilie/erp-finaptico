@@ -88,9 +88,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <KpiBoard />
+      <KpiBoard tenantId={tenantInfo.tenantId} />
       
-      <ChartsSection />
+      <ChartsSection data={{ revenue: [], expenses: [] }} />
       
       <Card className="p-6">
         <div className="space-y-2">
