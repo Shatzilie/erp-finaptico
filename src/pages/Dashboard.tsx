@@ -19,8 +19,16 @@ interface ChartsData {
   expenses_history: MonthlyData[];
 }
 
+// Mapeo hardcodeado user_id → tenant_id
+const USER_TENANT_MAP: Record<string, string> = {
+  // Young Minds Big Ideas
+  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": "c4002f55-f7d5-4dd4-9942-d7ca65a551fd",
+  // Blacktar Engineering Works
+  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": "b345026a-a04d-4ede-9a61-b604d797b191"
+};
+
 const Dashboard = () => {
-  const { user, isAuthenticated, tenantId } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
@@ -28,6 +36,9 @@ const Dashboard = () => {
   });
   const [isLoadingCharts, setIsLoadingCharts] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Obtener tenantId desde el mapeo
+  const tenantId = user?.id ? USER_TENANT_MAP[user.id] : undefined;
 
   useEffect(() => {
     if (!isAuthenticated) {
