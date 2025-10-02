@@ -22,6 +22,8 @@ interface ChartsData {
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [tenantName, setTenantName] = useState<string>("");
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
     expenses_history: []
@@ -36,21 +38,52 @@ const Dashboard = () => {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
+    const fetchTenantFromProfile = async () => {
+      if (!user) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('tenant_id')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        
+        if (profile?.tenant_id) {
+          setTenantId(profile.tenant_id);
+          
+          const { data: tenant } = await supabase
+            .from('tenants')
+            .select('name')
+            .eq('id', profile.tenant_id)
+            .single();
+            
+          if (tenant) {
+            setTenantName(tenant.name);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching tenant:", error);
+      }
+    };
+
+    fetchTenantFromProfile();
+  }, [user]);
+
+  useEffect(() => {
     const fetchChartsData = async () => {
-      if (!user?.id) {
+      if (!tenantId) {
         setIsLoadingCharts(false);
         return;
       }
 
       try {
         setIsLoadingCharts(true);
-
-        // Por ahora usamos datos vacíos hasta que tengamos endpoints de revenue/expenses con monthly_history
         setChartsData({
           revenue_history: [],
           expenses_history: []
         });
-
       } catch (error) {
         console.error("Error fetching charts data:", error);
       } finally {
@@ -59,17 +92,17 @@ const Dashboard = () => {
     };
 
     fetchChartsData();
-  }, [user?.id]);
+  }, [tenantId]);
 
   const handleSyncNow = async () => {
-    if (!user?.id) {
-      console.error("No user ID available");
+    if (!tenantId) {
+      console.error("No tenant ID available");
       return;
     }
 
     try {
       setIsSyncing(true);
-      console.log("Sincronización manual con user:", user.id);
+      console.log("Sincronización manual con tenant:", tenantId);
       window.location.reload();
     } catch (error) {
       console.error("Error during sync:", error);
@@ -95,6 +128,17 @@ const Dashboard = () => {
     );
   }
 
+  if (!tenantId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-600">Cargando información de la empresa...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b">
@@ -102,7 +146,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dashboard Financiero</h1>
-              <p className="text-sm text-gray-600">{user.email}</p>
+              <p className="text-sm text-gray-600">{tenantName || user.email}</p>
             </div>
             <div className="flex gap-3">
               <Button 
@@ -135,7 +179,7 @@ const Dashboard = () => {
         <div className="space-y-8">
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={user.id} />
+            <KpiBoard tenantId={tenantId} />
           </section>
 
           <section>
