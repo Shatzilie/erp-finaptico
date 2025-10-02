@@ -1,153 +1,105 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { Loader2, LogOut } from "lucide-react";
-import KpiBoard from "@/components/dashboard/KpiBoard";
-import ChartsSection from "@/components/dashboard/ChartsSection";
-import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { KpiBoard } from "@/components/dashboard/KpiBoard";
+import { ChartsSection } from "@/components/dashboard/ChartsSection";
+import { IvaWidget } from "@/components/dashboard/IvaWidget";
+import { IrpfWidget } from "@/components/dashboard/IrpfWidget";
+import { SociedadesWidget } from "@/components/dashboard/SociedadesWidget";
+import { Card } from "@/components/ui/card";
+import { AlertCircle } from "lucide-react";
 
-interface MonthlyData {
-  month: string;
-  total: number;
-  currency: string;
-}
+// Mapeo temporal de usuarios a tenants
+const USER_TENANT_MAP: Record<string, { tenantId: string; tenantName: string; slug: string }> = {
+  // Young Minds Big Ideas
+  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": {
+    tenantId: "c4002f55-f7d5-4dd4-9942-d7ca65a551fd",
+    tenantName: "Young Minds Big Ideas, S.L.",
+    slug: "young-minds"
+  },
+  // Blacktar Engineering Works
+  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": {
+    tenantId: "b345026a-a04d-4ede-9a61-b604d797b191",
+    tenantName: "Blacktar Engineering Works, S.L.",
+    slug: "blacktar"
+  }
+};
 
-interface ChartsData {
-  revenue_history: MonthlyData[];
-  expenses_history: MonthlyData[];
-}
-
-const Dashboard = () => {
-  const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const [tenantName, setTenantName] = useState<string>("");
-  const [chartsData, setChartsData] = useState<ChartsData>({
-    revenue_history: [],
-    expenses_history: []
-  });
-  const [isLoadingCharts, setIsLoadingCharts] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+export default function Dashboard() {
+  const { user } = useAuth();
+  const [tenantInfo, setTenantInfo] = useState<{
+    tenantId: string;
+    tenantName: string;
+    slug: string;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/login");
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
     }
-  }, [isAuthenticated, navigate]);
 
-  useEffect(() => {
-    const fetchTenantFromProfile = async () => {
-      if (!user) return;
-
-      try {
-        const { data, error } = await supabase.rpc('get_user_tenant', {
-          user_uuid: user.id
-        });
-
-        if (error) {
-          console.error("Error fetching tenant:", error);
-          return;
-        }
-        
-        if (data && data.length > 0) {
-          setTenantId(data[0].tenant_id);
-          setTenantName(data[0].tenant_name);
-        }
-      } catch (error) {
-        console.error("Error fetching tenant:", error);
-      }
-    };
-
-    fetchTenantFromProfile();
+    const mapped = USER_TENANT_MAP[user.id];
+    
+    if (mapped) {
+      console.log("✅ Usuario mapeado:", mapped);
+      setTenantInfo(mapped);
+    } else {
+      console.error("❌ Usuario no encontrado en mapeo:", user.id);
+      setError(`Usuario ${user.id} no tiene tenant asignado`);
+    }
+    
+    setIsLoading(false);
   }, [user]);
 
-  const handleSyncNow = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigate("/login");
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
-  if (!isAuthenticated || !user) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  if (!tenantId) {
+  if (error || !tenantInfo) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-600">Cargando información de la empresa...</p>
-        </div>
+      <div className="container mx-auto p-6">
+        <Card className="p-6">
+          <div className="flex items-center gap-3 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            <div>
+              <p className="font-semibold">Error de configuración</p>
+              <p className="text-sm text-muted-foreground">
+                {error || "No se pudo determinar el tenant del usuario"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                User ID: {user?.id}
+              </p>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard Financiero</h1>
-              <p className="text-sm text-gray-600">{tenantName || user.email}</p>
-            </div>
-            <div className="flex gap-3">
-              <Button 
-                onClick={handleSyncNow}
-                disabled={isSyncing}
-                variant="outline"
-              >
-                {isSyncing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sincronizando...
-                  </>
-                ) : (
-                  "Sincronizar Ahora"
-                )}
-              </Button>
-              <Button 
-                onClick={handleLogout}
-                variant="ghost"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
-              </Button>
-            </div>
-          </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">{tenantInfo.tenantName}</p>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={tenantId} />
-          </section>
-
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico</h2>
-            <ChartsSection data={chartsData} isLoading={isLoadingCharts} />
-          </section>
-        </div>
-      </main>
+      <KpiBoard tenantSlug={tenantInfo.slug} />
+      
+      <ChartsSection tenantSlug={tenantInfo.slug} />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <IvaWidget tenantSlug={tenantInfo.slug} />
+        <IrpfWidget tenantSlug={tenantInfo.slug} />
+        <SociedadesWidget tenantSlug={tenantInfo.slug} />
+      </div>
     </div>
   );
-};
-
-export default Dashboard;
+}
