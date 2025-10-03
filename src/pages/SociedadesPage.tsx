@@ -9,6 +9,7 @@ import { Building, TrendingUp, TrendingDown, Calculator, Percent, Euro, RefreshC
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SyncNow } from '@/components/SyncNow';
 import { useTenantFeatures } from '@/hooks/useTenantFeatures';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SociedadesData {
   resultado_ejercicio: number;
@@ -67,14 +68,20 @@ export default function SociedadesPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const { slug } = useTenantFeatures();
 
-const fetchSociedadesData = async (year?: number) => {
+  const fetchSociedadesData = async (year?: number) => {
     console.log(`🎯 fetchSociedadesData llamada con: ${year}`);
     
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      throw new Error('No hay sesión activa');
+    }
+
     const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({
         tenant_slug: 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
