@@ -19,17 +19,24 @@ interface ChartsData {
   expenses_history: MonthlyData[];
 }
 
+// Mapeo temporal mientras se soluciona el acceso dinámico
+const USER_TENANT_MAP: Record<string, string> = {
+  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": "c4002f55-f7d5-4dd4-9942-d7ca65a551fd",
+  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": "b345026a-a04d-4ede-9a61-b604d797b191"
+};
+
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [tenantSlug, setTenantSlug] = useState<string | null>(null);
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
     expenses_history: []
   });
   const [isLoadingCharts, setIsLoadingCharts] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Usar el mapeo temporal
+  const tenantId = user?.id ? USER_TENANT_MAP[user.id] : undefined;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -37,67 +44,25 @@ const Dashboard = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Obtener el tenant_slug del usuario autenticado usando RPC
-  useEffect(() => {
-    const fetchUserTenant = async () => {
-      if (!user?.id) return;
-
-      try {
-        console.log("🔍 Buscando tenant para user:", user.id);
-
-        // Usar la función RPC get_user_tenant_slug
-        const { data, error: rpcError } = await supabase
-          .rpc('get_user_tenant_slug', {
-            p_user_id: user.id
-          });
-
-        if (rpcError) {
-          console.error("❌ Error buscando tenant:", rpcError);
-          setError("No se pudo encontrar tu empresa. Contacta con soporte.");
-          return;
-        }
-
-        if (!data) {
-          console.error("❌ No hay tenant asociado al usuario");
-          setError("No tienes acceso a ninguna empresa. Contacta con soporte.");
-          return;
-        }
-
-        console.log("✅ Tenant encontrado:", data);
-        setTenantSlug(data);
-
-      } catch (error) {
-        console.error("❌ Error inesperado:", error);
-        setError("Error al cargar tu empresa. Intenta recargar la página.");
-      }
-    };
-
-    fetchUserTenant();
-  }, [user]);
-
   useEffect(() => {
     const fetchChartsData = async () => {
-      if (!tenantSlug) {
-        console.log("⏳ Esperando tenant_slug...");
+      if (!tenantId) {
+        console.log("❌ No tenantId disponible");
+        setIsLoadingCharts(false);
         return;
       }
 
       try {
         setIsLoadingCharts(true);
-        setError(null);
-        console.log("📊 Cargando datos del dashboard para tenant:", tenantSlug);
+        console.log("📊 Cargando datos del dashboard para tenant:", tenantId);
 
-        // Cargar datos completos del dashboard
-        const dashboardData = await backendAdapter.fetchDashboardData(tenantSlug);
+        const dashboardData = await backendAdapter.fetchDashboardData(tenantId);
         
         console.log("✅ Datos recibidos:", {
           revenue_history_length: dashboardData.revenue_history?.length || 0,
-          expenses_history_length: dashboardData.expenses_history?.length || 0,
-          revenue_history: dashboardData.revenue_history,
-          expenses_history: dashboardData.expenses_history
+          expenses_history_length: dashboardData.expenses_history?.length || 0
         });
 
-        // Actualizar estado con los datos históricos
         setChartsData({
           revenue_history: dashboardData.revenue_history || [],
           expenses_history: dashboardData.expenses_history || []
@@ -105,7 +70,6 @@ const Dashboard = () => {
 
       } catch (error) {
         console.error("❌ Error fetching charts data:", error);
-        setError("Error al cargar los datos del dashboard");
         setChartsData({
           revenue_history: [],
           expenses_history: []
@@ -116,17 +80,17 @@ const Dashboard = () => {
     };
 
     fetchChartsData();
-  }, [tenantSlug]);
+  }, [tenantId]);
 
   const handleSyncNow = async () => {
-    if (!tenantSlug) {
-      console.error("No tenant slug available");
+    if (!tenantId) {
+      console.error("No tenant ID available");
       return;
     }
 
     try {
       setIsSyncing(true);
-      console.log("🔄 Sincronización manual con tenant:", tenantSlug);
+      console.log("🔄 Sincronización manual con tenant:", tenantId);
       window.location.reload();
     } catch (error) {
       console.error("Error during sync:", error);
@@ -148,30 +112,6 @@ const Dashboard = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <p className="text-red-600 font-semibold">{error}</p>
-          <Button onClick={() => window.location.reload()}>
-            Reintentar
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!tenantSlug) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-2">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-          <p className="text-sm text-gray-600">Cargando tu empresa...</p>
-        </div>
       </div>
     );
   }
@@ -216,7 +156,7 @@ const Dashboard = () => {
         <div className="space-y-8">
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={tenantSlug} />
+            <KpiBoard tenantId={tenantId} />
           </section>
 
           <section>
