@@ -14,11 +14,21 @@ export function SyncNow({ slug, onSyncComplete }: SyncNowProps) {
   const handleSync = async () => {
     setLoading(true);
     try {
+      // Obtener sesión de Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('No active session');
+        alert('No hay sesión activa');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           baseUrl: 'https://young-minds-big-ideas-sl.odoo.com',
