@@ -89,11 +89,17 @@ export default function TreasuryPage() {
   const fetchTreasuryData = async () => {
     setLoading(true);
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        throw new Error('No hay sesión activa');
+      }
+
       const response = await fetch('/functions/v1/odoo-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: slug
@@ -209,11 +215,20 @@ export default function TreasuryPage() {
   async function handleSync() {
     if (!slug) return;
     setSyncing(true);
+
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      console.error('No hay sesión activa');
+      setSyncing(false);
+      return;
+    }
+
     const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync-v2', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+        'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({
         tenant_slug: slug  // Usar tenant_slug en lugar de credenciales hardcodeadas
