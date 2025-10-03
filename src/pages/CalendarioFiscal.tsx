@@ -7,6 +7,7 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useTenantFeatures } from '@/hooks/useTenantFeatures';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Calendar, 
   AlertTriangle, 
@@ -66,6 +67,13 @@ const CalendarioFiscal: React.FC = () => {
   const fetchFiscalData = async (): Promise<FiscalData> => {
     if (!slug) throw new Error('No tenant slug available');
     
+    // Obtener sesión de Supabase
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      throw new Error('No hay sesión activa');
+    }
+
     const currentYear = new Date().getFullYear();
     const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
     const tenantId = getTenantId(slug);
@@ -75,7 +83,7 @@ const CalendarioFiscal: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: tenantId,
@@ -87,7 +95,7 @@ const CalendarioFiscal: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: tenantId,
@@ -99,7 +107,7 @@ const CalendarioFiscal: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: tenantId,
