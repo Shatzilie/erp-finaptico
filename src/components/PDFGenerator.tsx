@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Extend window interface for html2pdf
 declare global {
@@ -25,12 +26,19 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
     try {
       setIsGenerating(true);
       
+      // Obtener sesión de Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No hay sesión activa');
+      }
+
       // Llamar a la Edge Function que devuelve HTML
       const response = await fetch('/api/v1/financial-report-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: tenantSlug
