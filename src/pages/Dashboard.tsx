@@ -19,10 +19,9 @@ interface ChartsData {
   expenses_history: MonthlyData[];
 }
 
-// Mapeo temporal mientras se soluciona el acceso dinámico
 const USER_TENANT_MAP: Record<string, string> = {
-  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": "c4002f55-f7d5-4dd4-9942-d7ca65a551fd",
-  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": "b345026a-a04d-4ede-9a61-b604d797b191"
+  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": "young-minds",
+  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": "blacktar"
 };
 
 const Dashboard = () => {
@@ -35,8 +34,7 @@ const Dashboard = () => {
   const [isLoadingCharts, setIsLoadingCharts] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Usar el mapeo temporal
-  const tenantId = user?.id ? USER_TENANT_MAP[user.id] : undefined;
+  const tenantSlug = user?.id ? USER_TENANT_MAP[user.id] : undefined;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -46,30 +44,25 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchChartsData = async () => {
-      if (!tenantId) {
-        console.log("❌ No tenantId disponible");
+      if (!tenantSlug) {
+        console.log("No tenantSlug disponible");
         setIsLoadingCharts(false);
         return;
       }
 
       try {
         setIsLoadingCharts(true);
-        console.log("📊 Cargando datos del dashboard para tenant:", tenantId);
+        console.log("Cargando datos del dashboard para tenant:", tenantSlug);
 
-        const dashboardData = await backendAdapter.fetchDashboardData(tenantId);
+        const dashboardData = await backendAdapter.fetchDashboardData(tenantSlug);
         
-        console.log("✅ Datos recibidos:", {
-          revenue_history_length: dashboardData.revenue_history?.length || 0,
-          expenses_history_length: dashboardData.expenses_history?.length || 0
-        });
-
         setChartsData({
           revenue_history: dashboardData.revenue_history || [],
           expenses_history: dashboardData.expenses_history || []
         });
 
       } catch (error) {
-        console.error("❌ Error fetching charts data:", error);
+        console.error("Error fetching charts data:", error);
         setChartsData({
           revenue_history: [],
           expenses_history: []
@@ -80,17 +73,17 @@ const Dashboard = () => {
     };
 
     fetchChartsData();
-  }, [tenantId]);
+  }, [tenantSlug]);
 
   const handleSyncNow = async () => {
-    if (!tenantId) {
-      console.error("No tenant ID available");
+    if (!tenantSlug) {
+      console.error("No tenant slug available");
       return;
     }
 
     try {
       setIsSyncing(true);
-      console.log("🔄 Sincronización manual con tenant:", tenantId);
+      console.log("Sincronización manual con tenant:", tenantSlug);
       window.location.reload();
     } catch (error) {
       console.error("Error during sync:", error);
@@ -156,7 +149,7 @@ const Dashboard = () => {
         <div className="space-y-8">
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={tenantId} />
+            <KpiBoard tenantId={tenantSlug} />
           </section>
 
           <section>
