@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calculator, TrendingUp, TrendingDown, AlertCircle, Calendar, RefreshCw } from 'lucide-react';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SyncNow } from '@/components/SyncNow';
+import { supabase } from '@/integrations/supabase/client';
 
 interface IVAData {
   iva_repercutido: number;
@@ -79,11 +80,17 @@ export default function VatPage() {
     console.log(`🎯 fetchIVAData llamada con: Q${quarter} ${year}`);
     setLoading(true);
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        throw new Error('No hay sesión activa');
+      }
+
       const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: getTenantId(tenant || ''),
