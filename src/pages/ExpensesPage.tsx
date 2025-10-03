@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, TrendingDown, FileText, Clock, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
 
 type ExpensesData = {
   monthly_expenses: number;
@@ -52,11 +53,18 @@ export default function ExpensesPage() {
     try {
       console.log('Calling expenses API for tenant:', tenant);
       
+      // Obtener sesión de Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No hay sesión activa');
+      }
+
       const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-expenses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: getTenantId(tenant || '')
