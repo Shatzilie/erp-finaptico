@@ -37,7 +37,7 @@ const Dashboard = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Obtener el tenant_slug del usuario autenticado
+  // Obtener el tenant_slug del usuario autenticado usando RPC
   useEffect(() => {
     const fetchUserTenant = async () => {
       if (!user?.id) return;
@@ -45,34 +45,26 @@ const Dashboard = () => {
       try {
         console.log("🔍 Buscando tenant para user:", user.id);
 
-        // Buscar en user_tenant_access
-        const { data: accessData, error: accessError } = await supabase
-          .from('user_tenant_access')
-          .select(`
-            tenant_id,
-            tenants (
-              slug,
-              name
-            )
-          `)
-          .eq('user_id', user.id)
-          .single();
+        // Usar la función RPC get_user_tenant_slug
+        const { data, error: rpcError } = await supabase
+          .rpc('get_user_tenant_slug', {
+            p_user_id: user.id
+          });
 
-        if (accessError) {
-          console.error("❌ Error buscando tenant:", accessError);
+        if (rpcError) {
+          console.error("❌ Error buscando tenant:", rpcError);
           setError("No se pudo encontrar tu empresa. Contacta con soporte.");
           return;
         }
 
-        if (!accessData?.tenants) {
+        if (!data) {
           console.error("❌ No hay tenant asociado al usuario");
           setError("No tienes acceso a ninguna empresa. Contacta con soporte.");
           return;
         }
 
-        const slug = (accessData.tenants as any).slug;
-        console.log("✅ Tenant encontrado:", slug);
-        setTenantSlug(slug);
+        console.log("✅ Tenant encontrado:", data);
+        setTenantSlug(data);
 
       } catch (error) {
         console.error("❌ Error inesperado:", error);
