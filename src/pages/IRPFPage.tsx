@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Receipt, TrendingUp, TrendingDown, Calculator, AlertCircle, Calendar, RefreshCw } from 'lucide-react';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SyncNow } from '@/components/SyncNow';
+import { supabase } from '@/integrations/supabase/client';
 
 interface IRPFData {
   retenciones_practicadas: number;
@@ -34,7 +35,7 @@ const formatCurrency = (amount: number) => {
 const getTenantId = (tenant: string) => {
   const tenantMap: Record<string, string> = {
     'young-minds': 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
-    'blacktar': 'otro-uuid-aqui' // Add real UUID when available
+    'blacktar': 'otro-uuid-aqui'
   };
   return tenantMap[tenant] || tenant;
 };
@@ -46,12 +47,10 @@ const quarters = [
   { value: 4, label: 'Q4 (Oct-Dic)' }
 ];
 
-// Generate years dynamically including the current year
 const generateYearOptions = () => {
   const currentYear = new Date().getFullYear();
   const years = [];
   
-  // Desde el próximo año hasta 4 años atrás
   for (let year = currentYear + 1; year >= currentYear - 4; year--) {
     years.push({ value: year, label: year.toString() });
   }
@@ -81,11 +80,18 @@ export default function IRPFPage() {
     console.log(`🎯 fetchIRPFData llamada con: Q${quarter} ${year}`);
     setLoading(true);
     try {
+      // Obtener sesión de Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No hay sesión activa');
+      }
+
       const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-irpf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-lovable-secret': 'lovable_sync_2024_LP%#tGxa@Q'
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           tenant_slug: getTenantId(tenant || ''),
@@ -124,7 +130,6 @@ export default function IRPFPage() {
     fetchIRPFData(selectedQuarter, selectedYear);
   };
 
-  // When changing period, call fetchIRPFData with new values
   const handlePeriodChange = async (newQuarter: number, newYear: number) => {
     console.log(`🔄 Cambiando a Q${newQuarter} ${newYear}`);
     console.log('📡 Llamando a fetchIRPFData con nuevos parámetros...');
@@ -175,7 +180,6 @@ export default function IRPFPage() {
         </div>
       </div>
 
-      {/* Quarter and Year Selector */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -229,7 +233,6 @@ export default function IRPFPage() {
         </CardContent>
       </Card>
 
-      {/* IRPF KPIs */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -324,7 +327,6 @@ export default function IRPFPage() {
         </Card>
       </div>
 
-      {/* Warning Messages */}
       {isPeriodInFuture(selectedQuarter, selectedYear) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex items-center">
@@ -348,7 +350,6 @@ export default function IRPFPage() {
         </div>
       )}
 
-      {/* Summary Card */}
       {irpfData && (
         <Card>
           <CardHeader>
@@ -372,7 +373,6 @@ export default function IRPFPage() {
               <span className="font-semibold">{formatCurrency(irpfData.retenciones_soportadas)}</span>
             </div>
             
-            {/* Movement Counters */}
             <div className="grid grid-cols-2 gap-4 py-2">
               <div>
                 <p className="text-sm text-muted-foreground">Retenciones realizadas</p>
