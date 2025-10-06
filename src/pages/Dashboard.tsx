@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, FileText } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection from "@/components/dashboard/ChartsSection";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface MonthlyData {
   month: string;
@@ -27,12 +28,14 @@ const USER_TENANT_MAP: Record<string, string> = {
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
     expenses_history: []
   });
   const [isLoadingCharts, setIsLoadingCharts] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const tenantSlug = user?.id ? USER_TENANT_MAP[user.id] : undefined;
 
@@ -101,6 +104,78 @@ const Dashboard = () => {
     }
   };
 
+  const handleGeneratePDF = async () => {
+    if (!tenantSlug) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar tu empresa",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsGeneratingPDF(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "No estás autenticado",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const response = await fetch(
+        `https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            tenant_slug: tenantSlug
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Error generando PDF');
+      }
+
+      const htmlContent = await response.text();
+      
+      const newWindow = window.open('', '_blank');
+      if (newWindow) {
+        newWindow.document.write(htmlContent);
+        newWindow.document.close();
+        
+        toast({
+          title: "Informe generado",
+          description: "Se ha abierto el informe en una nueva pestaña"
+        });
+      } else {
+        toast({
+          title: "Advertencia",
+          description: "Por favor, permite ventanas emergentes para ver el informe",
+          variant: "destructive"
+        });
+      }
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo generar el informe",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -119,6 +194,23 @@ const Dashboard = () => {
               <p className="text-sm text-gray-600">{user.email}</p>
             </div>
             <div className="flex gap-3">
+              <Button 
+                onClick={handleGeneratePDF}
+                disabled={isGeneratingPDF}
+                variant="default"
+              >
+                {isGeneratingPDF ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Generar Informe PDF
+                  </>
+                )}
+              </Button>
               <Button 
                 onClick={handleSyncNow}
                 disabled={isSyncing}
