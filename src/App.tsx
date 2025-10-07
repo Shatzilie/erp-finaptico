@@ -15,6 +15,7 @@ import ExpensesPageWithLayout from "./pages/ExpensesPageWithLayout";
 import VatPageWithLayout from "./pages/VatPageWithLayout";
 import IRPFPageWithLayout from "./pages/IRPFPageWithLayout";
 import SociedadesPageWithLayout from "./pages/SociedadesPageWithLayout";
+import { RateLimitIndicator } from '@/components/RateLimitIndicator';
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <RateLimitIndicator />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
