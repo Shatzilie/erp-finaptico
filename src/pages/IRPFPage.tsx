@@ -34,14 +34,6 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const getTenantId = (tenant: string) => {
-  const tenantMap: Record<string, string> = {
-    'young-minds': 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
-    'blacktar': 'otro-uuid-aqui'
-  };
-  return tenantMap[tenant] || tenant;
-};
-
 const quarters = [
   { value: 1, label: 'Q1 (Ene-Mar)' },
   { value: 2, label: 'Q2 (Abr-Jun)' },
@@ -85,7 +77,7 @@ export default function IRPFPage() {
       const result = await fetchWithTimeout(
         'odoo-irpf',
         { 
-          tenant_slug: getTenantId(tenant || ''),
+          tenant_slug: tenant,
           quarter: quarter || Math.ceil((new Date().getMonth() + 1) / 3),
           year: year || new Date().getFullYear()
         },

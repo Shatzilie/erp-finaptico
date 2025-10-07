@@ -75,7 +75,7 @@ export default function SociedadesPage() {
     const result = await fetchWithTimeout(
       'odoo-sociedades',
       { 
-        tenant_slug: 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
+        tenant_slug: slug,
         year: year || new Date().getFullYear()
       },
       { timeout: 30000, retries: 1 }

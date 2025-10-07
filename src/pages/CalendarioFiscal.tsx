@@ -27,15 +27,6 @@ import {
   type ActionableFiscalObligation 
 } from '@/lib/fiscalCalendar';
 
-// Helper function para convertir slug a UUID
-const getTenantId = (tenant: string) => {
-  const tenantMap: Record<string, string> = {
-    'young-minds': 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
-    'blacktar': 'otro-uuid-aqui' // Add real UUID when available
-  };
-  return tenantMap[tenant] || tenant;
-};
-
 interface FiscalData {
   iva: {
     iva_diferencia?: number;
@@ -76,7 +67,6 @@ const CalendarioFiscal: React.FC = () => {
 
     const currentYear = new Date().getFullYear();
     const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-    const tenantId = getTenantId(slug);
 
     const [ivaResponse, irpfResponse, sociedadesResponse] = await Promise.all([
       fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
@@ -86,7 +76,7 @@ const CalendarioFiscal: React.FC = () => {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          tenant_slug: tenantId,
+          tenant_slug: slug,
           quarter: currentQuarter,
           year: currentYear
         })
@@ -98,7 +88,7 @@ const CalendarioFiscal: React.FC = () => {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          tenant_slug: tenantId,
+          tenant_slug: slug,
           quarter: currentQuarter,
           year: currentYear
         })
@@ -110,7 +100,7 @@ const CalendarioFiscal: React.FC = () => {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          tenant_slug: tenantId,
+          tenant_slug: slug,
           year: currentYear
         })
       })
