@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Loader2, LogOut, FileText } from "lucide-react";
+import { Loader2, FileText } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection from "@/components/dashboard/ChartsSection";
@@ -10,6 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
+import { DashboardHeader } from '@/components/DashboardHeader';
+import { DashboardSidebar } from '@/components/DashboardSidebar';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 interface MonthlyData {
   month: string;
@@ -98,15 +101,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigate("/login");
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
   const handleGeneratePDF = async () => {
     if (!tenantSlug) {
       toast({
@@ -165,72 +159,64 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard Financiero</h1>
-              <p className="text-sm text-gray-600">{user.email}</p>
-            </div>
-            <div className="flex gap-3">
-              <Button 
-                onClick={handleGeneratePDF}
-                disabled={isGeneratingPDF}
-                variant="default"
-              >
-                {isGeneratingPDF ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generando...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Generar Informe PDF
-                  </>
-                )}
-              </Button>
-              <Button 
-                onClick={handleSyncNow}
-                disabled={isSyncing}
-                variant="outline"
-              >
-                {isSyncing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sincronizando...
-                  </>
-                ) : (
-                  "Sincronizar Ahora"
-                )}
-              </Button>
-              <Button 
-                onClick={handleLogout}
-                variant="ghost"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-background">
+        <DashboardSidebar />
+        
+        <div className="flex-1">
+          <DashboardHeader />
+          
+          <main className="p-6">
+            <div className="max-w-7xl mx-auto space-y-8">
+              {/* Botones de acción */}
+              <div className="flex justify-end gap-3">
+                <Button 
+                  onClick={handleGeneratePDF}
+                  disabled={isGeneratingPDF}
+                  variant="default"
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Generar Informe PDF
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  onClick={handleSyncNow}
+                  disabled={isSyncing}
+                  variant="outline"
+                >
+                  {isSyncing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sincronizando...
+                    </>
+                  ) : (
+                    "Sincronizar Ahora"
+                  )}
+                </Button>
+              </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
-            <KpiBoard tenantId={tenantSlug} />
-          </section>
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
+                <KpiBoard tenantId={tenantSlug} />
+              </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico</h2>
-            <ChartsSection data={chartsData} isLoading={isLoadingCharts} />
-          </section>
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico</h2>
+                <ChartsSection data={chartsData} isLoading={isLoadingCharts} />
+              </section>
+            </div>
+          </main>
         </div>
-      </main>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 };
 
