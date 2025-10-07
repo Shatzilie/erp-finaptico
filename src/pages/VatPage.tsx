@@ -9,6 +9,8 @@ import { Calculator, TrendingUp, TrendingDown, AlertCircle, Calendar, RefreshCw 
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SyncNow } from '@/components/SyncNow';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 interface IVAData {
   iva_repercutido: number;
@@ -75,44 +77,30 @@ export default function VatPage() {
   const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.ceil((new Date().getMonth() + 1) / 3));
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const { fetchWithTimeout } = useAuthenticatedFetch();
 
   const fetchIVAData = async (quarter?: number, year?: number) => {
-    console.log(`🎯 fetchIVAData llamada con: Q${quarter} ${year}`);
     setLoading(true);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        throw new Error('No hay sesión activa');
-      }
-
-      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
+      const result = await fetchWithTimeout(
+        'odoo-iva',
+        { 
           tenant_slug: getTenantId(tenant || ''),
           quarter: quarter || Math.ceil((new Date().getMonth() + 1) / 3),
           year: year || new Date().getFullYear()
-        })
-      });
-      
-      console.log('🔍 Respuesta de la API:', response.status, response.statusText);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        },
+        { timeout: 30000, retries: 1 }
+      );
+
+      if (result.ok && result.widget_data?.iva?.payload) {
+        setIvaData(result.widget_data.iva.payload);
+        setLastUpdated(new Date());
+        console.log('✅ IVA data loaded successfully');
+      } else {
+        throw new Error('Invalid IVA response structure');
       }
-      
-      const result = await response.json();
-      console.log('📊 Datos parseados:', result);
-      setIvaData(result.widget_data.iva.payload);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('❌ Error fetching IVA data:', error);
+    } catch (error: any) {
+      handleApiError(error, 'IVA');
       setIvaData(null);
     } finally {
       setLoading(false);

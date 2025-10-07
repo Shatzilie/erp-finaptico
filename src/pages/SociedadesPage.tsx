@@ -10,6 +10,8 @@ import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SyncNow } from '@/components/SyncNow';
 import { useTenantFeatures } from '@/hooks/useTenantFeatures';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 interface SociedadesData {
   resultado_ejercicio: number;
@@ -67,56 +69,40 @@ export default function SociedadesPage() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const { slug } = useTenantFeatures();
+  const { fetchWithTimeout } = useAuthenticatedFetch();
 
   const fetchSociedadesData = async (year?: number) => {
-    console.log(`🎯 fetchSociedadesData llamada con: ${year}`);
-    
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError || !session) {
-      throw new Error('No hay sesión activa');
-    }
-
-    const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({
+    const result = await fetchWithTimeout(
+      'odoo-sociedades',
+      { 
         tenant_slug: 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd',
         year: year || new Date().getFullYear()
-      })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+      },
+      { timeout: 30000, retries: 1 }
+    );
+
+    if (result.ok && result.widget_data?.sociedades?.payload) {
+      console.log('✅ Sociedades data loaded successfully');
+      return result.widget_data.sociedades.payload;
+    } else {
+      throw new Error('Invalid Sociedades response structure');
     }
-    
-    const result = await response.json();
-    console.log('🔍 Respuesta API Sociedades:', result);
-    return result.widget_data.sociedades.payload;
   };
 
   const handleYearChange = async (newYear: number) => {
-    console.log(`🔄 Cambiando a año ${newYear}`);
     setLoading(true);
     try {
       const newData = await fetchSociedadesData(newYear);
-      console.log('📊 Nuevos datos Sociedades:', newData);
       setData(newData);
       setLastUpdated(new Date());
-    } catch (error) {
-      console.error('❌ Error actualizando datos:', error);
+    } catch (error: any) {
+      handleApiError(error, 'Impuesto de Sociedades');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log(`🔄 useEffect triggered for ${selectedYear}`);
     fetchSociedadesData(selectedYear)
       .then(result => {
         setData(result);
@@ -124,10 +110,10 @@ export default function SociedadesPage() {
         setLoading(false);
       })
       .catch(error => {
-        console.error('❌ Error carga inicial:', error);
+        handleApiError(error, 'Impuesto de Sociedades');
         setLoading(false);
       });
-  }, []); // Solo en mount inicial
+  }, []);
 
   const handleRefresh = () => {
     handleYearChange(selectedYear);

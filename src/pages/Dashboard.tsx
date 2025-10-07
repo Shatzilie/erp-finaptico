@@ -8,6 +8,8 @@ import ChartsSection from "@/components/dashboard/ChartsSection";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 interface MonthlyData {
   month: string;
@@ -29,6 +31,7 @@ const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { fetchWithTimeout } = useAuthenticatedFetch();
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
     expenses_history: []
@@ -116,41 +119,23 @@ const Dashboard = () => {
 
     try {
       setIsGeneratingPDF(true);
-      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!session) {
-        toast({
-          title: "Error",
-          description: "No estás autenticado",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const response = await fetch(
-        `https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ 
-            tenant_slug: tenantSlug
-          })
-        }
+      const htmlContent = await fetchWithTimeout<string>(
+        'financial-report-pdf',
+        { tenant_slug: tenantSlug },
+        { timeout: 45000, retries: 0 }
       );
 
-      if (!response.ok) {
-        throw new Error('Error generando PDF');
+      if (typeof htmlContent !== 'string') {
+        throw new Error('Invalid PDF response');
       }
 
-      const htmlContent = await response.text();
-      
       const newWindow = window.open('', '_blank');
       if (newWindow) {
         newWindow.document.write(htmlContent);
         newWindow.document.close();
+        
+        console.log('✅ PDF generated successfully');
         
         toast({
           title: "Informe generado",
@@ -164,13 +149,8 @@ const Dashboard = () => {
         });
       }
 
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo generar el informe",
-        variant: "destructive"
-      });
+    } catch (error: any) {
+      handleApiError(error, 'Generación de PDF');
     } finally {
       setIsGeneratingPDF(false);
     }

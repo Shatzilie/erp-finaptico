@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 // Extend window interface for html2pdf
 declare global {
@@ -21,51 +23,35 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
   className = "" 
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const { fetchWithTimeout } = useAuthenticatedFetch();
 
   const generateFinancialReport = async () => {
     try {
       setIsGenerating(true);
       
-      // Obtener sesión de Supabase
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        throw new Error('No hay sesión activa');
+      const htmlContent = await fetchWithTimeout<string>(
+        'financial-report-pdf',
+        { tenant_slug: tenantSlug },
+        { timeout: 45000, retries: 0 }
+      );
+
+      if (typeof htmlContent !== 'string') {
+        throw new Error('Invalid PDF response');
       }
 
-      // Llamar a la Edge Function que devuelve HTML
-      const response = await fetch('/api/v1/financial-report-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          tenant_slug: tenantSlug
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-
-      // Obtener el HTML del informe
-      const htmlContent = await response.text();
-      
-      // Abrir en nueva ventana para imprimir como PDF
       const newWindow = window.open('', '_blank', 'width=800,height=600');
       if (newWindow) {
         newWindow.document.write(htmlContent);
         newWindow.document.close();
         
-        // Esperar a que cargue y luego mostrar diálogo de impresión
         newWindow.onload = () => {
           setTimeout(() => {
             newWindow.print();
           }, 1000);
         };
+        
+        console.log('✅ PDF generated successfully');
       } else {
-        // Fallback si los popups están bloqueados
         const blob = new Blob([htmlContent], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -77,17 +63,15 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
         URL.revokeObjectURL(url);
       }
       
-      setIsGenerating(false);
-      
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      setIsGenerating(false);
-      
       toast({
-        title: "Error al generar informe",
-        description: "Se ha producido un error al generar el informe PDF. Inténtalo de nuevo.",
-        variant: "destructive",
+        title: "PDF generado",
+        description: "El informe se ha generado correctamente",
       });
+      
+    } catch (error: any) {
+      handleApiError(error, 'Generación de PDF');
+    } finally {
+      setIsGenerating(false);
     }
   };
 

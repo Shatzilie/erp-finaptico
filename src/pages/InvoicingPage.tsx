@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Euro, TrendingUp, FileText, Clock, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 type InvoicingData = {
   monthly_revenue: number;
@@ -27,6 +29,7 @@ export default function InvoicingPage() {
   const [data, setData] = useState<InvoicingData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { fetchWithTimeout } = useAuthenticatedFetch();
 
   // Mock data como fallback
   const mockData: InvoicingData = {
@@ -45,55 +48,25 @@ export default function InvoicingPage() {
     setError(null);
     
     try {
-      console.log('Calling revenue API for tenant:', tenant);
-      
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        throw new Error('No hay sesión activa');
-      }
-
-      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-revenue', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+      const result = await fetchWithTimeout(
+        'odoo-revenue',
+        { 
+          tenant_slug: tenant,
+          date_from: undefined,
+          date_to: undefined
         },
-        body: JSON.stringify({
-          tenant_slug: tenant
-        })
-      });
+        { timeout: 30000, retries: 1 }
+      );
 
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const responseText = await response.text();
-      console.log('Raw response:', responseText);
-      
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        console.error('Response was:', responseText);
-        throw new Error('La respuesta no es JSON válido');
-      }
-
-      console.log('Parsed result:', result);
-      
       if (result.ok && result.widget_data?.revenue?.payload) {
         setData(result.widget_data.revenue.payload);
+        console.log('✅ Revenue data loaded successfully');
       } else {
-        throw new Error(result.error || 'Formato de respuesta inválido');
+        throw new Error('Invalid revenue response structure');
       }
-    } catch (error) {
-      console.error('Error completo:', error);
-      setError(error instanceof Error ? error.message : 'Error desconocido');
+    } catch (error: any) {
+      handleApiError(error, 'Facturación');
+      setError('No se pudieron cargar los datos de facturación');
     } finally {
       setLoading(false);
     }
