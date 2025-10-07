@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 interface SyncNowProps {
   slug: string;
@@ -10,45 +11,25 @@ interface SyncNowProps {
 
 export function SyncNow({ slug, onSyncComplete }: SyncNowProps) {
   const [loading, setLoading] = useState(false);
+  const { fetchWithTimeout } = useAuthenticatedFetch();
 
   const handleSync = async () => {
     setLoading(true);
     try {
-      // Obtener sesión de Supabase
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error('No active session');
-        alert('No hay sesión activa');
-        setLoading(false);
-        return;
-      }
+      const data = await fetchWithTimeout(
+        'odoo-sync',
+        { tenant_slug: slug },
+        { timeout: 60000, retries: 0 }
+      );
 
-      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          baseUrl: 'https://young-minds-big-ideas-sl.odoo.com',
-          db: 'young-minds-big-ideas-sl',
-          username: 'finances@ymbi.eu',
-          password: '@77313325kK@'
-        })
-      });
-
-      const data = await response.json();
-      if (!data.ok) {
-        console.error('Sync error:', data.error);
-        alert('Error en la sincronización');
-      } else {
-        console.log('Sync completed successfully');
+      if (data.ok) {
+        console.log('✅ Sincronización completada');
         onSyncComplete?.();
+      } else {
+        throw new Error('Error en la sincronización');
       }
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      alert('Error inesperado');
+    } catch (error: any) {
+      handleApiError(error, 'Sincronización');
     } finally {
       setLoading(false);
     }

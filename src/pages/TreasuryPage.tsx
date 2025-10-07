@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 const ALLOWED_ACCOUNTS_BY_TENANT: Record<string, number[]> = {
   'young-minds': [32, 40, 31, 39], // 4 cuentas específicas
@@ -56,28 +58,18 @@ export default function TreasuryPage() {
   const [balance, setBalance] = useState<TreasuryBalance | null>(null);
   const [movs, setMovs] = useState<Movement[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number>(40); // BBVA YMBI por defecto
+  const { fetchWithTimeout } = useAuthenticatedFetch();
 
   const currency = useMemo(() => balance?.currency || "EUR", [balance]);
 
   const filterMovementsByAccount = (accountId: number) => {
-    console.log(`Filtering movements for account ID: ${accountId}`);
-    const filtered = movs.filter(movement => {
-      console.log('Movement journal_id:', movement.journal_id, 'Looking for:', accountId);
+    return movs.filter(movement => {
       return movement.journal_id && movement.journal_id[0] === accountId;
     });
-    console.log(`Found ${filtered.length} movements for account ${accountId}`);
-    return filtered;
   };
 
   const filteredMovements = useMemo(() => {
-    console.log('Selected account ID:', selectedAccountId);
-    console.log('All movements:', movs);
-    console.log('Movements length:', movs.length);
-    
     const filtered = filterMovementsByAccount(selectedAccountId).slice(0, 5);
-    console.log(`Filtered movements for account ${selectedAccountId}:`, filtered);
-    console.log('Filtered length:', filtered.length);
-    
     return filtered;
   }, [movs, selectedAccountId]);
 
@@ -89,29 +81,13 @@ export default function TreasuryPage() {
   const fetchTreasuryData = async () => {
     setLoading(true);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const result = await fetchWithTimeout(
+        'odoo-sync',
+        { tenant_slug: slug },
+        { timeout: 60000, retries: 0 }
+      );
 
-      if (sessionError || !session) {
-        throw new Error('No hay sesión activa');
-      }
-
-      const response = await fetch('/functions/v1/odoo-sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          tenant_slug: slug
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('Treasury API Response:', result);
+      console.log('✅ Treasury API Response received');
 
       if (result.ok && result.widget_data?.treasury_balance?.payload) {
         const treasuryData = result.widget_data.treasury_balance.payload;
@@ -136,8 +112,8 @@ export default function TreasuryPage() {
       } else {
         throw new Error(result.error || 'Invalid response format');
       }
-    } catch (error) {
-      console.error('Error fetching treasury data:', error);
+    } catch (error: any) {
+      handleApiError(error, 'Tesorería');
       setBalance(null);
       setMovs([]);
     } finally {
@@ -216,55 +192,27 @@ export default function TreasuryPage() {
     if (!slug) return;
     setSyncing(true);
 
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError || !session) {
-      console.error('No hay sesión activa');
-      setSyncing(false);
-      return;
-    }
-
-    const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync-v2', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({
-        tenant_slug: slug  // Usar tenant_slug en lugar de credenciales hardcodeadas
-      })
-    });
-
-    const data = await response.json();
-    
-    // Debug logs
-    console.log('Raw response from odoo-sync:', data);
-    console.log('Accounts array:', data?.widget_data?.treasury_balance?.payload?.accounts);
-    
-    if (!data.ok) {
-      console.error("sync error", data.error);
-    } else {
-      console.log("sync ok", data);
+    try {
+      const data = await fetchWithTimeout(
+        'odoo-sync-v2',
+        { tenant_slug: slug },
+        { timeout: 60000, retries: 0 }
+      );
       
-      // Debug logs para movimientos
-      console.log('Raw treasury data:', data?.widget_data?.treasury_balance?.payload);
-      console.log('Movements from API:', data?.widget_data?.treasury_movements_30d?.payload?.items);
-      console.log('Treasury movements in payload:', data?.widget_data?.treasury_balance?.payload?.movements);
+      console.log('✅ Sync response received');
+      
+      if (!data.ok) {
+        throw new Error(data.error || 'Sync error');
+      }
       
       // Process treasury data directly from function response
       if (data?.widget_data?.treasury_balance?.payload) {
         const treasuryData = data.widget_data.treasury_balance.payload;
         const accounts = treasuryData.accounts || [];
-        
-        // Debug logs
-        console.log('Todas las cuentas antes del filtro:', accounts);
         console.log('IDs de cuentas encontradas:', accounts.map(acc => acc.id));
         
-        const allowedAccountIds = [32, 40, 31, 39]; // IDs específicos para young-minds
+        const allowedAccountIds = [32, 40, 31, 39];
         const filteredAccounts = accounts.filter(account => allowedAccountIds.includes(account.id));
-        
-        console.log('Cuentas después del filtro:', filteredAccounts);
-        console.log('IDs filtrados:', filteredAccounts.map(acc => acc.id));
         
         const filteredTreasuryData = {
           ...treasuryData,
@@ -272,25 +220,20 @@ export default function TreasuryPage() {
           total: filteredAccounts.reduce((sum, account) => sum + account.balance, 0)
         };
         
-        console.log('Component state after sync:', filteredTreasuryData);
         setBalance(filteredTreasuryData);
       }
       
       // Also fetch movements if available
       if (data?.widget_data?.treasury_movements_30d?.payload?.items) {
-        console.log('Setting movements from sync response:', data.widget_data.treasury_movements_30d.payload.items);
         setMovs(data.widget_data.treasury_movements_30d.payload.items);
-      } else {
-        console.log('No movements in sync response treasury_movements_30d');
-        console.log('Checking other possible movement locations...');
-        if (data?.widget_data?.treasury_balance?.payload?.movements) {
-          console.log('Found movements in treasury_balance:', data.widget_data.treasury_balance.payload.movements);
-          setMovs(data.widget_data.treasury_balance.payload.movements);
-        }
+      } else if (data?.widget_data?.treasury_balance?.payload?.movements) {
+        setMovs(data.widget_data.treasury_balance.payload.movements);
       }
+    } catch (error: any) {
+      handleApiError(error, 'Sincronización');
+    } finally {
+      setSyncing(false);
     }
-    
-    setSyncing(false);
   }
 
   useEffect(() => {
