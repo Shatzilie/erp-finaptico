@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, TrendingDown, FileText, Clock, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/integrations/supabase/client';
+import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
+import { Loader2 } from 'lucide-react';
 
 type ExpensesData = {
   monthly_expenses: number;
@@ -24,7 +24,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function ExpensesPage() {
-  const { tenant } = useParams<{ tenant: string }>();
+  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
   const [data, setData] = useState<ExpensesData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +40,7 @@ export default function ExpensesPage() {
   };
 
   const fetchExpensesData = async () => {
-    if (!tenant) return;
+    if (!tenantSlug) return;
     
     setLoading(true);
     setError(null);
@@ -49,7 +49,7 @@ export default function ExpensesPage() {
       const result = await fetchWithTimeout(
         'odoo-expenses',
         { 
-          tenant_slug: tenant,
+          tenant_slug: tenantSlug,
           date_from: undefined,
           date_to: undefined
         },
@@ -71,8 +71,34 @@ export default function ExpensesPage() {
   };
 
   useEffect(() => {
-    fetchExpensesData();
-  }, [tenant]);
+    if (tenantSlug) {
+      fetchExpensesData();
+    }
+  }, [tenantSlug]);
+
+  // Validar tenant loading
+  if (tenantLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-600">Cargando información del tenant...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Validar tenant error
+  if (tenantError || !tenantSlug) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-red-500 text-center">
+          <p className="font-semibold">Error cargando tenant</p>
+          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
+        </div>
+      </div>
+    );
+  }
 
   // Si hay error, mostrar datos mock
   const displayData = data || mockData;

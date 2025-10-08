@@ -8,8 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Building, TrendingUp, TrendingDown, Calculator, Percent, Euro, RefreshCw, Loader2 } from 'lucide-react';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SyncNow } from '@/components/SyncNow';
-import { useTenantFeatures } from '@/hooks/useTenantFeatures';
-import { supabase } from '@/integrations/supabase/client';
+import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
 
@@ -64,18 +63,19 @@ const isPeriodInFuture = (year: number) => {
 };
 
 export default function SociedadesPage() {
+  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [data, setData] = useState<SociedadesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const { slug } = useTenantFeatures();
   const { fetchWithTimeout } = useAuthenticatedFetch();
 
   const fetchSociedadesData = async (year?: number) => {
+    if (!tenantSlug) throw new Error('No tenant available');
     const result = await fetchWithTimeout(
       'odoo-sociedades',
       { 
-        tenant_slug: slug,
+        tenant_slug: tenantSlug,
         year: year || new Date().getFullYear()
       },
       { timeout: 30000, retries: 1 }
@@ -103,17 +103,19 @@ export default function SociedadesPage() {
   };
 
   useEffect(() => {
-    fetchSociedadesData(selectedYear)
-      .then(result => {
-        setData(result);
-        setLastUpdated(new Date());
-        setLoading(false);
-      })
-      .catch(error => {
-        handleApiError(error, 'Impuesto de Sociedades');
-        setLoading(false);
-      });
-  }, []);
+    if (tenantSlug) {
+      fetchSociedadesData(selectedYear)
+        .then(result => {
+          setData(result);
+          setLastUpdated(new Date());
+          setLoading(false);
+        })
+        .catch(error => {
+          handleApiError(error, 'Impuesto de Sociedades');
+          setLoading(false);
+        });
+    }
+  }, [tenantSlug]);
 
   const handleRefresh = () => {
     handleYearChange(selectedYear);
@@ -150,6 +152,30 @@ export default function SociedadesPage() {
     }
   };
 
+  // Validar tenant loading
+  if (tenantLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-600">Cargando información del tenant...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Validar tenant error
+  if (tenantError || !tenantSlug) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-red-500 text-center">
+          <p className="font-semibold">Error cargando tenant</p>
+          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
+        </div>
+      </div>
+    );
+  }
+
   const isInFuture = isPeriodInFuture(selectedYear);
 
   return (
@@ -167,7 +193,7 @@ export default function SociedadesPage() {
               seconds={Math.floor((new Date().getTime() - lastUpdated.getTime()) / 1000)} 
             />
           )}
-          <SyncNow slug={slug} onSyncComplete={() => handleRefresh()} />
+          <SyncNow slug={tenantSlug} onSyncComplete={() => handleRefresh()} />
         </div>
       </div>
 

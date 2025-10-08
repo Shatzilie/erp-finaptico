@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Calculator, TrendingUp, TrendingDown, AlertCircle, Calendar, RefreshCw } from 'lucide-react';
+import { Calculator, TrendingUp, TrendingDown, AlertCircle, Calendar, RefreshCw, Loader2 } from 'lucide-react';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SyncNow } from '@/components/SyncNow';
-import { supabase } from '@/integrations/supabase/client';
+import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
 
@@ -63,7 +62,7 @@ const isPeriodInFuture = (quarter: number, year: number) => {
 };
 
 export default function VatPage() {
-  const { tenant } = useParams();
+  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
   const [ivaData, setIvaData] = useState<IVAData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.ceil((new Date().getMonth() + 1) / 3));
@@ -72,12 +71,13 @@ export default function VatPage() {
   const { fetchWithTimeout } = useAuthenticatedFetch();
 
   const fetchIVAData = async (quarter?: number, year?: number) => {
+    if (!tenantSlug) return;
     setLoading(true);
     try {
       const result = await fetchWithTimeout(
         'odoo-iva',
         { 
-          tenant_slug: tenant,
+          tenant_slug: tenantSlug,
           quarter: quarter || Math.ceil((new Date().getMonth() + 1) / 3),
           year: year || new Date().getFullYear()
         },
@@ -101,9 +101,11 @@ export default function VatPage() {
 
   // Remove the duplicate useEffect as fetchIVAData will be called correctly
   useEffect(() => {
-    console.log(`🔄 useEffect triggered for Q${selectedQuarter} ${selectedYear}`);
-    fetchIVAData(selectedQuarter, selectedYear);
-  }, [tenant]);
+    if (tenantSlug) {
+      console.log(`🔄 useEffect triggered for Q${selectedQuarter} ${selectedYear}`);
+      fetchIVAData(selectedQuarter, selectedYear);
+    }
+  }, [tenantSlug]);
 
   const handleRefresh = () => {
     console.log('🔄 Manual refresh triggered');
@@ -146,6 +148,30 @@ export default function VatPage() {
     }
   };
 
+  // Validar tenant loading
+  if (tenantLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-600">Cargando información del tenant...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Validar tenant error
+  if (tenantError || !tenantSlug) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-red-500 text-center">
+          <p className="font-semibold">Error cargando tenant</p>
+          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -157,7 +183,7 @@ export default function VatPage() {
         </div>
         <div className="flex items-center gap-4">
           <FreshnessBadge seconds={Math.floor((new Date().getTime() - lastUpdated.getTime()) / 1000)} />
-          <SyncNow slug={tenant || ''} onSyncComplete={handleRefresh} />
+          <SyncNow slug={tenantSlug} onSyncComplete={handleRefresh} />
         </div>
       </div>
 
