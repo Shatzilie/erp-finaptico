@@ -5,6 +5,18 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useTenantAccess } from '@/hooks/useTenantAccess';
 
 // Extend window interface for html2pdf
 declare global {
@@ -24,6 +36,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const { fetchWithTimeout } = useAuthenticatedFetch();
+  const { tenantName } = useTenantAccess();
 
   const generateFinancialReport = async () => {
     try {
@@ -80,24 +93,46 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
   };
 
   return (
-    <Button
-      onClick={generatePDF}
-      disabled={isGenerating}
-      className={`${className} bg-violet-600 hover:bg-violet-700 text-white`}
-      size="lg"
-    >
-      {isGenerating ? (
-        <>
-          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-          Generando...
-        </>
-      ) : (
-        <>
-          <Download className="h-5 w-5 mr-2" />
-          Descargar Informe PDF
-        </>
-      )}
-    </Button>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          disabled={isGenerating}
+          className={`${className} bg-violet-600 hover:bg-violet-700 text-white`}
+          size="lg"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              Generando...
+            </>
+          ) : (
+            <>
+              <Download className="h-5 w-5 mr-2" />
+              Descargar Informe PDF
+            </>
+          )}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Generar reporte financiero en PDF?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Se generará un documento PDF con información financiera sensible de{' '}
+            <span className="font-semibold">{tenantName || 'la empresa'}</span>. 
+            Esta acción quedará registrada en el sistema.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={generatePDF}
+            className="bg-violet-600 hover:bg-violet-700"
+          >
+            Generar PDF
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
 
