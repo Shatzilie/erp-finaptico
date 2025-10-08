@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useClientRateLimit } from '@/hooks/useClientRateLimit';
 
 interface FetchOptions {
   timeout?: number;  // Default 30 segundos
@@ -15,6 +16,7 @@ interface RateLimitInfo {
 
 export function useAuthenticatedFetch() {
   const { toast } = useToast();
+  const { canMakeRequest, getRemainingRequests } = useClientRateLimit();
 
   const fetchWithTimeout = async <T = any>(
     endpoint: string,
@@ -28,6 +30,11 @@ export function useAuthenticatedFetch() {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
+      // Validar rate limit del cliente ANTES de hacer el fetch
+      if (!canMakeRequest(endpoint)) {
+        throw new Error('CLIENT_RATE_LIMIT:Demasiadas peticiones. Espera un momento.');
+      }
+
       // Obtener sesión actual
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -47,7 +54,8 @@ export function useAuthenticatedFetch() {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
-            'apikey': supabaseAnonKey
+            'apikey': supabaseAnonKey,
+            'X-Rate-Limit-Remaining': getRemainingRequests(endpoint).toString()
           },
           body: JSON.stringify(body),
           signal: controller.signal
@@ -92,6 +100,7 @@ export function useAuthenticatedFetch() {
       if (retries > 0 && 
           error.name !== 'AbortError' && 
           !error.message.startsWith('RATE_LIMIT') &&
+          !error.message.startsWith('CLIENT_RATE_LIMIT') &&
           !error.message.startsWith('NO_SESSION')) {
 
         await new Promise(resolve => setTimeout(resolve, retryDelay));
