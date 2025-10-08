@@ -77,7 +77,7 @@ export default function TreasuryPage() {
     try {
       console.log("💰 Cargando datos de tesorería para:", tenantSlug);
 
-      const result = await fetchWithTimeout("odoo-sync", { tenant_slug: tenantSlug }, { timeout: 60000, retries: 0 });
+      const result = await fetchWithTimeout("odoo-treasury", { tenant_slug: tenantSlug }, { timeout: 60000, retries: 0 });
 
       console.log("✅ Treasury API Response received");
 
@@ -130,7 +130,7 @@ export default function TreasuryPage() {
     try {
       console.log("🔄 Sincronizando tesorería para:", tenantSlug);
 
-      const data = await fetchWithTimeout("odoo-sync", { tenant_slug: tenantSlug }, { timeout: 60000, retries: 0 });
+      const data = await fetchWithTimeout("odoo-treasury", { tenant_slug: tenantSlug }, { timeout: 60000, retries: 0 });
 
       console.log("✅ Sync response received");
 
