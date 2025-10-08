@@ -4,6 +4,7 @@
 // Permite compatibilidad total durante la transición
 
 import { supabase } from '@/integrations/supabase/client';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 export interface LegacyDashboardData {
   totalCash?: number;
@@ -288,7 +289,7 @@ export class DashboardApiClient {
           }
         }
       } catch (revenueError) {
-        console.warn('⚠️ Error cargando revenue histórico:', revenueError);
+        console.log('⚠️ Error cargando revenue histórico (no crítico)');
       }
 
       // LLAMADA 3: Expenses histórico
@@ -308,14 +309,15 @@ export class DashboardApiClient {
           }
         }
       } catch (expensesError) {
-        console.warn('⚠️ Error cargando expenses histórico:', expensesError);
+        console.log('⚠️ Error cargando expenses histórico (no crítico)');
       }
 
       console.log('✅ Nuevo backend exitoso');
       return adaptedData;
       
     } catch (error) {
-      console.warn('🔄 Fallback a endpoints legacy...', error);
+      console.log('🔄 Fallback a endpoints legacy...');
+      handleApiError(error, 'Dashboard');
       return await this.fallbackToLegacyEndpoints(tenant);
     }
   }
@@ -358,7 +360,7 @@ export class DashboardApiClient {
       }
 
     } catch (error) {
-      console.error('❌ Error generando PDF:', error);
+      handleApiError(error, 'Generación de PDF');
       throw error;
     }
   }
@@ -390,10 +392,10 @@ export class DashboardApiClient {
       }
 
       const result = await response.json();
-      console.log('✅ Datos IVA cargados:', result);
+      console.log('✅ Datos IVA cargados correctamente');
       return result;
     } catch (error) {
-      console.error('❌ Error cargando IVA:', error);
+      handleApiError(error, 'IVA');
       throw error;
     }
   }
@@ -425,10 +427,10 @@ export class DashboardApiClient {
       }
 
       const result = await response.json();
-      console.log('✅ Datos IRPF cargados:', result);
+      console.log('✅ Datos IRPF cargados correctamente');
       return result;
     } catch (error) {
-      console.error('❌ Error cargando IRPF:', error);
+      handleApiError(error, 'IRPF');
       throw error;
     }
   }
@@ -457,10 +459,10 @@ export class DashboardApiClient {
       }
 
       const result = await response.json();
-      console.log('✅ Datos Sociedades cargados:', result);
+      console.log('✅ Datos Sociedades cargados correctamente');
       return result;
     } catch (error) {
-      console.error('❌ Error cargando Sociedades:', error);
+      handleApiError(error, 'Impuesto de Sociedades');
       throw error;
     }
   }
@@ -509,11 +511,11 @@ export class DashboardApiClient {
         legacyData.marginPercentage = ((legacyData.yearlyMargin || 0) / yearlyRevenue) * 100;
       }
 
-      console.log('✅ Fallback legacy completado:', legacyData);
+      console.log('✅ Fallback legacy completado');
       return legacyData;
 
     } catch (fallbackError) {
-      console.error('❌ Fallback legacy también falló:', fallbackError);
+      handleApiError(fallbackError, 'Fallback Legacy');
       return {
         totalCash: 0,
         monthlyRevenue: 0,
