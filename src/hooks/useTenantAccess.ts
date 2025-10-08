@@ -44,8 +44,6 @@ export function useTenantAccess(): TenantAccessResult {
         setIsLoading(true);
         setError(null);
 
-        console.log('🔍 Buscando tenant para usuario:', user.id);
-
         // Consultar user_tenant_access con JOIN a tenants
         const { data, error: queryError } = await (supabase as any)
           .from('user_tenant_access')
@@ -61,7 +59,6 @@ export function useTenantAccess(): TenantAccessResult {
           .single();
 
         if (queryError) {
-          console.error('❌ Error al obtener tenant access:', queryError);
           setError('No se pudo obtener el acceso al tenant');
           setHasAccess(false);
           setIsLoading(false);
@@ -69,7 +66,6 @@ export function useTenantAccess(): TenantAccessResult {
         }
 
         if (!data || !data.tenants) {
-          console.warn('⚠️ Usuario sin tenant asignado');
           setError('Usuario sin tenant asignado');
           setHasAccess(false);
           setIsLoading(false);
@@ -79,19 +75,12 @@ export function useTenantAccess(): TenantAccessResult {
         // Manejar posible array o objeto
         const tenant = Array.isArray(data.tenants) ? data.tenants[0] : data.tenants;
 
-        console.log('✅ Tenant encontrado:', {
-          id: tenant.id,
-          slug: tenant.slug,
-          name: tenant.name
-        });
-
         setTenantId(tenant.id);
         setTenantSlug(tenant.slug);
         setTenantName(tenant.name || null);
         setHasAccess(true);
 
       } catch (err: any) {
-        console.error('❌ Error inesperado en useTenantAccess:', err);
         setError(err.message || 'Error desconocido');
         setHasAccess(false);
       } finally {

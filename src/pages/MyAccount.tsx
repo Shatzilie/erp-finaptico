@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { handleApiError } from '@/lib/apiErrorHandler';
 import { Loader2, User, Lock, LogOut, AlertCircle } from 'lucide-react';
 import {
   AlertDialog,
@@ -81,11 +82,7 @@ export default function MyAccount() {
       setConfirmPassword('');
       setPasswordError('');
     } catch (error: any) {
-      toast({
-        title: 'Error al cambiar contraseña',
-        description: error.message || 'No se pudo cambiar la contraseña',
-        variant: 'destructive',
-      });
+      handleApiError(error, 'Cambio de contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -107,11 +104,7 @@ export default function MyAccount() {
 
       navigate('/login');
     } catch (error: any) {
-      toast({
-        title: 'Error al cerrar sesión',
-        description: error.message || 'No se pudo cerrar la sesión',
-        variant: 'destructive',
-      });
+      handleApiError(error, 'Cierre de sesión');
     }
   };
 

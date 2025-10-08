@@ -101,19 +101,15 @@ export default function IRPFPage() {
 
   useEffect(() => {
     if (tenantSlug) {
-      console.log(`🔄 useEffect triggered for Q${selectedQuarter} ${selectedYear}`);
       fetchIRPFData(selectedQuarter, selectedYear);
     }
   }, [tenantSlug]);
 
   const handleRefresh = () => {
-    console.log('🔄 Manual refresh triggered');
     fetchIRPFData(selectedQuarter, selectedYear);
   };
 
   const handlePeriodChange = async (newQuarter: number, newYear: number) => {
-    console.log(`🔄 Cambiando a Q${newQuarter} ${newYear}`);
-    console.log('📡 Llamando a fetchIRPFData con nuevos parámetros...');
     await fetchIRPFData(newQuarter, newYear);
   };
 
@@ -197,7 +193,6 @@ export default function IRPFPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Trimestre</label>
               <Select value={selectedQuarter.toString()} onValueChange={(value) => {
-                console.log(`🎯 Selector trimestre cambiado a: ${value}`);
                 const newQuarter = parseInt(value);
                 setSelectedQuarter(newQuarter);
                 handlePeriodChange(newQuarter, selectedYear);
@@ -217,7 +212,6 @@ export default function IRPFPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Año</label>
               <Select value={selectedYear.toString()} onValueChange={(value) => {
-                console.log(`📅 Selector año cambiado a: ${value}`);
                 const newYear = parseInt(value);
                 setSelectedYear(newYear);
                 handlePeriodChange(selectedQuarter, newYear);

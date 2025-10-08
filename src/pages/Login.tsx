@@ -76,7 +76,6 @@ export default function Login() {
           .single();
 
         if (profileError || !profileData) {
-          console.error('Profile error:', profileError);
           toast({
             title: "Error",
             description: "Perfil sin tenant asignado",
@@ -94,7 +93,6 @@ export default function Login() {
           .single();
 
         if (tenantError || !tenantData) {
-          console.error('Tenant error:', tenantError);
           toast({
             title: "Error",
             description: "Tenant no encontrado",
@@ -105,11 +103,9 @@ export default function Login() {
         }
 
         // 3. Redirigir al dashboard del tenant
-        console.log('Redirecting to:', `/${tenantData.slug}/dashboard`);
         navigate(`/${tenantData.slug}/dashboard`, { replace: true });
       }
     } catch (err) {
-      console.error('Auth error:', err);
       toast({
         title: "Error",
         description: "Error de conexión",

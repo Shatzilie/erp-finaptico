@@ -16,17 +16,13 @@ export function SessionExpiredBanner() {
   useEffect(() => {
     // Listener para cambios en el estado de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔐 Auth event:', event);
-
       // Detectar cierre de sesión (expiración automática o manual)
       if (event === 'SIGNED_OUT' && !isLoginPage) {
-        console.log('⚠️ Sesión expirada o cerrada');
         setShowBanner(true);
       }
 
       // Limpiar banner cuando el usuario inicia sesión
       if (event === 'SIGNED_IN') {
-        console.log('✅ Usuario autenticado, ocultando banner');
         setShowBanner(false);
       }
     });

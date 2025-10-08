@@ -39,7 +39,6 @@ export const DashboardHeader = () => {
         const { data, error } = response as { data: UserTenantAccess | null; error: any };
 
         if (error) {
-          console.error('Error fetching last access:', error);
           return;
         }
 
@@ -47,7 +46,7 @@ export const DashboardHeader = () => {
           setLastAccess(data.updated_at || null);
         }
       } catch (error) {
-        console.error('Error fetching last access:', error);
+        // Silently fail - no es crítico
       } finally {
         setIsLoadingAccess(false);
       }
@@ -76,7 +75,6 @@ export const DashboardHeader = () => {
         locale: es 
       });
     } catch (error) {
-      console.error('Error formatting date:', error);
       return 'Fecha no disponible';
     }
   };

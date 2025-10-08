@@ -56,7 +56,6 @@ const Dashboard = () => {
 
       try {
         setIsLoadingCharts(true);
-        console.log("Cargando datos del dashboard para tenant:", tenantSlug);
 
         const dashboardData = await backendAdapter.fetchDashboardData(tenantSlug);
         
@@ -66,7 +65,7 @@ const Dashboard = () => {
         });
 
       } catch (error) {
-        console.error("Error fetching charts data:", error);
+        console.error('Error loading dashboard data');
         setChartsData({
           revenue_history: [],
           expenses_history: []
@@ -81,16 +80,14 @@ const Dashboard = () => {
 
   const handleSyncNow = async () => {
     if (!tenantSlug) {
-      console.error("No tenant slug available");
       return;
     }
 
     try {
       setIsSyncing(true);
-      console.log("Sincronización manual con tenant:", tenantSlug);
       window.location.reload();
     } catch (error) {
-      console.error("Error during sync:", error);
+      console.error('Sync error');
     } finally {
       setIsSyncing(false);
     }

@@ -102,20 +102,16 @@ export default function VatPage() {
   // Remove the duplicate useEffect as fetchIVAData will be called correctly
   useEffect(() => {
     if (tenantSlug) {
-      console.log(`🔄 useEffect triggered for Q${selectedQuarter} ${selectedYear}`);
       fetchIVAData(selectedQuarter, selectedYear);
     }
   }, [tenantSlug]);
 
   const handleRefresh = () => {
-    console.log('🔄 Manual refresh triggered');
     fetchIVAData(selectedQuarter, selectedYear);
   };
 
   // When changing period, call fetchIVAData with new values
   const handlePeriodChange = async (newQuarter: number, newYear: number) => {
-    console.log(`🔄 Cambiando a Q${newQuarter} ${newYear}`);
-    console.log('📡 Llamando a fetchIVAData con nuevos parámetros...');
     await fetchIVAData(newQuarter, newYear);
   };
 
@@ -200,7 +196,6 @@ export default function VatPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Trimestre</label>
               <Select value={selectedQuarter.toString()} onValueChange={(value) => {
-                console.log(`🎯 Selector trimestre cambiado a: ${value}`);
                 const newQuarter = parseInt(value);
                 setSelectedQuarter(newQuarter);
                 handlePeriodChange(newQuarter, selectedYear);
@@ -220,7 +215,6 @@ export default function VatPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Año</label>
               <Select value={selectedYear.toString()} onValueChange={(value) => {
-                console.log(`📅 Selector año cambiado a: ${value}`);
                 const newYear = parseInt(value);
                 setSelectedYear(newYear);
                 handlePeriodChange(selectedQuarter, newYear);

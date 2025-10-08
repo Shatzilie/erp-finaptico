@@ -69,17 +69,14 @@ export default function TreasuryPage() {
 
   const fetchTreasuryData = async () => {
     if (!tenantSlug) {
-      console.warn("⚠️ No tenantSlug disponible para cargar tesorería");
       return;
     }
 
     setLoading(true);
     try {
-      console.log("💰 Cargando datos de tesorería para:", tenantSlug);
-
       const result = await fetchWithTimeout("odoo-treasury", { tenant_slug: tenantSlug }, { timeout: 60000, retries: 0 });
 
-      console.log("✅ Treasury API Response received");
+      console.log("✅ Treasury data loaded");
 
       if (result.ok && result.widget_data?.treasury_balance?.payload) {
         const treasuryData = result.widget_data.treasury_balance.payload;
@@ -91,8 +88,6 @@ export default function TreasuryPage() {
           allowedAccountIds.length > 0
             ? accounts.filter((account) => allowedAccountIds.includes(account.id))
             : accounts; // Si no hay filtro, mostrar todas
-
-        console.log(`📊 Cuentas filtradas: ${filteredAccounts.length} de ${accounts.length}`);
 
         setBalance({
           ...treasuryData,
@@ -122,17 +117,14 @@ export default function TreasuryPage() {
 
   const handleSync = async () => {
     if (!tenantSlug) {
-      console.warn("⚠️ No tenantSlug disponible para sincronizar");
       return;
     }
 
     setSyncing(true);
     try {
-      console.log("🔄 Sincronizando tesorería para:", tenantSlug);
-
       const data = await fetchWithTimeout("odoo-treasury", { tenant_slug: tenantSlug }, { timeout: 60000, retries: 0 });
 
-      console.log("✅ Sync response received");
+      console.log("✅ Treasury sync completed");
 
       if (!data.ok) {
         throw new Error(data.error || "Sync error");
@@ -167,7 +159,7 @@ export default function TreasuryPage() {
         setMovs([]);
       }
 
-      console.log("✅ Sincronización completada");
+      console.log("✅ Treasury sync completed");
     } catch (error: any) {
       handleApiError(error, "Sincronización");
     } finally {
@@ -177,7 +169,6 @@ export default function TreasuryPage() {
 
   useEffect(() => {
     if (tenantSlug && hasAccess) {
-      console.log("🔄 TreasuryPage: Cargando datos iniciales");
       fetchTreasuryData();
     }
   }, [tenantSlug, hasAccess]);
