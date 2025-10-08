@@ -17,6 +17,7 @@ import IRPFPageWithLayout from "./pages/IRPFPageWithLayout";
 import SociedadesPageWithLayout from "./pages/SociedadesPageWithLayout";
 import MyAccountWithLayout from "./pages/MyAccountWithLayout";
 import { RateLimitIndicator } from '@/components/RateLimitIndicator';
+import { SessionExpiredBanner } from '@/components/SessionExpiredBanner';
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <SessionExpiredBanner />
           <Routes>
             <Route path="/" element={<Navigate to="/young-minds/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
