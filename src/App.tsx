@@ -15,6 +15,7 @@ import ExpensesPageWithLayout from "./pages/ExpensesPageWithLayout";
 import VatPageWithLayout from "./pages/VatPageWithLayout";
 import IRPFPageWithLayout from "./pages/IRPFPageWithLayout";
 import SociedadesPageWithLayout from "./pages/SociedadesPageWithLayout";
+import MyAccountWithLayout from "./pages/MyAccountWithLayout";
 import { RateLimitIndicator } from '@/components/RateLimitIndicator';
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/:tenant/docs" element={<StubPageWithLayout title="Documentación" />} />
             <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
             <Route path="/:tenant/company" element={<StubPageWithLayout title="Mi empresa" />} />
+            <Route path="/:tenant/account" element={<MyAccountWithLayout />} />
             <Route path="/:tenant/:section" element={<Dashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
