@@ -13,6 +13,7 @@ import { handleApiError } from '@/lib/apiErrorHandler';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useTenantAccess } from '@/hooks/useTenantAccess';
 
 interface MonthlyData {
   month: string;
@@ -25,16 +26,12 @@ interface ChartsData {
   expenses_history: MonthlyData[];
 }
 
-const USER_TENANT_MAP: Record<string, string> = {
-  "6caa2623-8ae3-41e3-85b0-9a8fdde56fd2": "young-minds",
-  "93ffe32a-b9f3-474c-afae-0bb69cf7e87e": "blacktar"
-};
-
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { fetchWithTimeout } = useAuthenticatedFetch();
+  const { tenantSlug, isLoading: isTenantLoading } = useTenantAccess();
   const [chartsData, setChartsData] = useState<ChartsData>({
     revenue_history: [],
     expenses_history: []
@@ -42,8 +39,6 @@ const Dashboard = () => {
   const [isLoadingCharts, setIsLoadingCharts] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-
-  const tenantSlug = user?.id ? USER_TENANT_MAP[user.id] : undefined;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -150,7 +145,7 @@ const Dashboard = () => {
     }
   };
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated || !user || isTenantLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
