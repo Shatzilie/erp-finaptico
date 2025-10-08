@@ -18,6 +18,8 @@ import SociedadesPageWithLayout from "./pages/SociedadesPageWithLayout";
 import MyAccountWithLayout from "./pages/MyAccountWithLayout";
 import { RateLimitIndicator } from '@/components/RateLimitIndicator';
 import { SessionExpiredBanner } from '@/components/SessionExpiredBanner';
+import { CookieConsent } from '@/components/CookieConsent';
+import { Footer } from '@/components/Footer';
 
 const queryClient = new QueryClient();
 
@@ -28,27 +30,33 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <SessionExpiredBanner />
-          <Routes>
-            <Route path="/" element={<Navigate to="/young-minds/dashboard" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/:tenant/dashboard" element={<Dashboard />} />
-            <Route path="/:tenant/treasury" element={<TreasuryPageWithLayout />} />
-            <Route path="/:tenant/invoicing" element={<InvoicingPageWithLayout />} />
-            <Route path="/:tenant/expenses" element={<ExpensesPageWithLayout />} />
-            <Route path="/:tenant/vat" element={<VatPageWithLayout />} />
-            <Route path="/:tenant/irpf" element={<IRPFPageWithLayout />} />
-            <Route path="/:tenant/is" element={<SociedadesPageWithLayout />} />
-            <Route path="/:tenant/calendar" element={<CalendarioFiscal />} />
-            <Route path="/:tenant/docs" element={<StubPageWithLayout title="Documentación" />} />
-            <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
-            <Route path="/:tenant/company" element={<StubPageWithLayout title="Mi empresa" />} />
-            <Route path="/:tenant/account" element={<MyAccountWithLayout />} />
-            <Route path="/:tenant/:section" element={<Dashboard />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <RateLimitIndicator />
+          <div className="flex flex-col min-h-screen">
+            <SessionExpiredBanner />
+            <div className="flex-1">
+              <Routes>
+                <Route path="/" element={<Navigate to="/young-minds/dashboard" replace />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/:tenant/dashboard" element={<Dashboard />} />
+                <Route path="/:tenant/treasury" element={<TreasuryPageWithLayout />} />
+                <Route path="/:tenant/invoicing" element={<InvoicingPageWithLayout />} />
+                <Route path="/:tenant/expenses" element={<ExpensesPageWithLayout />} />
+                <Route path="/:tenant/vat" element={<VatPageWithLayout />} />
+                <Route path="/:tenant/irpf" element={<IRPFPageWithLayout />} />
+                <Route path="/:tenant/is" element={<SociedadesPageWithLayout />} />
+                <Route path="/:tenant/calendar" element={<CalendarioFiscal />} />
+                <Route path="/:tenant/docs" element={<StubPageWithLayout title="Documentación" />} />
+                <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
+                <Route path="/:tenant/company" element={<StubPageWithLayout title="Mi empresa" />} />
+                <Route path="/:tenant/account" element={<MyAccountWithLayout />} />
+                <Route path="/:tenant/:section" element={<Dashboard />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <RateLimitIndicator />
+            </div>
+            <Footer />
+            <CookieConsent />
+          </div>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
