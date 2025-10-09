@@ -60,7 +60,7 @@ export function useTenantAccess(): TenantAccessResult {
             )
           `)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         console.log('🔍 DEBUG useTenantAccess:', {
           userId: user.id,
