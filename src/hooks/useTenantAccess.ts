@@ -34,7 +34,6 @@ export function useTenantAccess(): TenantAccess {
 
     async function fetchTenantAccess() {
       try {
-        // Consultar user_tenant_access con JOIN a tenants
         const { data, error } = await (supabase as any)
           .from('user_tenant_access')
           .select(`
