@@ -33,6 +33,9 @@ export const DashboardSidebar = () => {
   if (features.show_advisory)  visible.push("advisory");
   if (features.show_company)   visible.push("company");
   
+  // Mi cuenta siempre visible para usuarios autenticados
+  visible.push("account");
+  
   // Agregar monitoring solo si es admin
   if (role === 'admin') {
     visible.push("monitoring");
