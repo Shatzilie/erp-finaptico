@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
+import { formatCurrency } from '@/lib/utils';
 
 type InvoicingData = {
   monthly_revenue: number;
@@ -16,12 +17,6 @@ type InvoicingData = {
   total_invoices: number;
 };
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(amount);
-};
 
 export default function InvoicingPage() {
   const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();

@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { FileText, Receipt } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 interface IVAData {
   iva_repercutido: number;
@@ -31,14 +32,6 @@ interface IrpfCardProps {
   data: IRPFData;
 }
 
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value);
-};
 
 export const IvaCard = ({ data }: IvaCardProps) => {
   return (

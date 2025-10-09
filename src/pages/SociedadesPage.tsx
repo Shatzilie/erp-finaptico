@@ -11,6 +11,7 @@ import { SyncNow } from '@/components/SyncNow';
 import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
+import { formatCurrency } from '@/lib/utils';
 
 interface SociedadesData {
   resultado_ejercicio: number;
@@ -36,13 +37,6 @@ interface SociedadesData {
   };
 }
 
-// Utilidad para formatear moneda
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(amount);
-};
 
 const generateYearOptions = () => {
   const currentYear = new Date().getFullYear();

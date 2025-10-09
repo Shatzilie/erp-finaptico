@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
+import { formatCurrency } from "@/lib/utils";
 
 interface MonthlyData {
   month: string;
@@ -184,14 +185,6 @@ function prepareCountChartData(revenueData: MonthlyData[], expensesData: Monthly
   return { revenueCount, expensesCount };
 }
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value);
-};
 
 const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
   const currentYear = new Date().getFullYear();
@@ -267,7 +260,7 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
               <LineChart data={profitChart.chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" stroke="#666" />
-                <YAxis stroke="#666" tickFormatter={formatCurrency} />
+                <YAxis stroke="#666" tickFormatter={(value) => formatCurrency(value as number)} />
                 <Tooltip formatter={(value) => formatCurrency(value as number)} />
                 <Legend />
                 <Line type="monotone" dataKey={`${currentYear}`} stroke={CORPORATE_COLORS.primary} strokeWidth={2} dot={{ fill: CORPORATE_COLORS.primary, r: 4 }} activeDot={{ r: 6 }} name={`${currentYear}`} />
@@ -284,7 +277,7 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
               <BarChart data={revenueChart.chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" stroke="#666" />
-                <YAxis stroke="#666" tickFormatter={formatCurrency} />
+                <YAxis stroke="#666" tickFormatter={(value) => formatCurrency(value as number)} />
                 <Tooltip formatter={(value) => formatCurrency(value as number)} />
                 <Legend />
                 <Bar dataKey={`${currentYear}`} fill={CORPORATE_COLORS.secondary} name={`${currentYear}`} />
@@ -301,7 +294,7 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
               <BarChart data={expensesChart.chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" stroke="#666" />
-                <YAxis stroke="#666" tickFormatter={formatCurrency} />
+                <YAxis stroke="#666" tickFormatter={(value) => formatCurrency(value as number)} />
                 <Tooltip formatter={(value) => formatCurrency(value as number)} />
                 <Legend />
                 <Bar dataKey={`${currentYear}`} fill={CORPORATE_COLORS.tertiary} name={`${currentYear}`} />
