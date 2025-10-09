@@ -102,8 +102,8 @@ export default function Login() {
           return;
         }
 
-        // 3. Redirigir al dashboard del tenant
-        navigate(`/${tenantData.slug}/dashboard`, { replace: true });
+        // 3. Redirigir al dashboard (sin tenant en URL)
+        navigate(`/dashboard`, { replace: true });
       }
     } catch (err) {
       toast({
