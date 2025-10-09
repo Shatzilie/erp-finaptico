@@ -15,7 +15,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   skipTenantCheck = false 
 }) => {
   const { isAuthenticated } = useAuth();
-  const { hasAccess, isLoading, error } = useTenantAccess();
+  const { hasAccess, isLoading } = useTenantAccess();
   const location = useLocation();
 
   // 1. Validar autenticación
@@ -41,13 +41,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // 4. Mostrar error si no tiene acceso
-  if (error || !hasAccess) {
+  if (!hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Alert variant="destructive" className="max-w-md">
           <AlertTitle>Acceso Denegado</AlertTitle>
           <AlertDescription>
-            {error || 'No tienes permisos para acceder a esta empresa.'}
+            No tienes permisos para acceder a esta empresa.
             <br />
             <br />
             Por favor, contacta con el administrador.

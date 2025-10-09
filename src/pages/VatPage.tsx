@@ -57,7 +57,7 @@ const isPeriodInFuture = (quarter: number, year: number) => {
 };
 
 export default function VatPage() {
-  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
+  const { tenantSlug, isLoading: tenantLoading } = useTenantAccess();
   const [ivaData, setIvaData] = useState<IVAData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.ceil((new Date().getMonth() + 1) / 3));
@@ -152,12 +152,12 @@ export default function VatPage() {
   }
 
   // Validar tenant error
-  if (tenantError || !tenantSlug) {
+  if (!tenantSlug) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-red-500 text-center">
           <p className="font-semibold">Error cargando tenant</p>
-          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
+          <p>No se pudo obtener el tenant</p>
         </div>
       </div>
     );

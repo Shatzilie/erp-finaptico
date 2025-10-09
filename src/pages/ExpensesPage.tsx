@@ -19,7 +19,7 @@ type ExpensesData = {
 
 
 export default function ExpensesPage() {
-  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
+  const { tenantSlug, isLoading: tenantLoading } = useTenantAccess();
   const [data, setData] = useState<ExpensesData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,12 +84,12 @@ export default function ExpensesPage() {
   }
 
   // Validar tenant error
-  if (tenantError || !tenantSlug) {
+  if (!tenantSlug) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-red-500 text-center">
           <p className="font-semibold">Error cargando tenant</p>
-          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
+          <p>No se pudo obtener el tenant</p>
         </div>
       </div>
     );

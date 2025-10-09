@@ -15,13 +15,17 @@ vi.mock('../../contexts/AuthContext', () => ({
 describe('useTenantAccess', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthContext.isAuthenticated = true;
+    mockAuthContext.user = { id: 'test-user-id', email: 'test@example.com' };
   });
 
   it('should return tenant data when user has access', async () => {
     const mockTenantData = {
       tenant_id: 'tenant-123',
-      tenant_slug: 'young-minds',
-      tenant_name: 'Young Minds',
+      role: 'admin',
+      tenants: {
+        slug: 'young-minds',
+      },
     };
 
     mockSupabaseClient.from.mockReturnValue({
@@ -38,11 +42,12 @@ describe('useTenantAccess', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     expect(result.current.tenantSlug).toBe('young-minds');
-    expect(result.current.tenantName).toBe('Young Minds');
-    expect(result.current.error).toBeNull();
+    expect(result.current.tenantId).toBe('tenant-123');
+    expect(result.current.role).toBe('admin');
+    expect(result.current.hasAccess).toBe(true);
   });
 
-  it('should return error when user has no tenant access', async () => {
+  it('should return no access when user has no tenant', async () => {
     mockSupabaseClient.from.mockReturnValue({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -60,18 +65,16 @@ describe('useTenantAccess', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     expect(result.current.tenantSlug).toBeNull();
-    expect(result.current.error).toBeTruthy();
+    expect(result.current.hasAccess).toBe(false);
   });
 
   it('should not fetch when user is not authenticated', () => {
-    mockAuthContext.isAuthenticated = false;
+    mockAuthContext.user = null;
 
     const { result } = renderHook(() => useTenantAccess());
 
     expect(result.current.tenantSlug).toBeNull();
-    expect(mockSupabaseClient.from).not.toHaveBeenCalled();
-
-    // Reset for other tests
-    mockAuthContext.isAuthenticated = true;
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.hasAccess).toBe(false);
   });
 });

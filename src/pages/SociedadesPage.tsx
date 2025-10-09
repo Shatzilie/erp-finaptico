@@ -57,7 +57,7 @@ const isPeriodInFuture = (year: number) => {
 };
 
 export default function SociedadesPage() {
-  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
+  const { tenantSlug, isLoading: tenantLoading } = useTenantAccess();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [data, setData] = useState<SociedadesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,12 +159,12 @@ export default function SociedadesPage() {
   }
 
   // Validar tenant error
-  if (tenantError || !tenantSlug) {
+  if (!tenantSlug) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-red-500 text-center">
           <p className="font-semibold">Error cargando tenant</p>
-          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
+          <p>No se pudo obtener el tenant</p>
         </div>
       </div>
     );

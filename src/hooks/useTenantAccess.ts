@@ -1,116 +1,87 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface TenantAccessResult {
+interface TenantAccess {
   tenantId: string | null;
   tenantSlug: string | null;
-  tenantName: string | null;
   role: string | null;
   hasAccess: boolean;
   isLoading: boolean;
-  error: string | null;
 }
 
-/**
- * Hook para obtener el tenant al que el usuario autenticado tiene acceso.
- * Consulta la tabla user_tenant_access para obtener dinámicamente el tenant
- * asignado al usuario actual.
- * 
- * @returns {TenantAccessResult} Información del tenant y estado de carga
- */
-export function useTenantAccess(): TenantAccessResult {
-  const { user, isAuthenticated } = useAuth();
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const [tenantSlug, setTenantSlug] = useState<string | null>(null);
-  const [tenantName, setTenantName] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [hasAccess, setHasAccess] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+export function useTenantAccess(): TenantAccess {
+  const { user } = useAuth();
+  const [access, setAccess] = useState<TenantAccess>({
+    tenantId: null,
+    tenantSlug: null,
+    role: null,
+    hasAccess: false,
+    isLoading: true
+  });
 
   useEffect(() => {
-    // Si no está autenticado, resetear todo
-    if (!isAuthenticated || !user) {
-      setTenantId(null);
-      setTenantSlug(null);
-      setTenantName(null);
-      setRole(null);
-      setHasAccess(false);
-      setIsLoading(false);
-      setError(null);
+    if (!user) {
+      setAccess({
+        tenantId: null,
+        tenantSlug: null,
+        role: null,
+        hasAccess: false,
+        isLoading: false
+      });
       return;
     }
 
-    const fetchTenantAccess = async () => {
+    async function fetchTenantAccess() {
       try {
-        setIsLoading(true);
-        setError(null);
-
         // Consultar user_tenant_access con JOIN a tenants
-        const { data, error: queryError } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('user_tenant_access')
           .select(`
             tenant_id,
             role,
-            tenants (
-              id,
-              slug,
-              name
+            tenants!inner (
+              slug
             )
           `)
           .eq('user_id', user.id)
-          .maybeSingle();
+          .single();
 
-        console.log('🔍 DEBUG useTenantAccess:', {
-          userId: user.id,
-          queryError,
-          data,
-          hasData: !!data,
-          hasTenants: !!data?.tenants
+        if (error) {
+          console.error('Error fetching tenant access:', error);
+          setAccess({
+            tenantId: null,
+            tenantSlug: null,
+            role: null,
+            hasAccess: false,
+            isLoading: false
+          });
+          return;
+        }
+
+        if (data) {
+          setAccess({
+            tenantId: (data as any).tenant_id,
+            tenantSlug: (data as any).tenants.slug,
+            role: (data as any).role,
+            hasAccess: true,
+            isLoading: false
+          });
+        }
+      } catch (err) {
+        console.error('Exception in useTenantAccess:', err);
+        setAccess({
+          tenantId: null,
+          tenantSlug: null,
+          role: null,
+          hasAccess: false,
+          isLoading: false
         });
-
-        if (queryError) {
-          setError('No se pudo obtener el acceso al tenant');
-          setHasAccess(false);
-          setIsLoading(false);
-          return;
-        }
-
-        if (!data || !data.tenants) {
-          setError('Usuario sin tenant asignado');
-          setHasAccess(false);
-          setIsLoading(false);
-          return;
-        }
-
-        // Manejar posible array o objeto
-        const tenant = Array.isArray(data.tenants) ? data.tenants[0] : data.tenants;
-
-        setTenantId(tenant.id);
-        setTenantSlug(tenant.slug);
-        setTenantName(tenant.name || null);
-        setRole(data.role || null);
-        setHasAccess(true);
-
-      } catch (err: any) {
-        setError(err.message || 'Error desconocido');
-        setHasAccess(false);
-      } finally {
-        setIsLoading(false);
       }
-    };
+    }
 
     fetchTenantAccess();
-  }, [user, isAuthenticated]);
+  }, [user]);
 
-  return {
-    tenantId,
-    tenantSlug,
-    tenantName,
-    role,
-    hasAccess,
-    isLoading,
-    error
-  };
+  return access;
 }
