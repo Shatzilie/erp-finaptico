@@ -270,9 +270,9 @@ npm run preview          # Preview del build
 
 ## 📝 Licencia
 
-Propietario: [Tu Empresa]
+Propietario: Finaptico (https://finaptico.com)
 Todos los derechos reservados.
 
 ## 👥 Soporte
 
-Para soporte técnico, contactar a: [tu-email@example.com]
+Para soporte técnico, contactar a: hola@finaptico.com

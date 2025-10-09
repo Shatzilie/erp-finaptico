@@ -626,7 +626,7 @@ $$ LANGUAGE plpgsql;
 Si encuentras una vulnerabilidad de seguridad:
 
 1. **NO** la publiques públicamente
-2. Envía un email a: [security@tu-empresa.com]
+2. Envía un email a: hola@finaptico.com
 3. Incluye: descripción detallada, pasos para reproducir, impacto potencial
 4. Responderemos en menos de 48 horas
 

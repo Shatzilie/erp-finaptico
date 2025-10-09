@@ -978,4 +978,4 @@ const data = await fetchWithAuth(
 
 **Última actualización**: Octubre 2025  
 **Versión**: 1.0  
-**Mantenedor**: [Tu Empresa]
+**Mantenedor**: Finaptico (https://finaptico.com)
