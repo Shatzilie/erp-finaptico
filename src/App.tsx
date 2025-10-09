@@ -16,6 +16,7 @@ import VatPageWithLayout from "./pages/VatPageWithLayout";
 import IRPFPageWithLayout from "./pages/IRPFPageWithLayout";
 import SociedadesPageWithLayout from "./pages/SociedadesPageWithLayout";
 import MyAccountWithLayout from "./pages/MyAccountWithLayout";
+import MonitoringPageWithLayout from "./pages/MonitoringPageWithLayout";
 import { RateLimitIndicator } from '@/components/RateLimitIndicator';
 import { SessionExpiredBanner } from '@/components/SessionExpiredBanner';
 import { CookieConsent } from '@/components/CookieConsent';
@@ -36,6 +37,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Navigate to="/young-minds/dashboard" replace />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/monitoring" element={<MonitoringPageWithLayout />} />
                 <Route path="/:tenant/dashboard" element={<Dashboard />} />
                 <Route path="/:tenant/treasury" element={<TreasuryPageWithLayout />} />
                 <Route path="/:tenant/invoicing" element={<InvoicingPageWithLayout />} />

@@ -6,6 +6,7 @@ interface TenantAccessResult {
   tenantId: string | null;
   tenantSlug: string | null;
   tenantName: string | null;
+  role: string | null;
   hasAccess: boolean;
   isLoading: boolean;
   error: string | null;
@@ -23,6 +24,7 @@ export function useTenantAccess(): TenantAccessResult {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [tenantSlug, setTenantSlug] = useState<string | null>(null);
   const [tenantName, setTenantName] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +35,7 @@ export function useTenantAccess(): TenantAccessResult {
       setTenantId(null);
       setTenantSlug(null);
       setTenantName(null);
+      setRole(null);
       setHasAccess(false);
       setIsLoading(false);
       setError(null);
@@ -49,6 +52,7 @@ export function useTenantAccess(): TenantAccessResult {
           .from('user_tenant_access')
           .select(`
             tenant_id,
+            role,
             tenants (
               id,
               slug,
@@ -78,6 +82,7 @@ export function useTenantAccess(): TenantAccessResult {
         setTenantId(tenant.id);
         setTenantSlug(tenant.slug);
         setTenantName(tenant.name || null);
+        setRole(data.role || null);
         setHasAccess(true);
 
       } catch (err: any) {
@@ -95,6 +100,7 @@ export function useTenantAccess(): TenantAccessResult {
     tenantId,
     tenantSlug,
     tenantName,
+    role,
     hasAccess,
     isLoading,
     error

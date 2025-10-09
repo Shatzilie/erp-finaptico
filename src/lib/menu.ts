@@ -9,11 +9,12 @@ export type MenuKey =
   | "calendar"
   | "docs"
   | "advisory"
-  | "company";
+  | "company"
+  | "monitoring";
 
 export const MENU_DEF: Record<
   MenuKey,
-  { label: string; path: (slug: string) => string; icon?: string }
+  { label: string; path: (slug: string) => string; icon?: string; requiresAdmin?: boolean }
 > = {
   dashboard: { label: "Dashboard", path: (s) => `/${s}/dashboard`, icon: "dashboard" },
   invoicing: { label: "Facturación", path: (s) => `/${s}/invoicing`, icon: "bar" },
@@ -25,5 +26,6 @@ export const MENU_DEF: Record<
   calendar:  { label: "Calendario fiscal", path: (s) => `/${s}/calendar`, icon: "calendar" },
   docs:      { label: "Documentación", path: (s) => `/${s}/docs`, icon: "paper" },
   advisory:  { label: "Asesoría",    path: (s) => `/${s}/advisory`, icon: "chat" },
-  company:   { label: "Mi empresa",  path: (s) => `/${s}/company`, icon: "building" }
+  company:   { label: "Mi empresa",  path: (s) => `/${s}/company`, icon: "building" },
+  monitoring: { label: "Monitoring", path: () => `/monitoring`, icon: "activity", requiresAdmin: true }
 };

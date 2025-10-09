@@ -365,6 +365,30 @@ export class DashboardApiClient {
     }
   }
 
+  async getMonitoringData() {
+    console.log('📊 Cargando datos de monitoreo...');
+    
+    try {
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/monitoring-dashboard', {
+        method: 'GET',
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error(`Monitoring endpoint failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Datos de monitoreo cargados correctamente');
+      return result;
+    } catch (error) {
+      handleApiError(error, 'Monitoring');
+      throw error;
+    }
+  }
+
   // 🆕 MÉTODO IVA
   async fetchIVAData(quarter?: number, year?: number, tenantSlug?: string): Promise<{ ok: boolean; widget_data: { iva: { payload: IVAData } } }> {
     const tenant = tenantSlug || this.DEFAULT_TENANT;

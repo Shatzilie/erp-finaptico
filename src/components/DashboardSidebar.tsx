@@ -1,9 +1,11 @@
 import { NavLink } from 'react-router-dom';
 import { useTenantFeatures } from '@/hooks/useTenantFeatures';
+import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { MENU_DEF } from '@/lib/menu';
 
 export const DashboardSidebar = () => {
   const { slug, features } = useTenantFeatures();
+  const { role } = useTenantAccess();
 
   // Mientras carga, muestra un placeholder simple
   if (!features || !slug) {
@@ -30,6 +32,11 @@ export const DashboardSidebar = () => {
   if (features.show_docs)      visible.push("docs");
   if (features.show_advisory)  visible.push("advisory");
   if (features.show_company)   visible.push("company");
+  
+  // Agregar monitoring solo si es admin
+  if (role === 'admin') {
+    visible.push("monitoring");
+  }
 
   return (
     <div className="bg-gradient-sidebar w-64 min-h-screen p-6">
@@ -41,7 +48,8 @@ export const DashboardSidebar = () => {
       <nav className="space-y-2">
         {visible.map((k) => {
           const item = MENU_DEF[k];
-          const to = item.path(slug);
+          // Para monitoring no usar slug ya que es ruta global
+          const to = k === 'monitoring' ? '/monitoring' : item.path(slug);
           return (
             <NavLink
               key={k}
