@@ -5,7 +5,7 @@ import MonitoringPage from './MonitoringPage';
 
 export default function MonitoringPageWithLayout() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute skipTenantCheck={true}>
       <div className="flex min-h-screen bg-background">
         <DashboardSidebar />
         

@@ -7,9 +7,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  skipTenantCheck?: boolean;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  skipTenantCheck = false 
+}) => {
   const { isAuthenticated } = useAuth();
   const { hasAccess, isLoading, error } = useTenantAccess();
   const location = useLocation();
@@ -19,7 +23,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 2. Mostrar loading mientras valida tenant
+  // 2. Si skipTenantCheck es true, solo validar autenticación
+  if (skipTenantCheck) {
+    return <>{children}</>;
+  }
+
+  // 3. Mostrar loading mientras valida tenant
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -31,7 +40,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // 3. Mostrar error si no tiene acceso
+  // 4. Mostrar error si no tiene acceso
   if (error || !hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
@@ -48,6 +57,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // 4. Si todo OK, renderizar children
+  // 5. Si todo OK, renderizar children
   return <>{children}</>;
 };
