@@ -4,11 +4,11 @@ import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { MENU_DEF } from '@/lib/menu';
 
 export const DashboardSidebar = () => {
-  const { slug, features } = useTenantFeatures();
+  const { features } = useTenantFeatures();
   const { role } = useTenantAccess();
 
   // Mientras carga, muestra un placeholder simple
-  if (!features || !slug) {
+  if (!features) {
     return (
       <div className="bg-gradient-sidebar w-64 min-h-screen p-6">
         <div className="mb-8">
@@ -51,12 +51,10 @@ export const DashboardSidebar = () => {
       <nav className="space-y-2">
         {visible.map((k) => {
           const item = MENU_DEF[k];
-          // Para monitoring no usar slug ya que es ruta global
-          const to = k === 'monitoring' ? '/monitoring' : item.path(slug);
           return (
             <NavLink
               key={k}
-              to={to}
+              to={item.path}
               className={({ isActive }) =>
                 `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                   isActive ? "bg-white/20 text-white shadow-sm" : "text-gray-300 hover:bg-white/10 hover:text-white"

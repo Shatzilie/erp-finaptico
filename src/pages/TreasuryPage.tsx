@@ -5,12 +5,6 @@ import { handleApiError } from "@/lib/apiErrorHandler";
 import { Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
-// Cuentas permitidas por tenant (temporal, debería venir de config)
-const ALLOWED_ACCOUNTS_BY_TENANT: Record<string, number[]> = {
-  "young-minds": [32, 40, 31, 39],
-  blacktar: [],
-};
-
 type TreasuryBalance = {
   total: number;
   currency: string;
@@ -75,17 +69,10 @@ export default function TreasuryPage() {
         const treasuryData = result.widget_data.treasury_balance.payload;
         const accounts = treasuryData.accounts || [];
 
-        // Filtrar cuentas según tenant
-        const allowedAccountIds = ALLOWED_ACCOUNTS_BY_TENANT[tenantSlug] || [];
-        const filteredAccounts =
-          allowedAccountIds.length > 0
-            ? accounts.filter((account) => allowedAccountIds.includes(account.id))
-            : accounts; // Si no hay filtro, mostrar todas
-
         setBalance({
           ...treasuryData,
-          accounts: filteredAccounts,
-          total: filteredAccounts.reduce((sum, account) => sum + account.balance, 0),
+          accounts: accounts,
+          total: accounts.reduce((sum, account) => sum + account.balance, 0),
         });
 
         // Movimientos
@@ -128,19 +115,11 @@ export default function TreasuryPage() {
         const treasuryData = data.widget_data.treasury_balance.payload;
         const accounts = treasuryData.accounts || [];
 
-        const allowedAccountIds = ALLOWED_ACCOUNTS_BY_TENANT[tenantSlug] || [];
-        const filteredAccounts =
-          allowedAccountIds.length > 0
-            ? accounts.filter((account) => allowedAccountIds.includes(account.id))
-            : accounts;
-
-        const filteredTreasuryData = {
+        setBalance({
           ...treasuryData,
-          accounts: filteredAccounts,
-          total: filteredAccounts.reduce((sum, account) => sum + account.balance, 0),
-        };
-
-        setBalance(filteredTreasuryData);
+          accounts: accounts,
+          total: accounts.reduce((sum, account) => sum + account.balance, 0),
+        });
       }
 
       // Movimientos

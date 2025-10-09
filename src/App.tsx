@@ -35,22 +35,21 @@ const App = () => (
             <SessionExpiredBanner />
             <div className="flex-1">
               <Routes>
-                <Route path="/" element={<Navigate to="/young-minds/dashboard" replace />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/monitoring" element={<MonitoringPageWithLayout />} />
-                <Route path="/:tenant/dashboard" element={<Dashboard />} />
-                <Route path="/:tenant/treasury" element={<TreasuryPageWithLayout />} />
-                <Route path="/:tenant/invoicing" element={<InvoicingPageWithLayout />} />
-                <Route path="/:tenant/expenses" element={<ExpensesPageWithLayout />} />
-                <Route path="/:tenant/vat" element={<VatPageWithLayout />} />
-                <Route path="/:tenant/irpf" element={<IRPFPageWithLayout />} />
-                <Route path="/:tenant/is" element={<SociedadesPageWithLayout />} />
-                <Route path="/:tenant/calendar" element={<CalendarioFiscal />} />
-                <Route path="/:tenant/docs" element={<StubPageWithLayout title="Documentación" />} />
-                <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
-                <Route path="/:tenant/company" element={<StubPageWithLayout title="Mi empresa" />} />
-                <Route path="/:tenant/account" element={<MyAccountWithLayout />} />
-                <Route path="/:tenant/:section" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/treasury" element={<TreasuryPageWithLayout />} />
+                <Route path="/invoicing" element={<InvoicingPageWithLayout />} />
+                <Route path="/expenses" element={<ExpensesPageWithLayout />} />
+                <Route path="/vat" element={<VatPageWithLayout />} />
+                <Route path="/irpf" element={<IRPFPageWithLayout />} />
+                <Route path="/is" element={<SociedadesPageWithLayout />} />
+                <Route path="/calendar" element={<CalendarioFiscal />} />
+                <Route path="/docs" element={<StubPageWithLayout title="Documentación" />} />
+                <Route path="/advisory" element={<StubPageWithLayout title="Asesoría" />} />
+                <Route path="/company" element={<StubPageWithLayout title="Mi empresa" />} />
+                <Route path="/account" element={<MyAccountWithLayout />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

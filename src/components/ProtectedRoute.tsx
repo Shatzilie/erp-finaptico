@@ -34,23 +34,23 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-600">Verificando permisos...</p>
+          <p className="text-muted-foreground">Verificando permisos de acceso...</p>
         </div>
       </div>
     );
   }
 
-  // 4. Mostrar error si no tiene acceso
+  // 4. Mostrar error si no tiene acceso al tenant
   if (!hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Alert variant="destructive" className="max-w-md">
-          <AlertTitle>Acceso Denegado</AlertTitle>
+          <AlertTitle>Sin Acceso al Tenant</AlertTitle>
           <AlertDescription>
-            No tienes permisos para acceder a esta empresa.
+            No tienes acceso a ningún tenant asignado.
             <br />
             <br />
-            Por favor, contacta con el administrador.
+            Por favor, contacta con el administrador para que te asigne permisos.
           </AlertDescription>
         </Alert>
       </div>
