@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
 import { IvaCard, IrpfCard } from "./FiscalComponents";
+import { formatCurrency } from "@/lib/formatters";
 
 interface KpiBoardProps {
   tenantId: string;
@@ -74,15 +75,6 @@ interface SociedadesData {
     beneficio_neto: number;
   };
 }
-
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value);
-};
 
 const KpiBoard = ({ tenantId }: KpiBoardProps) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -199,7 +191,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Tesoreria</p>
-              <p className="text-2xl font-bold">{formatCurrency(dashboardData.treasury.total)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(dashboardData.treasury.total, 0)}</p>
               <p className="text-xs text-gray-500 mt-1">{dashboardData.treasury.accounts} cuenta{dashboardData.treasury.accounts !== 1 ? 's' : ''}</p>
             </div>
             <div className="bg-blue-50 p-3 rounded-full">
@@ -212,8 +204,8 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Ingresos (mes)</p>
-              <p className="text-2xl font-bold">{formatCurrency(dashboardData.revenue.monthly)}</p>
-              <p className="text-xs text-gray-500 mt-1">Anual: {formatCurrency(dashboardData.revenue.yearly)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(dashboardData.revenue.monthly, 0)}</p>
+              <p className="text-xs text-gray-500 mt-1">Anual: {formatCurrency(dashboardData.revenue.yearly, 0)}</p>
             </div>
             <div className="bg-green-50 p-3 rounded-full">
               <TrendingUp className="w-6 h-6 text-green-600" />
@@ -225,8 +217,8 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Gastos (mes)</p>
-              <p className="text-2xl font-bold">{formatCurrency(dashboardData.expenses.monthly)}</p>
-              <p className="text-xs text-gray-500 mt-1">Anual: {formatCurrency(dashboardData.expenses.yearly)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(dashboardData.expenses.monthly, 0)}</p>
+              <p className="text-xs text-gray-500 mt-1">Anual: {formatCurrency(dashboardData.expenses.yearly, 0)}</p>
             </div>
             <div className="bg-red-50 p-3 rounded-full">
               <TrendingDown className="w-6 h-6 text-red-600" />
@@ -238,7 +230,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Margen Anual</p>
-              <p className="text-2xl font-bold">{formatCurrency(dashboardData.profitability.yearlyMargin)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(dashboardData.profitability.yearlyMargin, 0)}</p>
               <p className="text-xs text-gray-500 mt-1">{dashboardData.profitability.marginPercentage.toFixed(1)}% margen</p>
             </div>
             <div className={`p-3 rounded-full ${dashboardData.profitability.yearlyMargin >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -263,7 +255,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Impuesto de Sociedades {sociedadesData.period.year}</p>
                 <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(sociedadesData.cuota_diferencial)}
+                  {formatCurrency(sociedadesData.cuota_diferencial, 0)}
                 </p>
               </div>
               <div className={`p-3 rounded-full ${sociedadesData.cuota_diferencial < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -273,19 +265,19 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Resultado ejercicio:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.resultado_ejercicio)}</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.resultado_ejercicio, 0)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Beneficio bruto:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_bruto)}</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_bruto, 0)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Provisión impuesto:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.impuesto_provision)}</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.impuesto_provision, 0)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Beneficio neto:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_neto)}</span>
+                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_neto, 0)}</span>
               </div>
               <div className="pt-2 border-t">
                 <span className={`inline-block px-2 py-1 text-xs rounded-full ${

@@ -11,6 +11,7 @@ import { SyncNow } from '@/components/SyncNow';
 import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
+import { formatCurrency, formatNumber } from '@/lib/formatters';
 
 interface SociedadesData {
   resultado_ejercicio: number;
@@ -35,14 +36,6 @@ interface SociedadesData {
     dias_transcurridos: number;
   };
 }
-
-// Utilidad para formatear moneda
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(amount);
-};
 
 const generateYearOptions = () => {
   const currentYear = new Date().getFullYear();
@@ -236,15 +229,12 @@ export default function SociedadesPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+          <div className="text-2xl font-bold">
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <span className={data?.resultado_ejercicio < 0 ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}>
-                  {data?.resultado_ejercicio < 0 ? 
-                    `-${Math.abs(data?.resultado_ejercicio || 0).toFixed(2)}€` : 
-                    `${(data?.resultado_ejercicio || 0).toFixed(2)}€`
-                  }
+                  {formatCurrency(data?.resultado_ejercicio || 0)}
                 </span>
               )}
             </div>
@@ -359,19 +349,19 @@ export default function SociedadesPage() {
             <div>
               <p className="text-sm text-gray-600">Facturación proyectada</p>
               <p className="text-lg font-bold text-blue-700">
-                {data.prevision.ingresos_proyectados.toLocaleString('es-ES')}€
+                {formatNumber(data.prevision.ingresos_proyectados, 0)}€
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Resultado proyectado</p>
               <p className="text-lg font-bold text-blue-700">
-                {data.prevision.resultado_proyectado.toLocaleString('es-ES')}€
+                {formatNumber(data.prevision.resultado_proyectado, 0)}€
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Impuesto estimado</p>
               <p className="text-lg font-bold text-blue-700">
-                {data.prevision.cuota_integra_proyectada.toLocaleString('es-ES')}€
+                {formatNumber(data.prevision.cuota_integra_proyectada, 0)}€
               </p>
             </div>
           </div>

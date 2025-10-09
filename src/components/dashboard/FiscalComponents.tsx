@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { FileText, Receipt } from "lucide-react";
+import { formatCurrency } from "@/lib/formatters";
 
 interface IVAData {
   iva_repercutido: number;
@@ -31,15 +32,6 @@ interface IrpfCardProps {
   data: IRPFData;
 }
 
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value);
-};
-
 export const IvaCard = ({ data }: IvaCardProps) => {
   return (
     <Card className="p-6 hover:shadow-lg transition-shadow">
@@ -49,7 +41,7 @@ export const IvaCard = ({ data }: IvaCardProps) => {
             IVA Q{data.period.quarter} {data.period.year}
           </p>
           <p className={`text-2xl font-bold ${data.iva_diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(data.iva_diferencia)}
+            {formatCurrency(data.iva_diferencia, 0)}
           </p>
         </div>
         <div className={`p-3 rounded-full ${data.iva_diferencia < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -59,11 +51,11 @@ export const IvaCard = ({ data }: IvaCardProps) => {
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-600">IVA Repercutido:</span>
-          <span className="font-medium">{formatCurrency(data.iva_repercutido)}</span>
+          <span className="font-medium">{formatCurrency(data.iva_repercutido, 0)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">IVA Soportado:</span>
-          <span className="font-medium">{formatCurrency(data.iva_soportado)}</span>
+          <span className="font-medium">{formatCurrency(data.iva_soportado, 0)}</span>
         </div>
         <div className="pt-2 border-t">
           <span className={`inline-block px-2 py-1 text-xs rounded-full ${
@@ -88,7 +80,7 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
             IRPF Q{data.period.quarter} {data.period.year}
           </p>
           <p className={`text-2xl font-bold ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(data.diferencia)}
+            {formatCurrency(data.diferencia, 0)}
           </p>
         </div>
         <div className={`p-3 rounded-full ${data.diferencia < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -98,11 +90,11 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-600">Retenciones Practicadas:</span>
-          <span className="font-medium">{formatCurrency(data.retenciones_practicadas)}</span>
+          <span className="font-medium">{formatCurrency(data.retenciones_practicadas, 0)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Retenciones Soportadas:</span>
-          <span className="font-medium">{formatCurrency(data.retenciones_soportadas)}</span>
+          <span className="font-medium">{formatCurrency(data.retenciones_soportadas, 0)}</span>
         </div>
         <div className="pt-2 border-t">
           <span className={`inline-block px-2 py-1 text-xs rounded-full ${

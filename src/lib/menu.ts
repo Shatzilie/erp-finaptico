@@ -9,7 +9,8 @@ export type MenuKey =
   | "calendar"
   | "docs"
   | "advisory"
-  | "company";
+  | "company"
+  | "account";
 
 export const MENU_DEF: Record<
   MenuKey,
@@ -25,5 +26,6 @@ export const MENU_DEF: Record<
   calendar:  { label: "Calendario fiscal", path: (s) => `/${s}/calendar`, icon: "calendar" },
   docs:      { label: "Documentación", path: (s) => `/${s}/docs`, icon: "paper" },
   advisory:  { label: "Asesoría",    path: (s) => `/${s}/advisory`, icon: "chat" },
-  company:   { label: "Mi empresa",  path: (s) => `/${s}/company`, icon: "building" }
+  company:   { label: "Mi empresa",  path: (s) => `/${s}/company`, icon: "building" },
+  account:   { label: "Mi cuenta",   path: (s) => `/${s}/account`, icon: "user" }
 };

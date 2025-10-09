@@ -26,6 +26,7 @@ import {
   createActionableFiscalCalendar,
   type ActionableFiscalObligation 
 } from '@/lib/fiscalCalendar';
+import { formatNumber } from '@/lib/formatters';
 
 interface FiscalData {
   iva: {
@@ -376,7 +377,7 @@ const CalendarioFiscal: React.FC = () => {
                           <div>
                             <span className="font-semibold text-gray-700">Importe estimado:</span>
                             <div className="mt-1 font-bold">
-                              {obligation.estimatedAmount.toLocaleString()}€
+                              {formatNumber(obligation.estimatedAmount, 0)}€
                             </div>
                           </div>
                         )}
@@ -443,7 +444,7 @@ const CalendarioFiscal: React.FC = () => {
                               </Badge>
                               {rec.estimatedSaving && (
                                 <Badge variant="default" className="text-xs">
-                                  Ahorro: {rec.estimatedSaving.toLocaleString()}€
+                                  Ahorro: {formatNumber(rec.estimatedSaving, 0)}€
                                 </Badge>
                               )}
                             </div>

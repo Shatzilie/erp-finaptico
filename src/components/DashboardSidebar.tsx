@@ -30,6 +30,9 @@ export const DashboardSidebar = () => {
   if (features.show_docs)      visible.push("docs");
   if (features.show_advisory)  visible.push("advisory");
   if (features.show_company)   visible.push("company");
+  
+  // Mi cuenta siempre visible
+  visible.push("account");
 
   return (
     <div className="bg-gradient-sidebar w-64 min-h-screen p-6">

@@ -10,6 +10,7 @@ import { SyncNow } from '@/components/SyncNow';
 import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
+import { formatCurrency } from '@/lib/formatters';
 
 interface IVAData {
   iva_repercutido: number;
@@ -23,13 +24,6 @@ interface IVAData {
   sales_invoices_count?: number;
   purchase_invoices_count?: number;
 }
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(amount);
-};
 
 const quarters = [
   { value: 1, label: 'Q1 (Ene-Mar)' },

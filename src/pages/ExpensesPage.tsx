@@ -7,6 +7,7 @@ import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
 import { Loader2 } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatters';
 
 type ExpensesData = {
   monthly_expenses: number;
@@ -14,13 +15,6 @@ type ExpensesData = {
   annual_expenses: number;
   pending_invoices_count: number;
   total_invoices: number;
-};
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(amount);
 };
 
 export default function ExpensesPage() {
