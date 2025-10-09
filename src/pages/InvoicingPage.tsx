@@ -6,7 +6,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
-import { formatCurrency } from '@/lib/utils';
 
 type InvoicingData = {
   monthly_revenue: number;
@@ -17,9 +16,15 @@ type InvoicingData = {
   total_invoices: number;
 };
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  }).format(amount);
+};
 
 export default function InvoicingPage() {
-  const { tenantSlug, isLoading: tenantLoading } = useTenantAccess();
+  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
   const [data, setData] = useState<InvoicingData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,12 +90,12 @@ export default function InvoicingPage() {
   }
 
   // Validar tenant error
-  if (!tenantSlug) {
+  if (tenantError || !tenantSlug) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-red-500 text-center">
           <p className="font-semibold">Error cargando tenant</p>
-          <p>No se pudo obtener el tenant</p>
+          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
         </div>
       </div>
     );

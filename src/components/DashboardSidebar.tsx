@@ -1,14 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import { useTenantFeatures } from '@/hooks/useTenantFeatures';
-import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { MENU_DEF } from '@/lib/menu';
 
 export const DashboardSidebar = () => {
-  const { features } = useTenantFeatures();
-  const { role } = useTenantAccess();
+  const { slug, features } = useTenantFeatures();
 
   // Mientras carga, muestra un placeholder simple
-  if (!features) {
+  if (!features || !slug) {
     return (
       <div className="bg-gradient-sidebar w-64 min-h-screen p-6">
         <div className="mb-8">
@@ -32,14 +30,6 @@ export const DashboardSidebar = () => {
   if (features.show_docs)      visible.push("docs");
   if (features.show_advisory)  visible.push("advisory");
   if (features.show_company)   visible.push("company");
-  
-  // Mi cuenta siempre visible para usuarios autenticados
-  visible.push("account");
-  
-  // Agregar monitoring solo si es admin
-  if (role === 'admin') {
-    visible.push("monitoring");
-  }
 
   return (
     <div className="bg-gradient-sidebar w-64 min-h-screen p-6">
@@ -51,10 +41,11 @@ export const DashboardSidebar = () => {
       <nav className="space-y-2">
         {visible.map((k) => {
           const item = MENU_DEF[k];
+          const to = item.path(slug);
           return (
             <NavLink
               key={k}
-              to={item.path}
+              to={to}
               className={({ isActive }) =>
                 `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                   isActive ? "bg-white/20 text-white shadow-sm" : "text-gray-300 hover:bg-white/10 hover:text-white"

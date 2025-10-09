@@ -25,7 +25,7 @@ import {
 
 export default function MyAccount() {
   const { user, session } = useAuth();
-  const { tenantSlug, isLoading: tenantLoading } = useTenantAccess();
+  const { tenantSlug, tenantName, isLoading: tenantLoading } = useTenantAccess();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -149,6 +149,13 @@ export default function MyAccount() {
             <div className="text-lg font-medium">{user.email}</div>
           </div>
           
+          {tenantName && (
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">Empresa</Label>
+              <div className="text-lg font-medium">{tenantName}</div>
+            </div>
+          )}
+
           {tenantSlug && (
             <div className="grid gap-2">
               <Label className="text-muted-foreground">Código de empresa</Label>

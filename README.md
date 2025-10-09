@@ -1,278 +1,73 @@
-# Finaptico - Sistema de Gestión Financiera Multi-Tenant
+# Welcome to your Lovable project
 
-Sistema ERP financiero para asesorías fiscales que integra Odoo v18.4 con un dashboard interactivo. Permite gestionar múltiples empresas cliente desde una única plataforma con segregación total de datos.
+## Project info
 
-## 🏗️ Arquitectura del Sistema
+**URL**: https://lovable.dev/projects/151d8368-37bb-4abd-aeb2-f1e06140ec76
 
-```
-┌─────────────────┐
-│   React App     │ ← Frontend (Lovable)
-│  (TypeScript)   │
-└────────┬────────┘
-         │ JWT Auth
-         ▼
-┌─────────────────┐
-│  Supabase Auth  │ ← Autenticación
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│      Edge Functions (Deno)          │
-│  • JWT Validation                   │
-│  • Rate Limiting (100 req/hora)     │
-│  • Tenant Validation                │
-│  • Audit Logging                    │
-└────────┬────────────────────────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────┐
-│  Supabase DB    │────▶│  Vault       │
-│  • RLS Activo   │     │  (Secretos)  │
-│  • Multi-tenant │     └──────────────┘
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Odoo v18.4    │ ← ERP Backend
-│  Multi-company  │
-└─────────────────┘
+## How can I edit this code?
+
+There are several ways of editing your application.
+
+**Use Lovable**
+
+Simply visit the [Lovable Project](https://lovable.dev/projects/151d8368-37bb-4abd-aeb2-f1e06140ec76) and start prompting.
+
+Changes made via Lovable will be committed automatically to this repo.
+
+**Use your preferred IDE**
+
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+Follow these steps:
+
+```sh
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
+
+# Step 3: Install the necessary dependencies.
+npm i
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
+npm run dev
 ```
 
-## 🚀 Stack Tecnológico
+**Edit a file directly in GitHub**
 
-### Frontend
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **UI Components**: shadcn/ui + Tailwind CSS
-- **State Management**: React Query (TanStack Query)
-- **Charts**: Recharts
-- **PDF Generation**: jsPDF + html2canvas
-- **Routing**: React Router v6
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-### Backend
-- **BaaS**: Supabase (PostgreSQL + Edge Functions)
-- **Runtime**: Deno (Edge Functions)
-- **Auth**: Supabase Auth (JWT)
-- **Storage**: Supabase Vault (credenciales)
+**Use GitHub Codespaces**
 
-### Integración
-- **ERP**: Odoo v18.4 Enterprise (Multicompany SaaS)
-- **API**: XML-RPC
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-### Testing
-- **Unit Tests**: Vitest
-- **E2E Tests**: Playwright
-- **Coverage**: ~70-80%
+## What technologies are used for this project?
 
-## 📋 Requisitos Previos
+This project is built with:
 
-- Node.js 18+ (solo para desarrollo local)
-- Cuenta de Supabase
-- Acceso a Odoo v18.4 con API habilitada
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
-## 🔧 Variables de Entorno
+## How can I deploy this project?
 
-### Supabase Dashboard
-Configurar en `Edge Functions > Secrets`:
+Simply open [Lovable](https://lovable.dev/projects/151d8368-37bb-4abd-aeb2-f1e06140ec76) and click on Share -> Publish.
 
-```env
-ODOO_BASE_URL=https://your-odoo.odoo.com
-ODOO_DB=your-database-name
-ODOO_USERNAME=user@example.com
-RATE_LIMIT_MAX_REQUESTS=100
-RATE_LIMIT_WINDOW_MINUTES=60
-```
+## Can I connect a custom domain to my Lovable project?
 
-### Vault Secrets
-Configurar en `Supabase Vault`:
+Yes, you can!
 
-```
-odoo_shared_password = "your_odoo_password"
-```
+To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
-### Frontend (.env en Lovable)
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key
-```
-
-## 🎯 Funcionalidades Principales
-
-### Para Usuarios (Clientes)
-- ✅ Dashboard fiscal con KPIs en tiempo real
-- ✅ Visualización de tesorería (gráficos interactivos)
-- ✅ Calendario fiscal automático
-- ✅ Gestión de facturas (emitidas y recibidas)
-- ✅ Gestión de gastos
-- ✅ Control de IVA, IRPF y sociedades
-- ✅ Exportación de informes a PDF
-- ✅ Sincronización manual con Odoo
-
-### Para Administradores
-- ✅ Multi-tenant con segregación total de datos
-- ✅ Gestión de usuarios y permisos
-- ✅ Audit log completo
-- ✅ Rate limiting por usuario
-- ✅ Monitoreo de accesos
-
-## 🔐 Seguridad
-
-El sistema implementa múltiples capas de seguridad:
-
-1. **Autenticación**: JWT de Supabase Auth
-2. **Autorización**: Row Level Security (RLS) en todas las tablas
-3. **Rate Limiting**: 100 peticiones/hora por usuario
-4. **Audit Log**: Registro completo de todas las acciones
-5. **Encriptación**: Credenciales en Supabase Vault
-6. **Validación**: Tenant validation en cada request
-
-Ver [SECURITY.md](./SECURITY.md) para más detalles.
-
-## 📦 Estructura del Proyecto
-
-```
-src/
-├── components/
-│   ├── dashboard/          # Componentes del dashboard
-│   ├── ui/                 # Componentes shadcn/ui
-│   └── *.tsx               # Componentes compartidos
-├── contexts/
-│   └── AuthContext.tsx     # Contexto de autenticación
-├── hooks/
-│   ├── useTenantAccess.ts  # Hook para obtener tenant
-│   ├── useAuthenticatedFetch.ts  # Fetch con JWT
-│   └── useClientRateLimit.ts  # Rate limit cliente
-├── pages/
-│   ├── Dashboard.tsx       # Dashboard principal
-│   ├── CalendarioFiscal.tsx
-│   ├── TreasuryPage.tsx
-│   └── ...                 # Otras páginas
-├── lib/
-│   ├── backendAdapter.ts   # Adaptador para edge functions
-│   ├── apiErrorHandler.ts  # Manejo centralizado de errores
-│   └── utils.ts
-└── integrations/
-    └── supabase/
-        ├── client.ts       # Cliente de Supabase
-        └── types.ts
-
-supabase/
-└── functions/
-    ├── odoo-dashboard/     # Dashboard data
-    ├── odoo-treasury/      # Treasury data
-    ├── odoo-invoices/      # Invoices data
-    ├── odoo-expenses/      # Expenses data
-    ├── odoo-vat/           # VAT data
-    ├── odoo-irpf/          # IRPF data
-    ├── odoo-sociedades/    # Company tax data
-    ├── odoo-sync/          # Manual sync
-    └── financial-report-pdf/  # PDF generation
-
-tests/
-├── unit/                   # Tests unitarios (Vitest)
-└── e2e/                    # Tests E2E (Playwright)
-```
-
-## 📚 Scripts Disponibles
-
-```bash
-# Desarrollo
-npm run dev              # Iniciar servidor de desarrollo
-
-# Testing (requiere proyecto local)
-npm run test             # Unit tests
-npm run test:ui          # Unit tests con UI
-npm run test:coverage    # Coverage report
-npm run test:e2e         # E2E tests (headless)
-npm run test:e2e:headed  # E2E tests (con navegador)
-npm run test:e2e:ui      # Playwright UI
-
-# Build
-npm run build            # Build para producción
-npm run preview          # Preview del build
-```
-
-## 🚀 Deploy
-
-### Supabase (Backend)
-1. Edge Functions ya están desplegadas en Supabase
-2. Configurar variables de entorno en Dashboard
-3. Configurar secretos en Vault
-
-### Lovable (Frontend)
-1. El frontend se despliega automáticamente en Lovable
-2. Configurar variables de entorno en Settings
-3. Conectar dominio personalizado (opcional)
-
-## 📊 Modelo de Datos
-
-### Tablas Principales
-
-**tenants**
-- Empresas cliente
-- Información fiscal y legal
-
-**users** (Supabase Auth)
-- Usuarios del sistema
-
-**user_tenant_access**
-- Relación usuario-empresa (1:1)
-
-**tenant_odoo_config**
-- Configuración de Odoo por tenant
-- Credenciales encriptadas en Vault
-
-**widget_data**
-- Datos cacheados del dashboard
-- Actualización automática cada 6 horas
-
-**sync_runs**
-- Historial de sincronizaciones
-- Estado y errores
-
-**audit_log**
-- Registro completo de acciones
-- Retención 2 años (GDPR)
-
-**rate_limit**
-- Control de peticiones por usuario
-
-## 🔄 Flujo de Sincronización
-
-1. **Automática**: Cada 6 horas vía pg_cron
-2. **Manual**: Botón "Sincronizar Ahora"
-3. **Proceso**:
-   - Edge function → Odoo API
-   - Transformación de datos
-   - Almacenamiento en widget_data
-   - Registro en sync_runs
-   - Audit log
-
-## 🐛 Troubleshooting
-
-### Error: "No tenant access"
-- Verificar que el usuario tiene entrada en `user_tenant_access`
-- Verificar que el tenant existe en `tenants`
-
-### Error: "Odoo connection failed"
-- Verificar credenciales en `tenant_odoo_config`
-- Verificar que la password está en Vault
-- Verificar conectividad con Odoo
-
-### Error: "Rate limit exceeded"
-- El usuario ha excedido 100 peticiones/hora
-- Esperar o aumentar límite en variables de entorno
-
-### Tests E2E fallan
-- Verificar que `.env.test` existe
-- Verificar credenciales del usuario de test
-- Verificar que tenant de test tiene config en `tenant_odoo_config`
-
-## 📝 Licencia
-
-Propietario: Finaptico (https://finaptico.com)
-Todos los derechos reservados.
-
-## 👥 Soporte
-
-Para soporte técnico, contactar a: hola@finaptico.com
+Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)

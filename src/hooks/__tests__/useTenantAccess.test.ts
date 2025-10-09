@@ -15,17 +15,13 @@ vi.mock('../../contexts/AuthContext', () => ({
 describe('useTenantAccess', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuthContext.isAuthenticated = true;
-    mockAuthContext.user = { id: 'test-user-id', email: 'test@example.com' };
   });
 
   it('should return tenant data when user has access', async () => {
     const mockTenantData = {
       tenant_id: 'tenant-123',
-      role: 'admin',
-      tenants: {
-        slug: 'young-minds',
-      },
+      tenant_slug: 'young-minds',
+      tenant_name: 'Young Minds',
     };
 
     mockSupabaseClient.from.mockReturnValue({
@@ -42,12 +38,11 @@ describe('useTenantAccess', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     expect(result.current.tenantSlug).toBe('young-minds');
-    expect(result.current.tenantId).toBe('tenant-123');
-    expect(result.current.role).toBe('admin');
-    expect(result.current.hasAccess).toBe(true);
+    expect(result.current.tenantName).toBe('Young Minds');
+    expect(result.current.error).toBeNull();
   });
 
-  it('should return no access when user has no tenant', async () => {
+  it('should return error when user has no tenant access', async () => {
     mockSupabaseClient.from.mockReturnValue({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -65,16 +60,18 @@ describe('useTenantAccess', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     expect(result.current.tenantSlug).toBeNull();
-    expect(result.current.hasAccess).toBe(false);
+    expect(result.current.error).toBeTruthy();
   });
 
   it('should not fetch when user is not authenticated', () => {
-    mockAuthContext.user = null;
+    mockAuthContext.isAuthenticated = false;
 
     const { result } = renderHook(() => useTenantAccess());
 
     expect(result.current.tenantSlug).toBeNull();
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.hasAccess).toBe(false);
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled();
+
+    // Reset for other tests
+    mockAuthContext.isAuthenticated = true;
   });
 });

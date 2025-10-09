@@ -3,7 +3,12 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
 import { handleApiError } from "@/lib/apiErrorHandler";
 import { Loader2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+
+// Cuentas permitidas por tenant (temporal, debería venir de config)
+const ALLOWED_ACCOUNTS_BY_TENANT: Record<string, number[]> = {
+  "young-minds": [32, 40, 31, 39],
+  blacktar: [],
+};
 
 type TreasuryBalance = {
   total: number;
@@ -26,6 +31,14 @@ type Movement = {
   amount: number;
   journal_id?: [number, string];
 };
+
+function formatEUR(n: number, currency = "EUR") {
+  return Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(n ?? 0);
+}
 
 export default function TreasuryPage() {
   const { tenantSlug, isLoading: isTenantLoading, hasAccess } = useTenantAccess();
@@ -69,10 +82,17 @@ export default function TreasuryPage() {
         const treasuryData = result.widget_data.treasury_balance.payload;
         const accounts = treasuryData.accounts || [];
 
+        // Filtrar cuentas según tenant
+        const allowedAccountIds = ALLOWED_ACCOUNTS_BY_TENANT[tenantSlug] || [];
+        const filteredAccounts =
+          allowedAccountIds.length > 0
+            ? accounts.filter((account) => allowedAccountIds.includes(account.id))
+            : accounts; // Si no hay filtro, mostrar todas
+
         setBalance({
           ...treasuryData,
-          accounts: accounts,
-          total: accounts.reduce((sum, account) => sum + account.balance, 0),
+          accounts: filteredAccounts,
+          total: filteredAccounts.reduce((sum, account) => sum + account.balance, 0),
         });
 
         // Movimientos
@@ -115,11 +135,19 @@ export default function TreasuryPage() {
         const treasuryData = data.widget_data.treasury_balance.payload;
         const accounts = treasuryData.accounts || [];
 
-        setBalance({
+        const allowedAccountIds = ALLOWED_ACCOUNTS_BY_TENANT[tenantSlug] || [];
+        const filteredAccounts =
+          allowedAccountIds.length > 0
+            ? accounts.filter((account) => allowedAccountIds.includes(account.id))
+            : accounts;
+
+        const filteredTreasuryData = {
           ...treasuryData,
-          accounts: accounts,
-          total: accounts.reduce((sum, account) => sum + account.balance, 0),
-        });
+          accounts: filteredAccounts,
+          total: filteredAccounts.reduce((sum, account) => sum + account.balance, 0),
+        };
+
+        setBalance(filteredTreasuryData);
       }
 
       // Movimientos
@@ -189,7 +217,7 @@ export default function TreasuryPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-2xl border p-4 shadow-sm bg-white">
           <div className="text-sm text-muted-foreground">Saldo total</div>
-          <div className="mt-2 text-2xl font-semibold">{loading ? "—" : formatCurrency(balance?.total || 0, currency)}</div>
+          <div className="mt-2 text-2xl font-semibold">{loading ? "—" : formatEUR(balance?.total || 0, currency)}</div>
           <div className="text-xs text-muted-foreground mt-1">
             {loading ? "" : `${balance?.accounts?.length ?? 0} cuentas conectadas`}
           </div>
@@ -207,7 +235,7 @@ export default function TreasuryPage() {
               {balance!.accounts.map((account) => (
                 <div key={account.id} className="rounded-xl border p-3 bg-gray-50">
                   <h3 className="font-medium text-sm">{account.account_name || account.name}</h3>
-                  <p className="text-lg font-semibold mt-1">{formatCurrency(account.balance, currency)}</p>
+                  <p className="text-lg font-semibold mt-1">{formatEUR(account.balance, currency)}</p>
                   <p className="text-xs text-muted-foreground mt-1">IBAN: {account.iban || "No disponible"}</p>
                 </div>
               ))}
@@ -264,7 +292,7 @@ export default function TreasuryPage() {
                     <td className="py-2 pr-4">{m.concept || "-"}</td>
                     <td className="py-2 pr-4">{m.partner || "-"}</td>
                     <td className={`py-2 pr-4 text-right ${m.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      {formatCurrency(m.amount, currency)}
+                      {formatEUR(m.amount, currency)}
                     </td>
                   </tr>
                 ))}

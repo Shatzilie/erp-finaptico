@@ -36,6 +36,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const { fetchWithTimeout } = useAuthenticatedFetch();
+  const { tenantName } = useTenantAccess();
 
   const generateFinancialReport = async () => {
     try {
@@ -116,7 +117,8 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
         <AlertDialogHeader>
           <AlertDialogTitle>¿Generar reporte financiero en PDF?</AlertDialogTitle>
           <AlertDialogDescription>
-            Se generará un documento PDF con información financiera sensible de la empresa. 
+            Se generará un documento PDF con información financiera sensible de{' '}
+            <span className="font-semibold">{tenantName || 'la empresa'}</span>. 
             Esta acción quedará registrada en el sistema.
           </AlertDialogDescription>
         </AlertDialogHeader>

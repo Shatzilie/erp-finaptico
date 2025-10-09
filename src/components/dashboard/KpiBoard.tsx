@@ -3,7 +3,6 @@ import { Card } from "@/components/ui/card";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
 import { IvaCard, IrpfCard } from "./FiscalComponents";
-import { formatCurrency } from "@/lib/utils";
 
 interface KpiBoardProps {
   tenantId: string;
@@ -76,6 +75,14 @@ interface SociedadesData {
   };
 }
 
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value);
+};
 
 const KpiBoard = ({ tenantId }: KpiBoardProps) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);

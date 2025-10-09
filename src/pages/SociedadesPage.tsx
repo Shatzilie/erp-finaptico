@@ -11,7 +11,6 @@ import { SyncNow } from '@/components/SyncNow';
 import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
-import { formatCurrency } from '@/lib/utils';
 
 interface SociedadesData {
   resultado_ejercicio: number;
@@ -37,6 +36,13 @@ interface SociedadesData {
   };
 }
 
+// Utilidad para formatear moneda
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  }).format(amount);
+};
 
 const generateYearOptions = () => {
   const currentYear = new Date().getFullYear();
@@ -57,7 +63,7 @@ const isPeriodInFuture = (year: number) => {
 };
 
 export default function SociedadesPage() {
-  const { tenantSlug, isLoading: tenantLoading } = useTenantAccess();
+  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [data, setData] = useState<SociedadesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,12 +165,12 @@ export default function SociedadesPage() {
   }
 
   // Validar tenant error
-  if (!tenantSlug) {
+  if (tenantError || !tenantSlug) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-red-500 text-center">
           <p className="font-semibold">Error cargando tenant</p>
-          <p>No se pudo obtener el tenant</p>
+          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
         </div>
       </div>
     );

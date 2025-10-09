@@ -10,7 +10,6 @@ import { SyncNow } from '@/components/SyncNow';
 import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleApiError } from '@/lib/apiErrorHandler';
-import { formatCurrency } from '@/lib/utils';
 
 interface IRPFData {
   retenciones_practicadas: number;
@@ -27,6 +26,12 @@ interface IRPFData {
   retenciones_soportadas_count?: number;
 }
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  }).format(amount);
+};
 
 const quarters = [
   { value: 1, label: 'Q1 (Ene-Mar)' },
@@ -57,7 +62,7 @@ const isPeriodInFuture = (quarter: number, year: number) => {
 };
 
 export default function IRPFPage() {
-  const { tenantSlug, isLoading: tenantLoading } = useTenantAccess();
+  const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
   const [irpfData, setIrpfData] = useState<IRPFData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.ceil((new Date().getMonth() + 1) / 3));
@@ -150,12 +155,12 @@ export default function IRPFPage() {
   }
 
   // Validar tenant error
-  if (!tenantSlug) {
+  if (tenantError || !tenantSlug) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-red-500 text-center">
           <p className="font-semibold">Error cargando tenant</p>
-          <p>No se pudo obtener el tenant</p>
+          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
         </div>
       </div>
     );
