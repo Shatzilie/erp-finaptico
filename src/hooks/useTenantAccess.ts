@@ -62,6 +62,14 @@ export function useTenantAccess(): TenantAccessResult {
           .eq('user_id', user.id)
           .single();
 
+        console.log('🔍 DEBUG useTenantAccess:', {
+          userId: user.id,
+          queryError,
+          data,
+          hasData: !!data,
+          hasTenants: !!data?.tenants
+        });
+
         if (queryError) {
           setError('No se pudo obtener el acceso al tenant');
           setHasAccess(false);
