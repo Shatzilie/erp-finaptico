@@ -7,6 +7,7 @@ export type MenuKey =
   | "is"
   | "treasury"
   | "payroll"
+  | "modelo111"
   | "calendar"
   | "docs"
   | "advisory"
@@ -25,6 +26,7 @@ export const MENU_DEF: Record<
   is:        { label: "Impuesto Sociedades", path: (s) => `/${s}/is`, icon: "bank" },
   treasury:  { label: "Tesorería",   path: (s) => `/${s}/treasury`, icon: "wallet" },
   payroll:   { label: "Nóminas",     path: (s) => `/${s}/payroll`, icon: "users" },
+  modelo111: { label: "Modelo 111",  path: (s) => `/${s}/modelo-111`, icon: "file-text" },
   calendar:  { label: "Calendario fiscal", path: (s) => `/${s}/calendar`, icon: "calendar" },
   docs:      { label: "Documentación", path: (s) => `/${s}/docs`, icon: "paper" },
   advisory:  { label: "Asesoría",    path: (s) => `/${s}/advisory`, icon: "chat" },

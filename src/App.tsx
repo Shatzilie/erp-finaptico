@@ -16,6 +16,7 @@ import VatPageWithLayout from "./pages/VatPageWithLayout";
 import IRPFPageWithLayout from "./pages/IRPFPageWithLayout";
 import SociedadesPageWithLayout from "./pages/SociedadesPageWithLayout";
 import PayrollPageWithLayout from "./pages/PayrollPageWithLayout";
+import Modelo111PageWithLayout from "./pages/Modelo111PageWithLayout";
 import MyAccountWithLayout from "./pages/MyAccountWithLayout";
 import { RateLimitIndicator } from '@/components/RateLimitIndicator';
 import { SessionExpiredBanner } from '@/components/SessionExpiredBanner';
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="/:tenant/irpf" element={<IRPFPageWithLayout />} />
                 <Route path="/:tenant/is" element={<SociedadesPageWithLayout />} />
                 <Route path="/:tenant/payroll" element={<PayrollPageWithLayout />} />
+                <Route path="/:tenant/modelo-111" element={<Modelo111PageWithLayout />} />
                 <Route path="/:tenant/calendar" element={<CalendarioFiscal />} />
                 <Route path="/:tenant/docs" element={<StubPageWithLayout title="Documentación" />} />
                 <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
