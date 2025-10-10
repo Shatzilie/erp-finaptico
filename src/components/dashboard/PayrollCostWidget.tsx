@@ -25,6 +25,8 @@ export const PayrollCostWidget = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     const loadPayrollData = async () => {
       if (!tenantSlug) {
         setIsLoading(false);
@@ -63,7 +65,7 @@ export const PayrollCostWidget = () => {
           payload = data.widget_data?.payroll?.payload;
         }
 
-        if (payload) {
+        if (mounted && payload) {
           setPayrollData(payload);
 
           // Formatear nombre del mes en español
@@ -74,14 +76,22 @@ export const PayrollCostWidget = () => {
           setDisplayMonth(`${monthNames[month - 1]} ${year}`);
         }
       } catch (error) {
-        handleApiError(error, 'Coste Laboral');
+        if (mounted) {
+          handleApiError(error, 'Coste Laboral');
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadPayrollData();
-  }, [tenantSlug, fetchWithTimeout]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [tenantSlug]);
 
   const handleClick = () => {
     if (tenantSlug) {
