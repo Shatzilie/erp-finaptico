@@ -1,32 +1,26 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DashboardHeader } from '@/components/DashboardHeader';
-import { DashboardSidebar } from '@/components/DashboardSidebar';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
-import { useTenantAccess } from '@/hooks/useTenantAccess';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Calendar, 
-  Filter, 
-  Clock, 
-  CheckCircle2, 
-  AlertTriangle,
-  Loader2
-} from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DashboardHeader } from "@/components/DashboardHeader";
+import { DashboardSidebar } from "@/components/DashboardSidebar";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useToast } from "@/hooks/use-toast";
+import { Calendar, Filter, Clock, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 
 interface Declaration {
   id: string;
   model_number: string;
   declaration_type: string;
+  period_year: number;
+  period_quarter?: number;
   due_date: string;
   status: string;
   estimated_amount?: number;
-  period?: string;
 }
 
 interface Stats {
@@ -41,107 +35,101 @@ const CalendarioFiscal = () => {
   const [syncing, setSyncing] = useState(false);
   const [declarations, setDeclarations] = useState<Declaration[]>([]);
   const [stats, setStats] = useState<Stats>({ critical: 0, this_week: 0, pending: 0, submitted: 0 });
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [filterType, setFilterType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('pending');
+  const [selectedYear, setSelectedYear] = useState(2025);
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("pending");
   const { fetchWithTimeout } = useAuthenticatedFetch();
-  const { tenantSlug, hasAccess, isLoading: tenantLoading } = useTenantAccess();
+  const { tenantSlug, isLoading: tenantLoading } = useTenantAccess();
   const { toast } = useToast();
+
+  const loadCalendar = async () => {
+    if (!tenantSlug) return;
+
+    try {
+      console.log("📅 Cargando calendario fiscal...");
+      setLoading(true);
+
+      const response = await fetchWithTimeout(
+        "fiscal-calendar",
+        {
+          tenant_slug: tenantSlug,
+          action: "get_calendar",
+          params: {
+            year: selectedYear,
+            status: filterStatus === "all" ? undefined : filterStatus,
+            declaration_type: filterType === "all" ? undefined : filterType,
+          },
+        },
+        { timeout: 15000 },
+      );
+
+      console.log("📊 Respuesta calendario:", response);
+
+      if (response?.widget_data?.fiscal_calendar?.success) {
+        const payload = response.widget_data.fiscal_calendar.payload;
+        setDeclarations(payload.declarations || []);
+        setStats(payload.stats || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
+        console.log(`✅ Calendario cargado: ${payload.declarations?.length || 0} declaraciones`);
+      }
+    } catch (err) {
+      console.error("❌ Error loading calendar:", err);
+      toast({
+        title: "Error al cargar calendario",
+        description: err instanceof Error ? err.message : "Error desconocido",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
-    
-    const loadCalendar = async () => {
-      if (!tenantSlug || !hasAccess) {
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        setLoading(true);
-        const response = await fetchWithTimeout(
-          'fiscal-calendar',
-          {
-            tenant_slug: tenantSlug,
-            action: 'get_calendar',
-            params: {
-              year: selectedYear,
-              status: filterStatus === 'all' ? undefined : filterStatus,
-              declaration_type: filterType === 'all' ? undefined : filterType
-            }
-          },
-          { timeout: 15000 }
-        );
-        
-        if (mounted && response?.ok) {
-          setDeclarations(response.widget_data?.fiscal_calendar?.payload?.declarations || []);
-          setStats(response.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
-        }
-      } catch (err) {
-        console.error('Error loading calendar:', err);
-        if (mounted) {
-          toast({ 
-            title: "Error al cargar calendario", 
-            description: err instanceof Error ? err.message : "Error desconocido",
-            variant: "destructive" 
-          });
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
+
+    if (mounted && tenantSlug) {
+      loadCalendar();
+    }
+
+    return () => {
+      mounted = false;
     };
-    
-    loadCalendar();
-    return () => { mounted = false; };
-  }, [tenantSlug, hasAccess, selectedYear, filterStatus, filterType]);
+  }, [tenantSlug, selectedYear, filterStatus, filterType]);
 
   const syncWithOdoo = async () => {
     if (!tenantSlug) return;
-    
+
     setSyncing(true);
     try {
+      console.log("🔄 Sincronizando con Odoo...");
+
       const response = await fetchWithTimeout(
-        'fiscal-calendar',
+        "fiscal-calendar",
         {
           tenant_slug: tenantSlug,
-          action: 'sync_from_odoo',
-          params: { year: selectedYear }
+          action: "sync_from_odoo",
+          params: { year: selectedYear },
         },
-        { timeout: 30000 }
+        { timeout: 30000 },
       );
-      
-      if (response?.ok) {
-        const synced = response.widget_data?.fiscal_calendar?.payload?.summary?.total_synced || 0;
-        toast({ 
-          title: "Sincronización completada", 
-          description: `Se sincronizaron ${synced} obligaciones fiscales`
+
+      console.log("📊 Respuesta sync:", response);
+
+      if (response?.widget_data?.fiscal_calendar?.success) {
+        const synced = response.widget_data.fiscal_calendar.payload.summary.total_synced;
+        toast({
+          title: "✅ Sincronización completada",
+          description: `Se sincronizaron ${synced} obligaciones fiscales`,
         });
-        
+
         // Recargar calendario
-        const reloadResponse = await fetchWithTimeout(
-          'fiscal-calendar',
-          {
-            tenant_slug: tenantSlug,
-            action: 'get_calendar',
-            params: {
-              year: selectedYear,
-              status: filterStatus === 'all' ? undefined : filterStatus,
-              declaration_type: filterType === 'all' ? undefined : filterType
-            }
-          },
-          { timeout: 15000 }
-        );
-        
-        if (reloadResponse?.ok) {
-          setDeclarations(reloadResponse.widget_data?.fiscal_calendar?.payload?.declarations || []);
-          setStats(reloadResponse.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
-        }
+        await loadCalendar();
       }
     } catch (err) {
-      toast({ 
-        title: "Error al sincronizar", 
+      console.error("❌ Error syncing:", err);
+      toast({
+        title: "Error al sincronizar",
         description: err instanceof Error ? err.message : "Error desconocido",
-        variant: "destructive" 
+        variant: "destructive",
       });
     } finally {
       setSyncing(false);
@@ -150,64 +138,43 @@ const CalendarioFiscal = () => {
 
   const handleUpdateStatus = async (declarationId: string, newStatus: string) => {
     if (!tenantSlug) return;
-    
+
     try {
-      const response = await fetchWithTimeout(
-        'fiscal-calendar',
+      await fetchWithTimeout(
+        "fiscal-calendar",
         {
           tenant_slug: tenantSlug,
-          action: 'update_status',
+          action: "update_status",
           params: {
             declaration_id: declarationId,
-            status: newStatus
-          }
-        },
-        { timeout: 15000 }
-      );
-      
-      if (response?.ok) {
-        toast({ title: "Estado actualizado correctamente" });
-        
-        // Recargar datos
-        const reloadResponse = await fetchWithTimeout(
-          'fiscal-calendar',
-          {
-            tenant_slug: tenantSlug,
-            action: 'get_calendar',
-            params: {
-              year: selectedYear,
-              status: filterStatus === 'all' ? undefined : filterStatus,
-              declaration_type: filterType === 'all' ? undefined : filterType
-            }
+            status: newStatus,
           },
-          { timeout: 15000 }
-        );
-        
-        if (reloadResponse?.ok) {
-          setDeclarations(reloadResponse.widget_data?.fiscal_calendar?.payload?.declarations || []);
-          setStats(reloadResponse.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
-        }
-      }
+        },
+        { timeout: 15000 },
+      );
+
+      toast({ title: "✅ Estado actualizado correctamente" });
+      await loadCalendar();
     } catch (err) {
-      toast({ 
-        title: "Error al actualizar", 
+      toast({
+        title: "Error al actualizar",
         description: err instanceof Error ? err.message : "Error desconocido",
-        variant: "destructive" 
+        variant: "destructive",
       });
     }
   };
 
   const StatusBadge = ({ status }: { status: string }) => {
-    const variants: Record<string, { variant: "secondary" | "default" | "destructive", icon: any, label: string }> = {
+    const variants: Record<string, { variant: "secondary" | "default" | "destructive"; icon: any; label: string }> = {
       pending: { variant: "secondary", icon: Clock, label: "Pendiente" },
       submitted: { variant: "default", icon: CheckCircle2, label: "Presentado" },
       paid: { variant: "default", icon: CheckCircle2, label: "Pagado" },
-      overdue: { variant: "destructive", icon: AlertTriangle, label: "Vencido" }
+      overdue: { variant: "destructive", icon: AlertTriangle, label: "Vencido" },
     };
-    
+
     const config = variants[status] || variants.pending;
     const Icon = config.icon;
-    
+
     return (
       <Badge variant={config.variant}>
         <Icon className="h-3 w-3 mr-1" />
@@ -220,7 +187,7 @@ const CalendarioFiscal = () => {
     const today = new Date();
     const due = new Date(dueDate);
     const diffDays = Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) return { label: "VENCIDO", variant: "destructive" as const };
     if (diffDays === 0) return { label: "HOY", variant: "destructive" as const };
     if (diffDays === 1) return { label: "MAÑANA", variant: "destructive" as const };
@@ -228,7 +195,7 @@ const CalendarioFiscal = () => {
     return null;
   };
 
-  if (tenantLoading || loading) {
+  if (tenantLoading || (loading && !declarations.length)) {
     return (
       <ProtectedRoute>
         <div className="flex min-h-screen bg-background">
@@ -247,36 +214,17 @@ const CalendarioFiscal = () => {
     );
   }
 
-  if (!hasAccess || !tenantSlug) {
-    return (
-      <ProtectedRoute>
-        <div className="flex min-h-screen bg-background">
-          <DashboardSidebar />
-          <div className="flex-1">
-            <DashboardHeader />
-            <main className="flex items-center justify-center min-h-[400px]">
-              <div className="text-center space-y-4">
-                <AlertTriangle className="h-12 w-12 mx-auto text-destructive" />
-                <p className="text-muted-foreground">No tienes acceso a un tenant válido</p>
-              </div>
-            </main>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  const pendingDeclarations = declarations.filter(d => d.status === 'pending');
-  const historyDeclarations = declarations.filter(d => d.status === 'submitted' || d.status === 'paid');
+  const pendingDeclarations = declarations.filter((d) => d.status === "pending");
+  const historyDeclarations = declarations.filter((d) => d.status === "submitted" || d.status === "paid");
 
   return (
     <ProtectedRoute>
       <div className="flex min-h-screen bg-background">
         <DashboardSidebar />
-        
+
         <div className="flex-1">
           <DashboardHeader />
-          
+
           <main className="p-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -285,24 +233,16 @@ const CalendarioFiscal = () => {
                   <Calendar className="h-8 w-8 text-primary" />
                   Calendario Fiscal
                 </h1>
-                <p className="text-muted-foreground mt-1">
-                  Gestión de obligaciones y vencimientos fiscales
-                </p>
+                <p className="text-muted-foreground mt-1">Gestión de obligaciones y vencimientos fiscales</p>
               </div>
-              <Button 
-                onClick={syncWithOdoo} 
-                disabled={syncing}
-                className="gap-2"
-              >
+              <Button onClick={syncWithOdoo} disabled={syncing || !tenantSlug} className="gap-2">
                 {syncing ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Sincronizando...
                   </>
                 ) : (
-                  <>
-                    🔄 Sincronizar con Odoo {selectedYear}
-                  </>
+                  <>🔄 Sincronizar con Odoo {selectedYear}</>
                 )}
               </Button>
             </div>
@@ -363,7 +303,7 @@ const CalendarioFiscal = () => {
               <CardContent className="pt-6">
                 <div className="flex gap-4 flex-wrap items-center">
                   <Filter className="h-4 w-4 text-muted-foreground" />
-                  
+
                   <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
                     <SelectTrigger className="w-[120px]">
                       <SelectValue />
@@ -384,7 +324,6 @@ const CalendarioFiscal = () => {
                       <SelectItem value="iva">IVA</SelectItem>
                       <SelectItem value="irpf">IRPF</SelectItem>
                       <SelectItem value="sociedades">Sociedades</SelectItem>
-                      <SelectItem value="modelo111">Modelo 111</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -403,7 +342,7 @@ const CalendarioFiscal = () => {
               </CardContent>
             </Card>
 
-            {/* Tabs: Pendientes / Historial */}
+            {/* Tabs */}
             <Tabs defaultValue="pending">
               <TabsList>
                 <TabsTrigger value="pending">Pendientes ({pendingDeclarations.length})</TabsTrigger>
@@ -420,7 +359,7 @@ const CalendarioFiscal = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  pendingDeclarations.map(declaration => {
+                  pendingDeclarations.map((declaration) => {
                     const urgency = getUrgency(declaration.due_date);
                     return (
                       <Card key={declaration.id}>
@@ -440,31 +379,33 @@ const CalendarioFiscal = () => {
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">
-                                Vencimiento: {new Date(declaration.due_date).toLocaleDateString('es-ES', { 
-                                  day: '2-digit', 
-                                  month: 'long', 
-                                  year: 'numeric' 
+                                Vencimiento:{" "}
+                                {new Date(declaration.due_date).toLocaleDateString("es-ES", {
+                                  day: "2-digit",
+                                  month: "long",
+                                  year: "numeric",
                                 })}
                               </p>
-                              {declaration.period && (
+                              {declaration.period_quarter && (
                                 <p className="text-sm text-muted-foreground">
-                                  Período: {declaration.period}
+                                  Período: Trimestre {declaration.period_quarter}, {declaration.period_year}
                                 </p>
                               )}
                               {declaration.estimated_amount && (
                                 <p className="text-base font-semibold text-foreground">
-                                  Importe estimado: {declaration.estimated_amount.toLocaleString('es-ES', { 
-                                    style: 'currency', 
-                                    currency: 'EUR' 
+                                  Importe estimado:{" "}
+                                  {declaration.estimated_amount.toLocaleString("es-ES", {
+                                    style: "currency",
+                                    currency: "EUR",
                                   })}
                                 </p>
                               )}
                             </div>
                             <div className="flex gap-2 ml-4">
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="outline"
-                                onClick={() => handleUpdateStatus(declaration.id, 'submitted')}
+                                onClick={() => handleUpdateStatus(declaration.id, "submitted")}
                               >
                                 Marcar Presentado
                               </Button>
@@ -486,38 +427,38 @@ const CalendarioFiscal = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  historyDeclarations.map(declaration => (
+                  historyDeclarations.map((declaration) => (
                     <Card key={declaration.id}>
                       <CardContent className="pt-6">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold text-lg">
-                                {declaration.model_number} - {declaration.declaration_type.toUpperCase()}
-                              </h3>
-                              <StatusBadge status={declaration.status} />
-                            </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-lg">
+                              {declaration.model_number} - {declaration.declaration_type.toUpperCase()}
+                            </h3>
+                            <StatusBadge status={declaration.status} />
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Vencimiento:{" "}
+                            {new Date(declaration.due_date).toLocaleDateString("es-ES", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                          {declaration.period_quarter && (
                             <p className="text-sm text-muted-foreground">
-                              Vencimiento: {new Date(declaration.due_date).toLocaleDateString('es-ES', { 
-                                day: '2-digit', 
-                                month: 'long', 
-                                year: 'numeric' 
+                              Período: Trimestre {declaration.period_quarter}, {declaration.period_year}
+                            </p>
+                          )}
+                          {declaration.estimated_amount && (
+                            <p className="text-base font-semibold text-foreground">
+                              Importe:{" "}
+                              {declaration.estimated_amount.toLocaleString("es-ES", {
+                                style: "currency",
+                                currency: "EUR",
                               })}
                             </p>
-                            {declaration.period && (
-                              <p className="text-sm text-muted-foreground">
-                                Período: {declaration.period}
-                              </p>
-                            )}
-                            {declaration.estimated_amount && (
-                              <p className="text-base font-semibold text-foreground">
-                                Importe: {declaration.estimated_amount.toLocaleString('es-ES', { 
-                                  style: 'currency', 
-                                  currency: 'EUR' 
-                                })}
-                              </p>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
