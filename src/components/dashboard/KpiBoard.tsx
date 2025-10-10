@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
 import { IvaCard, IrpfCard } from "./FiscalComponents";
+import { PayrollCostWidget } from "./PayrollCostWidget";
 import { formatCurrency } from "@/lib/formatters";
 
 interface KpiBoardProps {
@@ -240,7 +241,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {ivaData && (
           <IvaCard data={ivaData} />
         )}
@@ -248,6 +249,8 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         {irpfData && (
           <IrpfCard data={irpfData} />
         )}
+
+        <PayrollCostWidget />
 
         {sociedadesData && (
           <Card className="p-6 hover:shadow-lg transition-shadow">
