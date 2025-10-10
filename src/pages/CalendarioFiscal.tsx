@@ -38,20 +38,21 @@ interface Stats {
 
 const CalendarioFiscal = () => {
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [declarations, setDeclarations] = useState<Declaration[]>([]);
   const [stats, setStats] = useState<Stats>({ critical: 0, this_week: 0, pending: 0, submitted: 0 });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('pending');
   const { fetchWithTimeout } = useAuthenticatedFetch();
-  const { tenantSlug } = useTenantAccess();
+  const { tenantSlug, hasAccess, isLoading: tenantLoading } = useTenantAccess();
   const { toast } = useToast();
 
   useEffect(() => {
     let mounted = true;
     
     const loadCalendar = async () => {
-      if (!tenantSlug) {
+      if (!tenantSlug || !hasAccess) {
         setLoading(false);
         return;
       }
@@ -74,10 +75,17 @@ const CalendarioFiscal = () => {
         
         if (mounted && response?.ok) {
           setDeclarations(response.widget_data?.fiscal_calendar?.payload?.declarations || []);
-          setStats(response.widget_data?.fiscal_calendar?.payload?.stats || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
+          setStats(response.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
         }
       } catch (err) {
         console.error('Error loading calendar:', err);
+        if (mounted) {
+          toast({ 
+            title: "Error al cargar calendario", 
+            description: err instanceof Error ? err.message : "Error desconocido",
+            variant: "destructive" 
+          });
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -85,9 +93,64 @@ const CalendarioFiscal = () => {
     
     loadCalendar();
     return () => { mounted = false; };
-  }, [tenantSlug, selectedYear, filterStatus, filterType]);
+  }, [tenantSlug, hasAccess, selectedYear, filterStatus, filterType]);
+
+  const syncWithOdoo = async () => {
+    if (!tenantSlug) return;
+    
+    setSyncing(true);
+    try {
+      const response = await fetchWithTimeout(
+        'fiscal-calendar',
+        {
+          tenant_slug: tenantSlug,
+          action: 'sync_from_odoo',
+          params: { year: selectedYear }
+        },
+        { timeout: 30000 }
+      );
+      
+      if (response?.ok) {
+        const synced = response.widget_data?.fiscal_calendar?.payload?.summary?.total_synced || 0;
+        toast({ 
+          title: "Sincronización completada", 
+          description: `Se sincronizaron ${synced} obligaciones fiscales`
+        });
+        
+        // Recargar calendario
+        const reloadResponse = await fetchWithTimeout(
+          'fiscal-calendar',
+          {
+            tenant_slug: tenantSlug,
+            action: 'get_calendar',
+            params: {
+              year: selectedYear,
+              status: filterStatus === 'all' ? undefined : filterStatus,
+              declaration_type: filterType === 'all' ? undefined : filterType
+            }
+          },
+          { timeout: 15000 }
+        );
+        
+        if (reloadResponse?.ok) {
+          setDeclarations(reloadResponse.widget_data?.fiscal_calendar?.payload?.declarations || []);
+          setStats(reloadResponse.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
+        }
+      }
+    } catch (err) {
+      toast({ 
+        title: "Error al sincronizar", 
+        description: err instanceof Error ? err.message : "Error desconocido",
+        variant: "destructive" 
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleUpdateStatus = async (declarationId: string, newStatus: string) => {
+    if (!tenantSlug) return;
+    
     try {
       const response = await fetchWithTimeout(
         'fiscal-calendar',
@@ -104,6 +167,7 @@ const CalendarioFiscal = () => {
       
       if (response?.ok) {
         toast({ title: "Estado actualizado correctamente" });
+        
         // Recargar datos
         const reloadResponse = await fetchWithTimeout(
           'fiscal-calendar',
@@ -121,11 +185,15 @@ const CalendarioFiscal = () => {
         
         if (reloadResponse?.ok) {
           setDeclarations(reloadResponse.widget_data?.fiscal_calendar?.payload?.declarations || []);
-          setStats(reloadResponse.widget_data?.fiscal_calendar?.payload?.stats || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
+          setStats(reloadResponse.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
         }
       }
     } catch (err) {
-      toast({ title: "Error al actualizar", variant: "destructive" });
+      toast({ 
+        title: "Error al actualizar", 
+        description: err instanceof Error ? err.message : "Error desconocido",
+        variant: "destructive" 
+      });
     }
   };
 
@@ -160,7 +228,7 @@ const CalendarioFiscal = () => {
     return null;
   };
 
-  if (loading) {
+  if (tenantLoading || loading) {
     return (
       <ProtectedRoute>
         <div className="flex min-h-screen bg-background">
@@ -171,6 +239,25 @@ const CalendarioFiscal = () => {
               <div className="text-center space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
                 <p className="text-muted-foreground">Cargando calendario fiscal...</p>
+              </div>
+            </main>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (!hasAccess || !tenantSlug) {
+    return (
+      <ProtectedRoute>
+        <div className="flex min-h-screen bg-background">
+          <DashboardSidebar />
+          <div className="flex-1">
+            <DashboardHeader />
+            <main className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center space-y-4">
+                <AlertTriangle className="h-12 w-12 mx-auto text-destructive" />
+                <p className="text-muted-foreground">No tienes acceso a un tenant válido</p>
               </div>
             </main>
           </div>
@@ -192,14 +279,32 @@ const CalendarioFiscal = () => {
           
           <main className="p-6 space-y-6">
             {/* Header */}
-            <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <Calendar className="h-8 w-8 text-primary" />
-                Calendario Fiscal
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Gestión de obligaciones y vencimientos fiscales
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                  <Calendar className="h-8 w-8 text-primary" />
+                  Calendario Fiscal
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  Gestión de obligaciones y vencimientos fiscales
+                </p>
+              </div>
+              <Button 
+                onClick={syncWithOdoo} 
+                disabled={syncing}
+                className="gap-2"
+              >
+                {syncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    🔄 Sincronizar con Odoo {selectedYear}
+                  </>
+                )}
+              </Button>
             </div>
 
             {/* KPIs superiores */}
