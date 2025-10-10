@@ -6,6 +6,7 @@ export type MenuKey =
   | "irpf"
   | "is"
   | "treasury"
+  | "payroll"
   | "calendar"
   | "docs"
   | "advisory"
@@ -23,6 +24,7 @@ export const MENU_DEF: Record<
   irpf:      { label: "IRPF",        path: (s) => `/${s}/irpf`, icon: "percent" },
   is:        { label: "Impuesto Sociedades", path: (s) => `/${s}/is`, icon: "bank" },
   treasury:  { label: "Tesorería",   path: (s) => `/${s}/treasury`, icon: "wallet" },
+  payroll:   { label: "Nóminas",     path: (s) => `/${s}/payroll`, icon: "users" },
   calendar:  { label: "Calendario fiscal", path: (s) => `/${s}/calendar`, icon: "calendar" },
   docs:      { label: "Documentación", path: (s) => `/${s}/docs`, icon: "paper" },
   advisory:  { label: "Asesoría",    path: (s) => `/${s}/advisory`, icon: "chat" },

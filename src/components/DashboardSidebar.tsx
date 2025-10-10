@@ -31,7 +31,8 @@ export const DashboardSidebar = () => {
   if (features.show_advisory)  visible.push("advisory");
   if (features.show_company)   visible.push("company");
   
-  // Mi cuenta siempre visible
+  // Nóminas y Mi cuenta siempre visibles
+  visible.push("payroll");
   visible.push("account");
 
   return (
