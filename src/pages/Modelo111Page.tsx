@@ -12,8 +12,6 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Filter, Clock, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
 interface Declaration {
   id: string;
   model_number: string;
@@ -40,8 +38,8 @@ const CalendarioFiscal = () => {
   const [selectedYear, setSelectedYear] = useState(2025);
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("pending");
-  const { fetchWithAuth } = useAuthenticatedFetch();
-  const { tenantSlug, loading: tenantLoading } = useTenantAccess();
+  const { fetchWithTimeout } = useAuthenticatedFetch();
+  const { tenantSlug, isLoading: tenantIsLoading } = useTenantAccess();
   const { toast } = useToast();
 
   const loadCalendar = async () => {
@@ -51,17 +49,14 @@ const CalendarioFiscal = () => {
       console.log("📅 Cargando calendario fiscal...");
       setLoading(true);
 
-      const response = await fetchWithAuth(`${SUPABASE_URL}/functions/v1/fiscal-calendar`, {
-        method: "POST",
-        body: JSON.stringify({
-          tenant_slug: tenantSlug,
-          action: "get_calendar",
-          params: {
-            year: selectedYear,
-            status: filterStatus === "all" ? undefined : filterStatus,
-            declaration_type: filterType === "all" ? undefined : filterType,
-          },
-        }),
+      const response = await fetchWithTimeout("fiscal-calendar", {
+        tenant_slug: tenantSlug,
+        action: "get_calendar",
+        params: {
+          year: selectedYear,
+          status: filterStatus === "all" ? undefined : filterStatus,
+          declaration_type: filterType === "all" ? undefined : filterType,
+        },
       });
 
       console.log("📊 Respuesta calendario:", response);
@@ -103,13 +98,10 @@ const CalendarioFiscal = () => {
     try {
       console.log("🔄 Sincronizando con Odoo...");
 
-      const response = await fetchWithAuth(`${SUPABASE_URL}/functions/v1/fiscal-calendar`, {
-        method: "POST",
-        body: JSON.stringify({
-          tenant_slug: tenantSlug,
-          action: "sync_from_odoo",
-          params: { year: selectedYear },
-        }),
+      const response = await fetchWithTimeout("fiscal-calendar", {
+        tenant_slug: tenantSlug,
+        action: "sync_from_odoo",
+        params: { year: selectedYear },
       });
 
       console.log("📊 Respuesta sync:", response);
@@ -140,16 +132,13 @@ const CalendarioFiscal = () => {
     if (!tenantSlug) return;
 
     try {
-      await fetchWithAuth(`${SUPABASE_URL}/functions/v1/fiscal-calendar`, {
-        method: "POST",
-        body: JSON.stringify({
-          tenant_slug: tenantSlug,
-          action: "update_status",
-          params: {
-            declaration_id: declarationId,
-            status: newStatus,
-          },
-        }),
+      await fetchWithTimeout("fiscal-calendar", {
+        tenant_slug: tenantSlug,
+        action: "update_status",
+        params: {
+          declaration_id: declarationId,
+          status: newStatus,
+        },
       });
 
       toast({ title: "✅ Estado actualizado correctamente" });
@@ -194,7 +183,7 @@ const CalendarioFiscal = () => {
     return null;
   };
 
-  if (tenantLoading || (loading && !declarations.length)) {
+  if (tenantIsLoading || (loading && !declarations.length)) {
     return (
       <ProtectedRoute>
         <div className="flex min-h-screen bg-background">
