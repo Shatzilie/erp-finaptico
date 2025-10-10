@@ -47,7 +47,7 @@ const App = () => (
                 <Route path="/:tenant/is" element={<SociedadesPageWithLayout />} />
                 <Route path="/:tenant/payroll" element={<PayrollPageWithLayout />} />
                 <Route path="/:tenant/modelo-111" element={<Modelo111PageWithLayout />} />
-                <Route path="/:tenant/calendar" element={<CalendarioFiscal />} />
+                <Route path="/:tenant/calendario-fiscal" element={<CalendarioFiscal />} />
                 <Route path="/:tenant/docs" element={<StubPageWithLayout title="Documentación" />} />
                 <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
                 <Route path="/:tenant/company" element={<StubPageWithLayout title="Mi empresa" />} />
