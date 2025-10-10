@@ -1,228 +1,163 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { useTenantFeatures } from '@/hooks/useTenantFeatures';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { useTenantAccess } from '@/hooks/useTenantAccess';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Calendar, 
-  AlertTriangle, 
-  CheckCircle, 
+  Filter, 
   Clock, 
-  FileText, 
-  Euro, 
-  TrendingUp,
-  Bell,
-  CalendarDays,
-  Target,
-  Info
+  CheckCircle2, 
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
-import { 
-  ActionableFiscalCalendar, 
-  createActionableFiscalCalendar,
-  type ActionableFiscalObligation 
-} from '@/lib/fiscalCalendar';
-import { formatNumber } from '@/lib/formatters';
 
-interface FiscalData {
-  iva: {
-    iva_diferencia?: number;
-    diferencia?: number;
-    iva_repercutido: number;
-    iva_soportado: number;
-  };
-  irpf: {
-    diferencia: number;
-    retenciones_practicadas: number;
-    retenciones_soportadas: number;
-  };
-  sociedades: {
-    cuota_diferencial: number;
-    resultado_ejercicio: number;
-    base_imponible: number;
-  };
+interface Declaration {
+  id: string;
+  model_number: string;
+  declaration_type: string;
+  due_date: string;
+  status: string;
+  estimated_amount?: number;
+  period?: string;
 }
 
-const CalendarioFiscal: React.FC = () => {
-  const { slug } = useTenantFeatures();
-  const [obligations, setObligations] = useState<ActionableFiscalObligation[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+interface Stats {
+  critical: number;
+  this_week: number;
+  pending: number;
+  submitted: number;
+}
+
+const CalendarioFiscal = () => {
   const [loading, setLoading] = useState(true);
-  const [fiscalData, setFiscalData] = useState<FiscalData | null>(null);
-
-  // Fetch fiscal data from endpoints
-  const fetchFiscalData = async (): Promise<FiscalData> => {
-    if (!slug) throw new Error('No tenant slug available');
-    
-    // Obtener sesión de Supabase
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError || !session) {
-      throw new Error('No hay sesión activa');
-    }
-
-    const currentYear = new Date().getFullYear();
-    const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-
-    const [ivaResponse, irpfResponse, sociedadesResponse] = await Promise.all([
-      fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-iva', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          tenant_slug: slug,
-          quarter: currentQuarter,
-          year: currentYear
-        })
-      }),
-      fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-irpf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          tenant_slug: slug,
-          quarter: currentQuarter,
-          year: currentYear
-        })
-      }),
-      fetch('https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sociedades', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          tenant_slug: slug,
-          year: currentYear
-        })
-      })
-    ]);
-
-    const [ivaData, irpfData, sociedadesData] = await Promise.all([
-      ivaResponse.json(),
-      irpfResponse.json(),
-      sociedadesResponse.json()
-    ]);
-
-    return {
-      iva: ivaData.widget_data?.iva?.payload || { diferencia: 0, iva_repercutido: 0, iva_soportado: 0 },
-      irpf: irpfData.widget_data?.irpf?.payload || { diferencia: 0, retenciones_practicadas: 0, retenciones_soportadas: 0 },
-      sociedades: sociedadesData.widget_data?.sociedades?.payload || { cuota_diferencial: 0, resultado_ejercicio: 0, base_imponible: 0 }
-    };
-  };
+  const [declarations, setDeclarations] = useState<Declaration[]>([]);
+  const [stats, setStats] = useState<Stats>({ critical: 0, this_week: 0, pending: 0, submitted: 0 });
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('pending');
+  const { fetchWithTimeout } = useAuthenticatedFetch();
+  const { tenantSlug } = useTenantAccess();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const loadFiscalData = async () => {
-      if (!slug) return;
-      
-      setLoading(true);
+    let mounted = true;
+    
+    const loadCalendar = async () => {
+      if (!tenantSlug) {
+        setLoading(false);
+        return;
+      }
       
       try {
-        const data = await fetchFiscalData();
-        setFiscalData(data);
-
-        const companyData = {
-          hasEmployees: true,
-          annualRevenue: 50300,
-          currentIVA: data.iva.iva_diferencia || data.iva.diferencia || 0,
-          currentIRPF: data.irpf.diferencia || 0,
-          currentIS: data.sociedades.cuota_diferencial || 0
-        };
-
-        const fiscalCalendar = createActionableFiscalCalendar(companyData);
-        const currentObligations = fiscalCalendar.getActionableObligations();
-        const currentAlerts = fiscalCalendar.getCriticalAlerts();
-        const currentRecommendations = fiscalCalendar.getActionableRecommendations();
-
-        setObligations(currentObligations);
-        setAlerts(currentAlerts);
-        setRecommendations(currentRecommendations);
+        setLoading(true);
+        const response = await fetchWithTimeout(
+          'fiscal-calendar',
+          {
+            tenant_slug: tenantSlug,
+            action: 'get_calendar',
+            params: {
+              year: selectedYear,
+              status: filterStatus === 'all' ? undefined : filterStatus,
+              declaration_type: filterType === 'all' ? undefined : filterType
+            }
+          },
+          { timeout: 15000 }
+        );
         
-      } catch (error) {
-        console.error('Error cargando calendario fiscal:', error);
+        if (mounted && response?.ok) {
+          setDeclarations(response.widget_data?.fiscal_calendar?.payload?.declarations || []);
+          setStats(response.widget_data?.fiscal_calendar?.payload?.stats || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
+        }
+      } catch (err) {
+        console.error('Error loading calendar:', err);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
+    
+    loadCalendar();
+    return () => { mounted = false; };
+  }, [tenantSlug, selectedYear, filterStatus, filterType]);
 
-    loadFiscalData();
-  }, [slug]);
-
-  const formatDate = (date: Date): string => {
-    return new Intl.DateTimeFormat('es-ES', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    }).format(date);
-  };
-
-  const getUrgencyColor = (urgency: ActionableFiscalObligation['urgency']) => {
-    switch (urgency) {
-      case 'critical':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'upcoming':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'planned':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+  const handleUpdateStatus = async (declarationId: string, newStatus: string) => {
+    try {
+      const response = await fetchWithTimeout(
+        'fiscal-calendar',
+        {
+          tenant_slug: tenantSlug,
+          action: 'update_status',
+          params: {
+            declaration_id: declarationId,
+            status: newStatus
+          }
+        },
+        { timeout: 15000 }
+      );
+      
+      if (response?.ok) {
+        toast({ title: "Estado actualizado correctamente" });
+        // Recargar datos
+        const reloadResponse = await fetchWithTimeout(
+          'fiscal-calendar',
+          {
+            tenant_slug: tenantSlug,
+            action: 'get_calendar',
+            params: {
+              year: selectedYear,
+              status: filterStatus === 'all' ? undefined : filterStatus,
+              declaration_type: filterType === 'all' ? undefined : filterType
+            }
+          },
+          { timeout: 15000 }
+        );
+        
+        if (reloadResponse?.ok) {
+          setDeclarations(reloadResponse.widget_data?.fiscal_calendar?.payload?.declarations || []);
+          setStats(reloadResponse.widget_data?.fiscal_calendar?.payload?.stats || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
+        }
+      }
+    } catch (err) {
+      toast({ title: "Error al actualizar", variant: "destructive" });
     }
   };
 
-  const getUrgencyIcon = (urgency: ActionableFiscalObligation['urgency']) => {
-    switch (urgency) {
-      case 'critical':
-        return <AlertTriangle className="h-4 w-4" />;
-      case 'upcoming':
-        return <Clock className="h-4 w-4" />;
-      case 'planned':
-        return <Calendar className="h-4 w-4" />;
-      default:
-        return <CheckCircle className="h-4 w-4" />;
-    }
+  const StatusBadge = ({ status }: { status: string }) => {
+    const variants: Record<string, { variant: "secondary" | "default" | "destructive", icon: any, label: string }> = {
+      pending: { variant: "secondary", icon: Clock, label: "Pendiente" },
+      submitted: { variant: "default", icon: CheckCircle2, label: "Presentado" },
+      paid: { variant: "default", icon: CheckCircle2, label: "Pagado" },
+      overdue: { variant: "destructive", icon: AlertTriangle, label: "Vencido" }
+    };
+    
+    const config = variants[status] || variants.pending;
+    const Icon = config.icon;
+    
+    return (
+      <Badge variant={config.variant}>
+        <Icon className="h-3 w-3 mr-1" />
+        {config.label}
+      </Badge>
+    );
   };
 
-  const getActionTypeColor = (actionType: ActionableFiscalObligation['actionType']) => {
-    switch (actionType) {
-      case 'pay':
-        return 'destructive';
-      case 'file':
-        return 'secondary';
-      case 'present':
-        return 'outline';
-      case 'prepare':
-        return 'default';
-      case 'info': // Nuevo tipo para IRPF
-        return 'outline';
-      default:
-        return 'secondary';
-    }
-  };
-
-  const getActionTypeLabel = (actionType: ActionableFiscalObligation['actionType']) => {
-    switch (actionType) {
-      case 'pay':
-        return 'Pagar';
-      case 'file':
-        return 'Presentar';
-      case 'present':
-        return 'Declarar';
-      case 'prepare':
-        return 'Preparar';
-      case 'info':
-        return 'Información';
-      default:
-        return 'Acción';
-    }
+  const getUrgency = (dueDate: string) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffDays = Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return { label: "VENCIDO", variant: "destructive" as const };
+    if (diffDays === 0) return { label: "HOY", variant: "destructive" as const };
+    if (diffDays === 1) return { label: "MAÑANA", variant: "destructive" as const };
+    if (diffDays <= 7) return { label: `${diffDays} días`, variant: "secondary" as const };
+    return null;
   };
 
   if (loading) {
@@ -234,8 +169,8 @@ const CalendarioFiscal: React.FC = () => {
             <DashboardHeader />
             <main className="flex items-center justify-center min-h-[400px]">
               <div className="text-center space-y-4">
-                <Calendar className="h-8 w-8 animate-pulse mx-auto text-blue-600" />
-                <p className="text-gray-600">Cargando calendario fiscal...</p>
+                <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                <p className="text-muted-foreground">Cargando calendario fiscal...</p>
               </div>
             </main>
           </div>
@@ -243,6 +178,9 @@ const CalendarioFiscal: React.FC = () => {
       </ProtectedRoute>
     );
   }
+
+  const pendingDeclarations = declarations.filter(d => d.status === 'pending');
+  const historyDeclarations = declarations.filter(d => d.status === 'submitted' || d.status === 'paid');
 
   return (
     <ProtectedRoute>
@@ -252,215 +190,236 @@ const CalendarioFiscal: React.FC = () => {
         <div className="flex-1">
           <DashboardHeader />
           
-          <main className="p-6 space-y-8">
+          <main className="p-6 space-y-6">
             {/* Header */}
-            <div className="text-center space-y-4">
-              <h1 className="text-4xl font-bold text-gray-900 flex items-center justify-center gap-3">
-                <Calendar className="h-10 w-10 text-blue-600" />
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <Calendar className="h-8 w-8 text-primary" />
                 Calendario Fiscal
               </h1>
-              <p className="text-lg text-gray-600">
-                Obligaciones fiscales y próximos vencimientos
+              <p className="text-muted-foreground mt-1">
+                Gestión de obligaciones y vencimientos fiscales
               </p>
             </div>
 
-            {/* Alertas Críticas */}
-            {alerts.length > 0 && (
-              <div className="space-y-4">
-                <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-                  <Bell className="h-6 w-6 text-red-600" />
-                  Alertas Críticas
-                </h2>
-                <div className="grid gap-4">
-                  {alerts.slice(0, 3).map((alert, index) => (
-                    <Alert key={index} className={`${
-                      alert.severity === 'high' ? 'border-red-500 bg-red-50' : 
-                      alert.severity === 'medium' ? 'border-yellow-500 bg-yellow-50' : 
-                      'border-blue-500 bg-blue-50'
-                    }`}>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription className="font-medium">
-                        {alert.message}
-                      </AlertDescription>
-                    </Alert>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Resumen de Estado */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="bg-red-50 border-red-200">
-                <CardContent className="p-6 text-center">
-                  <div className="text-3xl font-bold text-red-700 mb-2">
-                    {obligations.filter(o => o.urgency === 'critical').length}
+            {/* KPIs superiores */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Críticas</p>
+                      <p className="text-3xl font-bold text-red-600">{stats.critical}</p>
+                    </div>
+                    <AlertTriangle className="h-8 w-8 text-red-600" />
                   </div>
-                  <div className="text-sm text-red-600 font-medium">Críticas</div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-yellow-50 border-yellow-200">
-                <CardContent className="p-6 text-center">
-                  <div className="text-3xl font-bold text-yellow-700 mb-2">
-                    {obligations.filter(o => o.urgency === 'upcoming').length}
-                  </div>
-                  <div className="text-sm text-yellow-600 font-medium">Próximas (30 días)</div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-6 text-center">
-                  <div className="text-3xl font-bold text-blue-700 mb-2">
-                    {obligations.filter(o => o.urgency === 'planned').length}
-                  </div>
-                  <div className="text-sm text-blue-600 font-medium">Planificadas</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-green-50 border-green-200">
-                <CardContent className="p-6 text-center">
-                  <div className="text-3xl font-bold text-green-700 mb-2">
-                    {recommendations.length}
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Esta Semana</p>
+                      <p className="text-3xl font-bold text-yellow-600">{stats.this_week}</p>
+                    </div>
+                    <Clock className="h-8 w-8 text-yellow-600" />
                   </div>
-                  <div className="text-sm text-green-600 font-medium">Recomendaciones</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pendientes</p>
+                      <p className="text-3xl font-bold text-blue-600">{stats.pending}</p>
+                    </div>
+                    <Calendar className="h-8 w-8 text-blue-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Presentados</p>
+                      <p className="text-3xl font-bold text-green-600">{stats.submitted}</p>
+                    </div>
+                    <CheckCircle2 className="h-8 w-8 text-green-600" />
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Lista de Obligaciones */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-                <FileText className="h-6 w-6 text-blue-600" />
-                Obligaciones Pendientes
-              </h2>
-              
-              <div className="grid gap-4">
-                {obligations.map((obligation) => (
-                  <Card key={obligation.id} className={`border-2 hover:shadow-lg transition-all duration-200 ${getUrgencyColor(obligation.urgency)}`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {getUrgencyIcon(obligation.urgency)}
-                          <div>
-                            <CardTitle className="text-lg font-bold">
-                              {obligation.name}
-                            </CardTitle>
-                            <p className="text-sm text-gray-600">
-                              Modelo {obligation.model} • {obligation.description}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant={getActionTypeColor(obligation.actionType)} className="mb-2">
-                            {getActionTypeLabel(obligation.actionType)}
-                          </Badge>
-                          <div className="text-sm text-gray-600">
-                            Vence: <strong>{formatDate(obligation.dueDate)}</strong>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {obligation.daysLeft} días restantes
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="pt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
-                        <div>
-                          <span className="font-semibold text-gray-700">Período:</span>
-                          <div className="mt-1">
-                            {obligation.period}
-                          </div>
-                        </div>
-                        
-                        {obligation.estimatedAmount && (
-                          <div>
-                            <span className="font-semibold text-gray-700">Importe estimado:</span>
-                            <div className="mt-1 font-bold">
-                              {formatNumber(obligation.estimatedAmount, 0)}€
-                            </div>
-                          </div>
-                        )}
-                      </div>
+            {/* Filtros */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex gap-4 flex-wrap items-center">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  
+                  <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2024">2024</SelectItem>
+                      <SelectItem value="2025">2025</SelectItem>
+                      <SelectItem value="2026">2026</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-800 font-medium">
-                          📋 {obligation.actionRequired}
-                        </p>
-                      </div>
-                      
-                      {obligation.urgency === 'critical' && (
-                        <div className="mt-4 p-3 bg-red-100 rounded-lg">
-                          <p className="text-sm text-red-800 font-medium">
-                            ⚠️ URGENTE: Esta obligación vence en {obligation.daysLeft} días.
-                          </p>
-                        </div>
-                      )}
+                  <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="iva">IVA</SelectItem>
+                      <SelectItem value="irpf">IRPF</SelectItem>
+                      <SelectItem value="sociedades">Sociedades</SelectItem>
+                      <SelectItem value="modelo111">Modelo 111</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="pending">Pendientes</SelectItem>
+                      <SelectItem value="submitted">Presentados</SelectItem>
+                      <SelectItem value="paid">Pagados</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tabs: Pendientes / Historial */}
+            <Tabs defaultValue="pending">
+              <TabsList>
+                <TabsTrigger value="pending">Pendientes ({pendingDeclarations.length})</TabsTrigger>
+                <TabsTrigger value="history">Historial ({historyDeclarations.length})</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="pending" className="space-y-4">
+                {pendingDeclarations.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6 text-center py-12">
+                      <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                      <p className="text-lg font-semibold text-foreground">¡Todo al día!</p>
+                      <p className="text-sm text-muted-foreground">No hay obligaciones pendientes</p>
                     </CardContent>
                   </Card>
-                ))}
-                
-                {obligations.length === 0 && (
-                  <Card className="p-8 text-center">
-                    <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                      ¡Todo al día!
-                    </h3>
-                    <p className="text-gray-600">
-                      No tienes obligaciones fiscales pendientes en este momento.
-                    </p>
-                  </Card>
-                )}
-              </div>
-            </div>
-
-            {/* Recomendaciones */}
-            {recommendations.length > 0 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-                  <Target className="h-6 w-6 text-green-600" />
-                  Recomendaciones Fiscales
-                </h2>
-                
-                <div className="grid gap-4">
-                  {recommendations.map((rec, index) => (
-                    <Card key={index} className="border-l-4 border-l-green-500 bg-green-50">
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-3">
-                          <TrendingUp className="h-5 w-5 text-green-600 mt-1" />
-                          <div>
-                            <h3 className="font-bold text-gray-800 mb-1">
-                              {rec.title}
-                            </h3>
-                            <p className="font-medium text-gray-700 mb-2">
-                              {rec.message}
-                            </p>
-                            <div className="flex gap-2">
-                              <Badge 
-                                variant={rec.priority === 'high' ? 'destructive' : rec.priority === 'medium' ? 'secondary' : 'outline'}
-                                className="text-xs"
-                              >
-                                Prioridad {rec.priority === 'high' ? 'Alta' : rec.priority === 'medium' ? 'Media' : 'Baja'}
-                              </Badge>
-                              {rec.estimatedSaving && (
-                                <Badge variant="default" className="text-xs">
-                                  Ahorro: {formatNumber(rec.estimatedSaving, 0)}€
-                                </Badge>
+                ) : (
+                  pendingDeclarations.map(declaration => {
+                    const urgency = getUrgency(declaration.due_date);
+                    return (
+                      <Card key={declaration.id}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-lg">
+                                  {declaration.model_number} - {declaration.declaration_type.toUpperCase()}
+                                </h3>
+                                <StatusBadge status={declaration.status} />
+                                {urgency && (
+                                  <Badge variant={urgency.variant}>
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    {urgency.label}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                Vencimiento: {new Date(declaration.due_date).toLocaleDateString('es-ES', { 
+                                  day: '2-digit', 
+                                  month: 'long', 
+                                  year: 'numeric' 
+                                })}
+                              </p>
+                              {declaration.period && (
+                                <p className="text-sm text-muted-foreground">
+                                  Período: {declaration.period}
+                                </p>
+                              )}
+                              {declaration.estimated_amount && (
+                                <p className="text-base font-semibold text-foreground">
+                                  Importe estimado: {declaration.estimated_amount.toLocaleString('es-ES', { 
+                                    style: 'currency', 
+                                    currency: 'EUR' 
+                                  })}
+                                </p>
                               )}
                             </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleUpdateStatus(declaration.id, 'submitted')}
+                              >
+                                Marcar Presentado
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </TabsContent>
+
+              <TabsContent value="history" className="space-y-4">
+                {historyDeclarations.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6 text-center py-12">
+                      <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No hay historial de declaraciones</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  historyDeclarations.map(declaration => (
+                    <Card key={declaration.id}>
+                      <CardContent className="pt-6">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-lg">
+                                {declaration.model_number} - {declaration.declaration_type.toUpperCase()}
+                              </h3>
+                              <StatusBadge status={declaration.status} />
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Vencimiento: {new Date(declaration.due_date).toLocaleDateString('es-ES', { 
+                                day: '2-digit', 
+                                month: 'long', 
+                                year: 'numeric' 
+                              })}
+                            </p>
+                            {declaration.period && (
+                              <p className="text-sm text-muted-foreground">
+                                Período: {declaration.period}
+                              </p>
+                            )}
+                            {declaration.estimated_amount && (
+                              <p className="text-base font-semibold text-foreground">
+                                Importe: {declaration.estimated_amount.toLocaleString('es-ES', { 
+                                  style: 'currency', 
+                                  currency: 'EUR' 
+                                })}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="text-center text-sm text-gray-500 pt-6 border-t border-gray-200">
-              Calendario fiscal actualizado automáticamente • {new Date().toLocaleString('es-ES')}
-            </div>
+                  ))
+                )}
+              </TabsContent>
+            </Tabs>
           </main>
         </div>
       </div>

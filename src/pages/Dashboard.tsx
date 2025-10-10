@@ -5,6 +5,7 @@ import { Loader2, FileText } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection from "@/components/dashboard/ChartsSection";
+import { FiscalCalendarWidget } from "@/components/dashboard/FiscalCalendarWidget";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -199,6 +200,10 @@ const Dashboard = () => {
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Clave</h2>
                 <KpiBoard tenantId={tenantSlug} />
               </section>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <FiscalCalendarWidget />
+              </div>
 
               <section>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico</h2>

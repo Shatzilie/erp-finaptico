@@ -1,7 +1,9 @@
-import { LogOut, User, Clock } from 'lucide-react';
+import { LogOut, User, Clock, Bell, Calendar, AlertTriangle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/contexts/AuthContext';
 import { getTenant } from '@/utils/tenants';
 import { FreshnessBadge } from './FreshnessBadge';
@@ -9,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { useTenantAccess } from '@/hooks/useTenantAccess';
 
 interface UserTenantAccess {
   updated_at: string;
@@ -22,6 +26,12 @@ export const DashboardHeader = () => {
   const tenant = getTenant(tenantSlug || '');
   const [lastAccess, setLastAccess] = useState<string | null>(null);
   const [isLoadingAccess, setIsLoadingAccess] = useState(true);
+  
+  // Estados para notificaciones fiscales
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [criticalCount, setCriticalCount] = useState(0);
+  const { fetchWithTimeout } = useAuthenticatedFetch();
+  const { tenantSlug: accessTenantSlug } = useTenantAccess();
 
   // Obtener última actividad del usuario
   useEffect(() => {
@@ -54,6 +64,52 @@ export const DashboardHeader = () => {
 
     fetchLastAccess();
   }, [user?.id]);
+
+  // Cargar alertas fiscales
+  useEffect(() => {
+    let mounted = true;
+
+    const loadAlerts = async () => {
+      if (!accessTenantSlug) return;
+
+      try {
+        const response = await fetchWithTimeout(
+          'fiscal-calendar',
+          {
+            tenant_slug: accessTenantSlug,
+            action: 'get_calendar',
+            params: { status: 'pending' }
+          },
+          { timeout: 15000 }
+        );
+
+        if (mounted && response?.ok) {
+          const { declarations, stats } = response.widget_data?.fiscal_calendar?.payload || { declarations: [], stats: { critical: 0 } };
+          const today = new Date();
+          
+          const critical = declarations.filter((d: any) => {
+            const dueDate = new Date(d.due_date);
+            return dueDate <= today;
+          });
+
+          setAlerts(critical);
+          setCriticalCount(stats.critical || 0);
+        }
+      } catch (err) {
+        console.error('Error loading alerts:', err);
+      }
+    };
+
+    loadAlerts();
+    
+    // Actualizar cada 5 minutos
+    const interval = setInterval(loadAlerts, 5 * 60 * 1000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [accessTenantSlug]);
 
   // Formatear fecha de último acceso
   const formatLastAccess = (dateString: string | null): string => {
@@ -123,6 +179,64 @@ export const DashboardHeader = () => {
               </TooltipContent>
             </Tooltip>
           )}
+
+          {/* Notificaciones fiscales */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                {criticalCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
+                  >
+                    {criticalCount}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  Alertas Fiscales
+                </h3>
+                {alerts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No hay alertas críticas</p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {alerts.map((alert: any) => (
+                      <div key={alert.id} className="p-3 border rounded-lg bg-red-50">
+                        <div className="flex items-start gap-2">
+                          <Calendar className="h-4 w-4 text-red-600 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">
+                              {alert.model_number} - {alert.declaration_type.toUpperCase()}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Vencimiento: {new Date(alert.due_date).toLocaleDateString('es-ES')}
+                            </p>
+                            {alert.estimated_amount && (
+                              <p className="text-sm font-semibold mt-1">
+                                {alert.estimated_amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Button 
+                  variant="link" 
+                  className="w-full"
+                  onClick={() => navigate(`/${accessTenantSlug}/calendario-fiscal`)}
+                >
+                  Ver calendario completo →
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           
           <Button
             variant="outline"
