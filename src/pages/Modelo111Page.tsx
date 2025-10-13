@@ -43,40 +43,11 @@ const CalendarioFiscal = () => {
   const { toast } = useToast();
 
   const loadCalendar = async () => {
-    if (!tenantSlug) return;
-
-    try {
-      console.log("📅 Cargando calendario fiscal...");
-      setLoading(true);
-
-      const response = await fetchWithTimeout("fiscal-calendar", {
-        tenant_slug: tenantSlug,
-        action: "get_calendar",
-        params: {
-          year: selectedYear,
-          status: filterStatus === "all" ? undefined : filterStatus,
-          declaration_type: filterType === "all" ? undefined : filterType,
-        },
-      });
-
-      console.log("📊 Respuesta calendario:", response);
-
-      if (response?.widget_data?.fiscal_calendar?.success) {
-        const payload = response.widget_data.fiscal_calendar.payload;
-        setDeclarations(payload.declarations || []);
-        setStats(payload.stats || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
-        console.log(`✅ Calendario cargado: ${payload.declarations?.length || 0} declaraciones`);
-      }
-    } catch (err) {
-      console.error("❌ Error loading calendar:", err);
-      toast({
-        title: "Error al cargar calendario",
-        description: err instanceof Error ? err.message : "Error desconocido",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    // fiscal-calendar no existe - función deshabilitada
+    // TODO: Reemplazar con datos de odoo-iva, odoo-irpf, odoo-sociedades
+    setLoading(false);
+    setDeclarations([]);
+    setStats({ critical: 0, this_week: 0, pending: 0, submitted: 0 });
   };
 
   useEffect(() => {
@@ -92,64 +63,22 @@ const CalendarioFiscal = () => {
   }, [tenantSlug, selectedYear, filterStatus, filterType]);
 
   const syncWithOdoo = async () => {
-    if (!tenantSlug) return;
-
-    setSyncing(true);
-    try {
-      console.log("🔄 Sincronizando con Odoo...");
-
-      const response = await fetchWithTimeout("fiscal-calendar", {
-        tenant_slug: tenantSlug,
-        action: "sync_from_odoo",
-        params: { year: selectedYear },
-      });
-
-      console.log("📊 Respuesta sync:", response);
-
-      if (response?.widget_data?.fiscal_calendar?.success) {
-        const synced = response.widget_data.fiscal_calendar.payload.summary.total_synced;
-        toast({
-          title: "✅ Sincronización completada",
-          description: `Se sincronizaron ${synced} obligaciones fiscales`,
-        });
-
-        // Recargar calendario
-        await loadCalendar();
-      }
-    } catch (err) {
-      console.error("❌ Error syncing:", err);
-      toast({
-        title: "Error al sincronizar",
-        description: err instanceof Error ? err.message : "Error desconocido",
-        variant: "destructive",
-      });
-    } finally {
-      setSyncing(false);
-    }
+    // fiscal-calendar no existe - sincronización deshabilitada
+    setSyncing(false);
+    toast({
+      title: "Función no disponible",
+      description: "La sincronización se realiza automáticamente en la página de Calendario Fiscal",
+      variant: "default",
+    });
   };
 
   const handleUpdateStatus = async (declarationId: string, newStatus: string) => {
-    if (!tenantSlug) return;
-
-    try {
-      await fetchWithTimeout("fiscal-calendar", {
-        tenant_slug: tenantSlug,
-        action: "update_status",
-        params: {
-          declaration_id: declarationId,
-          status: newStatus,
-        },
-      });
-
-      toast({ title: "✅ Estado actualizado correctamente" });
-      await loadCalendar();
-    } catch (err) {
-      toast({
-        title: "Error al actualizar",
-        description: err instanceof Error ? err.message : "Error desconocido",
-        variant: "destructive",
-      });
-    }
+    // fiscal-calendar no existe - actualización deshabilitada
+    toast({
+      title: "Función no disponible",
+      description: "Los estados se actualizan automáticamente desde Odoo",
+      variant: "default",
+    });
   };
 
   const StatusBadge = ({ status }: { status: string }) => {

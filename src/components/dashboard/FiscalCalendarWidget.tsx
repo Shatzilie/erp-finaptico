@@ -15,38 +15,10 @@ export const FiscalCalendarWidget = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let mounted = true;
-
-    const loadUpcoming = async () => {
-      if (!tenantSlug) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const response = await fetchWithTimeout(
-          'fiscal-calendar',
-          {
-            tenant_slug: tenantSlug,
-            action: 'get_upcoming',
-            params: { limit: 5 }
-          },
-          { timeout: 15000 }
-        );
-
-        if (mounted && response?.ok) {
-          setUpcoming(response.widget_data?.fiscal_calendar?.payload || []);
-        }
-      } catch (err) {
-        console.error('Error loading upcoming:', err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    loadUpcoming();
-    return () => { mounted = false; };
+    // Widget deshabilitado - fiscal-calendar no existe
+    // TODO: Implementar con datos reales de odoo-iva, odoo-irpf, odoo-sociedades
+    setLoading(false);
+    setUpcoming([]);
   }, [tenantSlug]);
 
   const getUrgency = (dueDate: string) => {

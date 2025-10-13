@@ -65,50 +65,12 @@ export const DashboardHeader = () => {
     fetchLastAccess();
   }, [user?.id]);
 
-  // Cargar alertas fiscales
+  // Alertas fiscales deshabilitadas temporalmente
+  // TODO: Implementar con datos reales de odoo-iva, odoo-irpf, odoo-sociedades
   useEffect(() => {
-    let mounted = true;
-
-    const loadAlerts = async () => {
-      if (!accessTenantSlug) return;
-
-      try {
-        const response = await fetchWithTimeout(
-          'fiscal-calendar',
-          {
-            tenant_slug: accessTenantSlug,
-            action: 'get_calendar',
-            params: { status: 'pending' }
-          },
-          { timeout: 15000 }
-        );
-
-        if (mounted && response?.ok) {
-          const { declarations, stats } = response.widget_data?.fiscal_calendar?.payload || { declarations: [], stats: { critical: 0 } };
-          const today = new Date();
-          
-          const critical = declarations.filter((d: any) => {
-            const dueDate = new Date(d.due_date);
-            return dueDate <= today;
-          });
-
-          setAlerts(critical);
-          setCriticalCount(stats.critical || 0);
-        }
-      } catch (err) {
-        console.error('Error loading alerts:', err);
-      }
-    };
-
-    loadAlerts();
-    
-    // Actualizar cada 5 minutos
-    const interval = setInterval(loadAlerts, 5 * 60 * 1000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
+    // No cargar alertas por ahora
+    setAlerts([]);
+    setCriticalCount(0);
   }, [accessTenantSlug]);
 
   // Formatear fecha de último acceso
