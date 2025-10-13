@@ -63,7 +63,7 @@ export function useTenantAccess(): TenantAccessResult {
         setIsLoading(true);
         setError(null);
 
-        const { data, error: queryError } = await supabase
+        const { data, error: queryError } = await (supabase as any)
           .from("user_tenant_access")
           .select(`
             tenant_id,
