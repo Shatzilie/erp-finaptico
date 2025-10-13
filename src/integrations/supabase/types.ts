@@ -7,14 +7,119 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
-      [_ in never]: never
+      tenants: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          odoo_company_id: number
+          currency: string | null
+          created_at: string | null
+          company_legal_name: string | null
+          company_tax_id: string | null
+          company_logo_url: string | null
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name: string
+          odoo_company_id: number
+          currency?: string | null
+          created_at?: string | null
+          company_legal_name?: string | null
+          company_tax_id?: string | null
+          company_logo_url?: string | null
+        }
+        Update: {
+          slug?: string
+          name?: string
+          odoo_company_id?: number
+          currency?: string | null
+          company_legal_name?: string | null
+          company_tax_id?: string | null
+          company_logo_url?: string | null
+        }
+      }
+      user_tenant_access: {
+        Row: {
+          id: string
+          user_id: string
+          tenant_id: string
+          role: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tenant_id: string
+          role: string
+          created_at?: string | null
+        }
+        Update: {
+          role?: string
+        }
+      }
+      fiscal_calendar: {
+        Row: {
+          id: string
+          tenant_id: string
+          declaration_type: string
+          model_number: string | null
+          period_type: string
+          period_year: number
+          period_quarter: number | null
+          period_month: number | null
+          due_date: string
+          estimated_amount: number | null
+          actual_amount: number | null
+          status: string | null
+          submitted_at: string | null
+          paid_at: string | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          declaration_type: string
+          model_number?: string | null
+          period_type: string
+          period_year: number
+          period_quarter?: number | null
+          period_month?: number | null
+          due_date: string
+          estimated_amount?: number | null
+          actual_amount?: number | null
+          status?: string | null
+          submitted_at?: string | null
+          paid_at?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          declaration_type?: string
+          model_number?: string | null
+          period_type?: string
+          period_year?: number
+          period_quarter?: number | null
+          period_month?: number | null
+          due_date?: string
+          estimated_amount?: number | null
+          actual_amount?: number | null
+          status?: string | null
+          submitted_at?: string | null
+          paid_at?: string | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -35,7 +140,7 @@ type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
-export type Tables<
+export type Tables
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
@@ -64,7 +169,7 @@ export type Tables<
       : never
     : never
 
-export type TablesInsert<
+export type TablesInsert
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
@@ -89,7 +194,7 @@ export type TablesInsert<
       : never
     : never
 
-export type TablesUpdate<
+export type TablesUpdate
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
@@ -114,7 +219,7 @@ export type TablesUpdate<
       : never
     : never
 
-export type Enums<
+export type Enums
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
@@ -131,7 +236,7 @@ export type Enums<
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
-export type CompositeTypes<
+export type CompositeTypes
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
