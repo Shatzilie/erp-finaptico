@@ -3,6 +3,7 @@ import { FileText, Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 
 interface IVAData {
+  amount: number;
   iva_repercutido: number;
   iva_soportado: number;
   iva_diferencia: number;
@@ -40,12 +41,12 @@ export const IvaCard = ({ data }: IvaCardProps) => {
           <p className="text-sm text-gray-600 mb-1">
             IVA Q{data.period.quarter} {data.period.year}
           </p>
-          <p className={`text-2xl font-bold ${data.iva_diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(data.iva_diferencia, 0)}
+          <p className={`text-2xl font-bold ${(data.amount || data.iva_diferencia) < 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatCurrency(data.amount || data.iva_diferencia, 0)}
           </p>
         </div>
-        <div className={`p-3 rounded-full ${data.iva_diferencia < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-          <Receipt className={`w-6 h-6 ${data.iva_diferencia < 0 ? 'text-green-600' : 'text-red-600'}`} />
+        <div className={`p-3 rounded-full ${(data.amount || data.iva_diferencia) < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+          <Receipt className={`w-6 h-6 ${(data.amount || data.iva_diferencia) < 0 ? 'text-green-600' : 'text-red-600'}`} />
         </div>
       </div>
       <div className="space-y-2 text-sm">

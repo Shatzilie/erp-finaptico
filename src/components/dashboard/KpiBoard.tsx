@@ -42,6 +42,7 @@ interface DashboardData {
 }
 
 interface IVAData {
+  amount: number;
   iva_repercutido: number;
   iva_soportado: number;
   iva_diferencia: number;

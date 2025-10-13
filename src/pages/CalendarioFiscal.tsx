@@ -99,11 +99,11 @@ const CalendarioFiscal = () => {
                 id: `irpf-${q}-${currentYear}`,
                 model: "111",
                 name: "IRPF",
-                period: irpf.period?.label || `${q}T ${currentYear}`,
-                due_date: irpf.period?.date_to || `${currentYear}-${q * 3}-20`,
-                amount: irpf.diferencia || 0,
-                status: "pending",
-                submission_date: null,
+              period: irpf.period?.label || `${q}T ${currentYear}`,
+              due_date: irpf.period?.date_to || `${currentYear}-${q * 3}-20`,
+              amount: irpf.diferencia || 0,
+              status: irpf.status || "pending",
+              submission_date: irpf.submission_date || null,
               });
             }
           }
