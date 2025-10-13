@@ -2,16 +2,27 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-interface TenantData {
+// Tipos locales para evitar dependencia de types.ts
+type TenantRow = {
   id: string;
   slug: string;
   name: string;
-}
+  odoo_company_id: number;
+  currency: string | null;
+  created_at: string | null;
+  company_legal_name: string | null;
+  company_tax_id: string | null;
+  company_logo_url: string | null;
+};
 
-interface UserTenantAccessData {
+type UserTenantAccessRow = {
+  id: string;
+  user_id: string;
   tenant_id: string;
-  tenants: TenantData | TenantData[];
-}
+  role: string;
+  created_at: string | null;
+  tenants: TenantRow;
+};
 
 interface TenantAccessResult {
   tenantId: string | null;
@@ -24,10 +35,6 @@ interface TenantAccessResult {
 
 /**
  * Hook para obtener el tenant al que el usuario autenticado tiene acceso.
- * Consulta la tabla user_tenant_access para obtener dinámicamente el tenant
- * asignado al usuario actual.
- *
- * @returns {TenantAccessResult} Información del tenant y estado de carga
  */
 export function useTenantAccess(): TenantAccessResult {
   const { user, isAuthenticated } = useAuth();
@@ -39,9 +46,8 @@ export function useTenantAccess(): TenantAccessResult {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Si no está autenticado, resetear todo
     if (!isAuthenticated || !user) {
-      console.log("⚠️ No tenantSlug disponible");
+      console.log("⚠️ No authenticated user");
       setTenantId(null);
       setTenantSlug(null);
       setTenantName(null);
@@ -57,23 +63,18 @@ export function useTenantAccess(): TenantAccessResult {
         setIsLoading(true);
         setError(null);
 
-        // Consultar user_tenant_access (tabla correcta en la BD)
-        const query = (supabase as any)
+        const { data, error: queryError } = await supabase
           .from("user_tenant_access")
-          .select(
-            `
+          .select(`
             tenant_id,
             tenants (
               id,
               slug,
               name
             )
-          `,
-          )
+          `)
           .eq("user_id", user.id)
           .single();
-        
-        const { data, error: queryError } = await query as { data: UserTenantAccessData | null; error: any };
 
         if (queryError) {
           console.error("❌ Error consultando tenant:", queryError);
@@ -91,11 +92,9 @@ export function useTenantAccess(): TenantAccessResult {
           return;
         }
 
-        // Manejar posible array o objeto
-        const tenant = Array.isArray(data.tenants) ? data.tenants[0] : data.tenants;
-
+        const tenant = data.tenants as TenantRow;
         console.log("✅ Tenant encontrado:", tenant.slug);
-
+        
         setTenantId(tenant.id);
         setTenantSlug(tenant.slug);
         setTenantName(tenant.name || null);
