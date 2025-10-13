@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -12,223 +10,211 @@ import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Calendar, 
-  Filter, 
-  Clock, 
   CheckCircle2, 
   AlertTriangle,
-  Loader2
+  Loader2,
+  Clock
 } from 'lucide-react';
 
-interface Declaration {
-  id: string;
-  model_number: string;
-  declaration_type: string;
+interface Obligation {
+  model: string;
+  model_name: string;
+  period: {
+    quarter?: number;
+    year: number;
+    label: string;
+  };
+  amount: number;
+  status: 'pending' | 'presented' | 'overdue';
   due_date: string;
-  status: string;
-  estimated_amount?: number;
-  period?: string;
+  submission_date?: string | null;
+  diferencia?: number;
 }
 
-interface Stats {
+interface SummaryCards {
   critical: number;
-  this_week: number;
-  pending: number;
-  submitted: number;
+  thisWeek: number;
+  presented: number;
+  totalAmount: number;
 }
 
 const CalendarioFiscal = () => {
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [declarations, setDeclarations] = useState<Declaration[]>([]);
-  const [stats, setStats] = useState<Stats>({ critical: 0, this_week: 0, pending: 0, submitted: 0 });
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [filterType, setFilterType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('pending');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [obligations, setObligations] = useState<Obligation[]>([]);
+  const [summaryCards, setSummaryCards] = useState<SummaryCards>({
+    critical: 0,
+    thisWeek: 0,
+    presented: 0,
+    totalAmount: 0
+  });
+  
   const { fetchWithTimeout } = useAuthenticatedFetch();
   const { tenantSlug, hasAccess, isLoading: tenantLoading } = useTenantAccess();
   const { toast } = useToast();
 
+  const calculateSummaryCards = (obligationsList: Obligation[]) => {
+    const today = new Date();
+    
+    const daysToDue = (dueDate: string) => {
+      const due = new Date(dueDate);
+      const diffTime = due.getTime() - today.getTime();
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    };
+    
+    const critical = obligationsList.filter(o => {
+      const days = daysToDue(o.due_date);
+      return days <= 7 && days >= 0 && o.status === 'pending';
+    }).length;
+    
+    const thisWeek = obligationsList.filter(o => {
+      const days = daysToDue(o.due_date);
+      return days <= 7 && days >= 0;
+    }).length;
+    
+    const presented = obligationsList.filter(o => o.status === 'presented').length;
+    
+    const totalAmount = obligationsList
+      .filter(o => o.status === 'pending')
+      .reduce((sum, o) => sum + (o.amount || 0), 0);
+    
+    setSummaryCards({
+      critical,
+      thisWeek,
+      presented,
+      totalAmount
+    });
+  };
+
   useEffect(() => {
     let mounted = true;
     
-    const loadCalendar = async () => {
+    const loadFiscalData = async () => {
       if (!tenantSlug || !hasAccess) {
-        setLoading(false);
+        setIsLoading(false);
         return;
       }
+
+      setIsLoading(true);
+      setError(null);
       
       try {
-        setLoading(true);
-        const response = await fetchWithTimeout(
-          'fiscal-calendar',
-          {
-            tenant_slug: tenantSlug,
-            action: 'get_calendar',
-            params: {
-              year: selectedYear,
-              status: filterStatus === 'all' ? undefined : filterStatus,
-              declaration_type: filterType === 'all' ? undefined : filterType
-            }
-          },
-          { timeout: 15000 }
-        );
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentQuarter = Math.ceil((currentDate.getMonth() + 1) / 3);
         
-        if (mounted && response?.ok) {
-          setDeclarations(response.widget_data?.fiscal_calendar?.payload?.declarations || []);
-          setStats(response.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
+        // Llamar a las 3 funciones en paralelo
+        const [ivaResult, irpfResult, sociedadesResult] = await Promise.all([
+          fetchWithTimeout('odoo-iva', { 
+            tenant_slug: tenantSlug, 
+            quarter: currentQuarter, 
+            year: currentYear 
+          }, { timeout: 30000 }),
+          fetchWithTimeout('odoo-irpf', { 
+            tenant_slug: tenantSlug, 
+            quarter: currentQuarter, 
+            year: currentYear 
+          }, { timeout: 30000 }),
+          fetchWithTimeout('odoo-sociedades', { 
+            tenant_slug: tenantSlug, 
+            year: currentYear 
+          }, { timeout: 30000 })
+        ]);
+        
+        if (!mounted) return;
+        
+        // Construir array de obligaciones desde las 3 respuestas
+        const obligationsList: Obligation[] = [];
+        
+        // IVA
+        if (ivaResult?.widget_data?.iva?.success) {
+          obligationsList.push(ivaResult.widget_data.iva.payload);
         }
+        
+        // IRPF - Solo añadir si hay retenciones (diferencia !== 0)
+        if (irpfResult?.widget_data?.irpf?.success) {
+          const irpfData = irpfResult.widget_data.irpf.payload;
+          if (irpfData.diferencia !== 0) {
+            obligationsList.push(irpfData);
+          }
+        }
+        
+        // Sociedades
+        if (sociedadesResult?.widget_data?.sociedades?.success) {
+          obligationsList.push(sociedadesResult.widget_data.sociedades.payload);
+        }
+        
+        setObligations(obligationsList);
+        calculateSummaryCards(obligationsList);
+        
       } catch (err) {
-        console.error('Error loading calendar:', err);
         if (mounted) {
-          toast({ 
-            title: "Error al cargar calendario", 
-            description: err instanceof Error ? err.message : "Error desconocido",
-            variant: "destructive" 
+          const errorMessage = err instanceof Error ? err.message : 'Error al cargar datos fiscales';
+          setError(errorMessage);
+          console.error('Error loading fiscal data:', err);
+          toast({
+            title: "Error al cargar datos",
+            description: errorMessage,
+            variant: "destructive"
           });
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
     
-    loadCalendar();
-    return () => { mounted = false; };
-  }, [tenantSlug, hasAccess, selectedYear, filterStatus, filterType]);
-
-  const syncWithOdoo = async () => {
-    if (!tenantSlug) return;
+    loadFiscalData();
     
-    setSyncing(true);
-    try {
-      const response = await fetchWithTimeout(
-        'fiscal-calendar',
-        {
-          tenant_slug: tenantSlug,
-          action: 'sync_from_odoo',
-          params: { year: selectedYear }
-        },
-        { timeout: 30000 }
-      );
-      
-      if (response?.ok) {
-        const synced = response.widget_data?.fiscal_calendar?.payload?.summary?.total_synced || 0;
-        toast({ 
-          title: "Sincronización completada", 
-          description: `Se sincronizaron ${synced} obligaciones fiscales`
-        });
-        
-        // Recargar calendario
-        const reloadResponse = await fetchWithTimeout(
-          'fiscal-calendar',
-          {
-            tenant_slug: tenantSlug,
-            action: 'get_calendar',
-            params: {
-              year: selectedYear,
-              status: filterStatus === 'all' ? undefined : filterStatus,
-              declaration_type: filterType === 'all' ? undefined : filterType
-            }
-          },
-          { timeout: 15000 }
-        );
-        
-        if (reloadResponse?.ok) {
-          setDeclarations(reloadResponse.widget_data?.fiscal_calendar?.payload?.declarations || []);
-          setStats(reloadResponse.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
-        }
-      }
-    } catch (err) {
-      toast({ 
-        title: "Error al sincronizar", 
-        description: err instanceof Error ? err.message : "Error desconocido",
-        variant: "destructive" 
-      });
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleUpdateStatus = async (declarationId: string, newStatus: string) => {
-    if (!tenantSlug) return;
-    
-    try {
-      const response = await fetchWithTimeout(
-        'fiscal-calendar',
-        {
-          tenant_slug: tenantSlug,
-          action: 'update_status',
-          params: {
-            declaration_id: declarationId,
-            status: newStatus
-          }
-        },
-        { timeout: 15000 }
-      );
-      
-      if (response?.ok) {
-        toast({ title: "Estado actualizado correctamente" });
-        
-        // Recargar datos
-        const reloadResponse = await fetchWithTimeout(
-          'fiscal-calendar',
-          {
-            tenant_slug: tenantSlug,
-            action: 'get_calendar',
-            params: {
-              year: selectedYear,
-              status: filterStatus === 'all' ? undefined : filterStatus,
-              declaration_type: filterType === 'all' ? undefined : filterType
-            }
-          },
-          { timeout: 15000 }
-        );
-        
-        if (reloadResponse?.ok) {
-          setDeclarations(reloadResponse.widget_data?.fiscal_calendar?.payload?.declarations || []);
-          setStats(reloadResponse.widget_data?.fiscal_calendar?.payload?.summary || { critical: 0, this_week: 0, pending: 0, submitted: 0 });
-        }
-      }
-    } catch (err) {
-      toast({ 
-        title: "Error al actualizar", 
-        description: err instanceof Error ? err.message : "Error desconocido",
-        variant: "destructive" 
-      });
-    }
-  };
-
-  const StatusBadge = ({ status }: { status: string }) => {
-    const variants: Record<string, { variant: "secondary" | "default" | "destructive", icon: any, label: string }> = {
-      pending: { variant: "secondary", icon: Clock, label: "Pendiente" },
-      submitted: { variant: "default", icon: CheckCircle2, label: "Presentado" },
-      paid: { variant: "default", icon: CheckCircle2, label: "Pagado" },
-      overdue: { variant: "destructive", icon: AlertTriangle, label: "Vencido" }
+    return () => {
+      mounted = false;
     };
-    
-    const config = variants[status] || variants.pending;
-    const Icon = config.icon;
-    
-    return (
-      <Badge variant={config.variant}>
-        <Icon className="h-3 w-3 mr-1" />
-        {config.label}
-      </Badge>
-    );
+  }, [tenantSlug, hasAccess]);
+
+  const handleSync = () => {
+    window.location.reload();
   };
 
-  const getUrgency = (dueDate: string) => {
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffDays = Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'presented':
+        return <Badge className="bg-green-600 text-white hover:bg-green-700">✅ Presentado</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">⏳ Pendiente</Badge>;
+      case 'overdue':
+        return <Badge variant="destructive">⚠️ Vencido</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const getContextualNote = (obligation: Obligation) => {
+    if (obligation.status === 'presented' && obligation.submission_date) {
+      const date = new Date(obligation.submission_date).toLocaleDateString('es-ES');
+      return `Presentado correctamente el ${date}`;
+    }
     
-    if (diffDays < 0) return { label: "VENCIDO", variant: "destructive" as const };
-    if (diffDays === 0) return { label: "HOY", variant: "destructive" as const };
-    if (diffDays === 1) return { label: "MAÑANA", variant: "destructive" as const };
-    if (diffDays <= 7) return { label: `${diffDays} días`, variant: "secondary" as const };
+    if (obligation.status === 'overdue') {
+      return '⚠️ Plazo vencido - Presentar urgentemente';
+    }
+    
+    if (obligation.status === 'pending') {
+      const daysLeft = Math.ceil(
+        (new Date(obligation.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+      );
+      
+      if (daysLeft <= 7 && daysLeft >= 0) {
+        return `⚡ Vence en ${daysLeft} días - Estoy preparando la presentación`;
+      }
+      
+      return 'Estoy preparando la presentación';
+    }
+    
     return null;
   };
 
-  if (tenantLoading || loading) {
+  if (tenantLoading || isLoading) {
     return (
       <ProtectedRoute>
         <div className="flex min-h-screen bg-background">
@@ -266,8 +252,9 @@ const CalendarioFiscal = () => {
     );
   }
 
-  const pendingDeclarations = declarations.filter(d => d.status === 'pending');
-  const historyDeclarations = declarations.filter(d => d.status === 'submitted' || d.status === 'paid');
+  const sortedObligations = [...obligations].sort(
+    (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+  );
 
   return (
     <ProtectedRoute>
@@ -286,245 +273,130 @@ const CalendarioFiscal = () => {
                   Calendario Fiscal
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Gestión de obligaciones y vencimientos fiscales
+                  Obligaciones fiscales en tiempo real desde Odoo
                 </p>
               </div>
               <Button 
-                onClick={syncWithOdoo} 
-                disabled={syncing}
+                onClick={handleSync} 
+                variant="outline"
+                disabled={isLoading}
                 className="gap-2"
               >
-                {syncing ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Sincronizando...
                   </>
                 ) : (
                   <>
-                    🔄 Sincronizar con Odoo {selectedYear}
+                    🔄 Sincronizar
                   </>
                 )}
               </Button>
             </div>
 
-            {/* KPIs superiores */}
+            {/* Tarjetas resumen */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Críticas</p>
-                      <p className="text-3xl font-bold text-red-600">{stats.critical}</p>
-                    </div>
-                    <AlertTriangle className="h-8 w-8 text-red-600" />
-                  </div>
-                </CardContent>
+              <Card className="p-4">
+                <h4 className="text-sm font-medium text-muted-foreground">Críticas</h4>
+                <p className="text-2xl font-bold text-red-600">{summaryCards.critical}</p>
+                <p className="text-xs text-muted-foreground">Vencen en 7 días</p>
               </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Esta Semana</p>
-                      <p className="text-3xl font-bold text-yellow-600">{stats.this_week}</p>
-                    </div>
-                    <Clock className="h-8 w-8 text-yellow-600" />
-                  </div>
-                </CardContent>
+              
+              <Card className="p-4">
+                <h4 className="text-sm font-medium text-muted-foreground">Próximas</h4>
+                <p className="text-2xl font-bold">{summaryCards.thisWeek}</p>
+                <p className="text-xs text-muted-foreground">Esta semana</p>
               </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pendientes</p>
-                      <p className="text-3xl font-bold text-blue-600">{stats.pending}</p>
-                    </div>
-                    <Calendar className="h-8 w-8 text-blue-600" />
-                  </div>
-                </CardContent>
+              
+              <Card className="p-4">
+                <h4 className="text-sm font-medium text-muted-foreground">Cumplidas</h4>
+                <p className="text-2xl font-bold text-green-600">{summaryCards.presented}</p>
+                <p className="text-xs text-muted-foreground">Presentadas</p>
               </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Presentados</p>
-                      <p className="text-3xl font-bold text-green-600">{stats.submitted}</p>
-                    </div>
-                    <CheckCircle2 className="h-8 w-8 text-green-600" />
-                  </div>
-                </CardContent>
+              
+              <Card className="p-4">
+                <h4 className="text-sm font-medium text-muted-foreground">Total a pagar</h4>
+                <p className="text-2xl font-bold">
+                  {summaryCards.totalAmount.toLocaleString('es-ES', {
+                    style: 'currency',
+                    currency: 'EUR'
+                  })}
+                </p>
+                <p className="text-xs text-muted-foreground">Pendiente</p>
               </Card>
             </div>
 
-            {/* Filtros */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex gap-4 flex-wrap items-center">
-                  <Filter className="h-4 w-4 text-muted-foreground" />
+            {/* Lista de obligaciones */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">Obligaciones Fiscales</h2>
+              
+              {error && (
+                <Card className="border-destructive">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="h-5 w-5" />
+                      <p>{error}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {sortedObligations.length === 0 ? (
+                <Card>
+                  <CardContent className="pt-6 text-center py-12">
+                    <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                    <p className="text-lg font-semibold text-foreground">¡Todo al día!</p>
+                    <p className="text-sm text-muted-foreground">No hay obligaciones pendientes</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                sortedObligations.map((obligation, index) => {
+                  const contextualNote = getContextualNote(obligation);
                   
-                  <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="2024">2024</SelectItem>
-                      <SelectItem value="2025">2025</SelectItem>
-                      <SelectItem value="2026">2026</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={filterType} onValueChange={setFilterType}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="iva">IVA</SelectItem>
-                      <SelectItem value="irpf">IRPF</SelectItem>
-                      <SelectItem value="sociedades">Sociedades</SelectItem>
-                      <SelectItem value="modelo111">Modelo 111</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="pending">Pendientes</SelectItem>
-                      <SelectItem value="submitted">Presentados</SelectItem>
-                      <SelectItem value="paid">Pagados</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tabs: Pendientes / Historial */}
-            <Tabs defaultValue="pending">
-              <TabsList>
-                <TabsTrigger value="pending">Pendientes ({pendingDeclarations.length})</TabsTrigger>
-                <TabsTrigger value="history">Historial ({historyDeclarations.length})</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="pending" className="space-y-4">
-                {pendingDeclarations.length === 0 ? (
-                  <Card>
-                    <CardContent className="pt-6 text-center py-12">
-                      <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                      <p className="text-lg font-semibold text-foreground">¡Todo al día!</p>
-                      <p className="text-sm text-muted-foreground">No hay obligaciones pendientes</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  pendingDeclarations.map(declaration => {
-                    const urgency = getUrgency(declaration.due_date);
-                    return (
-                      <Card key={declaration.id}>
-                        <CardContent className="pt-6">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-2 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-semibold text-lg">
-                                  {declaration.model_number} - {declaration.declaration_type.toUpperCase()}
-                                </h3>
-                                <StatusBadge status={declaration.status} />
-                                {urgency && (
-                                  <Badge variant={urgency.variant}>
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                    {urgency.label}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                Vencimiento: {new Date(declaration.due_date).toLocaleDateString('es-ES', { 
-                                  day: '2-digit', 
-                                  month: 'long', 
-                                  year: 'numeric' 
-                                })}
-                              </p>
-                              {declaration.period && (
-                                <p className="text-sm text-muted-foreground">
-                                  Período: {declaration.period}
-                                </p>
-                              )}
-                              {declaration.estimated_amount && (
-                                <p className="text-base font-semibold text-foreground">
-                                  Importe estimado: {declaration.estimated_amount.toLocaleString('es-ES', { 
-                                    style: 'currency', 
-                                    currency: 'EUR' 
-                                  })}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex gap-2 ml-4">
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleUpdateStatus(declaration.id, 'submitted')}
-                              >
-                                Marcar Presentado
-                              </Button>
-                            </div>
+                  return (
+                    <Card key={index} className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <h3 className="font-semibold">{obligation.model_name}</h3>
+                            {getStatusBadge(obligation.status)}
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-              </TabsContent>
-
-              <TabsContent value="history" className="space-y-4">
-                {historyDeclarations.length === 0 ? (
-                  <Card>
-                    <CardContent className="pt-6 text-center py-12">
-                      <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">No hay historial de declaraciones</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  historyDeclarations.map(declaration => (
-                    <Card key={declaration.id}>
-                      <CardContent className="pt-6">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold text-lg">
-                                {declaration.model_number} - {declaration.declaration_type.toUpperCase()}
-                              </h3>
-                              <StatusBadge status={declaration.status} />
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              Vencimiento: {new Date(declaration.due_date).toLocaleDateString('es-ES', { 
-                                day: '2-digit', 
-                                month: 'long', 
-                                year: 'numeric' 
-                              })}
+                          
+                          <p className="text-sm text-muted-foreground">
+                            {obligation.period.label}
+                          </p>
+                          
+                          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                            <Clock className="h-3 w-3" />
+                            Vence: {new Date(obligation.due_date).toLocaleDateString('es-ES', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </p>
+                          
+                          {contextualNote && (
+                            <p className="text-sm mt-2 text-blue-600">
+                              💡 {contextualNote}
                             </p>
-                            {declaration.period && (
-                              <p className="text-sm text-muted-foreground">
-                                Período: {declaration.period}
-                              </p>
-                            )}
-                            {declaration.estimated_amount && (
-                              <p className="text-base font-semibold text-foreground">
-                                Importe: {declaration.estimated_amount.toLocaleString('es-ES', { 
-                                  style: 'currency', 
-                                  currency: 'EUR' 
-                                })}
-                              </p>
-                            )}
-                          </div>
+                          )}
                         </div>
-                      </CardContent>
+                        
+                        <div className="text-right">
+                          <p className="font-bold text-lg">
+                            {obligation.amount.toLocaleString('es-ES', {
+                              style: 'currency',
+                              currency: 'EUR'
+                            })}
+                          </p>
+                        </div>
+                      </div>
                     </Card>
-                  ))
-                )}
-              </TabsContent>
-            </Tabs>
+                  );
+                })
+              )}
+            </div>
           </main>
         </div>
       </div>
