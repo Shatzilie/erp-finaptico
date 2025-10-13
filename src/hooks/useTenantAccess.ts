@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
+interface TenantData {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+interface UserTenantAccessData {
+  tenant_id: string;
+  tenants: TenantData | TenantData[];
+}
+
 interface TenantAccessResult {
   tenantId: string | null;
   tenantSlug: string | null;
@@ -13,7 +24,7 @@ interface TenantAccessResult {
 
 /**
  * Hook para obtener el tenant al que el usuario autenticado tiene acceso.
- * Consulta la tabla user_tenants para obtener dinámicamente el tenant
+ * Consulta la tabla user_tenant_access para obtener dinámicamente el tenant
  * asignado al usuario actual.
  *
  * @returns {TenantAccessResult} Información del tenant y estado de carga
@@ -46,9 +57,9 @@ export function useTenantAccess(): TenantAccessResult {
         setIsLoading(true);
         setError(null);
 
-        // ✅ CORREGIDO: Consultar user_tenants (NO user_tenant_access)
-        const { data, error: queryError } = await supabase
-          .from("user_tenants")
+        // Consultar user_tenant_access (tabla correcta en la BD)
+        const query = (supabase as any)
+          .from("user_tenant_access")
           .select(
             `
             tenant_id,
@@ -61,6 +72,8 @@ export function useTenantAccess(): TenantAccessResult {
           )
           .eq("user_id", user.id)
           .single();
+        
+        const { data, error: queryError } = await query as { data: UserTenantAccessData | null; error: any };
 
         if (queryError) {
           console.error("❌ Error consultando tenant:", queryError);
