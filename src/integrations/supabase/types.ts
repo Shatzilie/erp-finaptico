@@ -12,6 +12,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      fiscal_calendar: {
+        Row: {
+          id: string
+          tenant_id: string
+          declaration_type: string
+          model_number: string | null
+          period_type: string
+          period_year: number
+          period_quarter: number | null
+          period_month: number | null
+          due_date: string
+          estimated_amount: number | null
+          actual_amount: number | null
+          status: string | null
+          submitted_at: string | null
+          paid_at: string | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          declaration_type: string
+          model_number?: string | null
+          period_type: string
+          period_year: number
+          period_quarter?: number | null
+          period_month?: number | null
+          due_date: string
+          estimated_amount?: number | null
+          actual_amount?: number | null
+          status?: string | null
+          submitted_at?: string | null
+          paid_at?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          tenant_id?: string
+          declaration_type?: string
+          model_number?: string | null
+          period_type?: string
+          period_year?: number
+          period_quarter?: number | null
+          period_month?: number | null
+          due_date?: string
+          estimated_amount?: number | null
+          actual_amount?: number | null
+          status?: string | null
+          submitted_at?: string | null
+          paid_at?: string | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+      }
       tenants: {
         Row: {
           id: string
@@ -62,62 +119,6 @@ export type Database = {
         }
         Update: {
           role?: string
-        }
-      }
-      fiscal_calendar: {
-        Row: {
-          id: string
-          tenant_id: string
-          declaration_type: string
-          model_number: string | null
-          period_type: string
-          period_year: number
-          period_quarter: number | null
-          period_month: number | null
-          due_date: string
-          estimated_amount: number | null
-          actual_amount: number | null
-          status: string | null
-          submitted_at: string | null
-          paid_at: string | null
-          notes: string | null
-          created_at: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          id?: string
-          tenant_id: string
-          declaration_type: string
-          model_number?: string | null
-          period_type: string
-          period_year: number
-          period_quarter?: number | null
-          period_month?: number | null
-          due_date: string
-          estimated_amount?: number | null
-          actual_amount?: number | null
-          status?: string | null
-          submitted_at?: string | null
-          paid_at?: string | null
-          notes?: string | null
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          declaration_type?: string
-          model_number?: string | null
-          period_type?: string
-          period_year?: number
-          period_quarter?: number | null
-          period_month?: number | null
-          due_date?: string
-          estimated_amount?: number | null
-          actual_amount?: number | null
-          status?: string | null
-          submitted_at?: string | null
-          paid_at?: string | null
-          notes?: string | null
-          updated_at?: string | null
         }
       }
     }
