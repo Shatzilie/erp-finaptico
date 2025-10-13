@@ -115,6 +115,11 @@ const CalendarioFiscal = () => {
           }, { timeout: 30000 })
         ]);
         
+        // Debug logs
+        console.log('🧾 IVA Response:', ivaResult?.widget_data?.iva?.payload);
+        console.log('📊 IRPF Response:', irpfResult?.widget_data?.irpf?.payload);
+        console.log('🏢 Sociedades Response:', sociedadesResult?.widget_data?.sociedades?.payload);
+        
         if (!mounted) return;
         
         // Construir array de obligaciones
@@ -129,7 +134,7 @@ const CalendarioFiscal = () => {
             name: iva.model_name,
             period: iva.period.label,
             due_date: iva.due_date,
-            amount: iva.amount,
+            amount: iva.amount || 0,
             status: iva.status,
             submission_date: iva.submission_date,
             note: null
@@ -146,7 +151,7 @@ const CalendarioFiscal = () => {
               name: irpf.model_name,
               period: irpf.period.label,
               due_date: irpf.due_date,
-              amount: irpf.amount,
+              amount: irpf.diferencia || 0,
               status: irpf.status,
               submission_date: irpf.submission_date,
               note: null
@@ -159,13 +164,13 @@ const CalendarioFiscal = () => {
           const sociedades = sociedadesResult.widget_data.sociedades.payload;
           allObligations.push({
             id: `sociedades-${sociedades.period.year}`,
-            model: sociedades.model,
-            name: sociedades.model_name,
-            period: sociedades.period.label,
-            due_date: sociedades.due_date,
-            amount: sociedades.amount,
-            status: sociedades.status,
-            submission_date: sociedades.submission_date,
+            model: '200',
+            name: 'Impuesto de Sociedades',
+            period: `Ejercicio ${sociedades.period.year}`,
+            due_date: sociedades.due_date || `${sociedades.period.year + 1}-07-25`,
+            amount: sociedades.cuota_diferencial || 0,
+            status: 'provisional',
+            submission_date: null,
             note: null
           });
         }
