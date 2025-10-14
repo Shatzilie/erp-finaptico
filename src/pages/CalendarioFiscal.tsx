@@ -4,13 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Filter, Clock, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Calendar, Filter, Clock, CheckCircle2, AlertTriangle, Loader2, Info } from "lucide-react";
 
 interface Obligation {
   id: string;
@@ -93,19 +94,17 @@ const CalendarioFiscal = () => {
           if (irpfRes?.widget_data?.irpf?.success) {
             const irpf = irpfRes.widget_data.irpf.payload;
 
-            // Solo añadir si hay diferencia
-            if (irpf.diferencia !== 0) {
-              allObligations.push({
-                id: `irpf-${q}-${currentYear}`,
-                model: "111",
-                name: "IRPF",
+            // Añadir todas las obligaciones, incluso con amount = 0
+            allObligations.push({
+              id: `irpf-${q}-${currentYear}`,
+              model: "111",
+              name: "IRPF",
               period: irpf.period?.label || `${q}T ${currentYear}`,
               due_date: irpf.period?.date_to || `${currentYear}-${q * 3}-20`,
               amount: irpf.diferencia || 0,
               status: irpf.status || "pending",
               submission_date: irpf.submission_date || null,
-              });
-            }
+            });
           }
         } catch (err) {
           console.error(`Error loading IRPF Q${q}:`, err);
@@ -401,7 +400,7 @@ const CalendarioFiscal = () => {
                         <CardContent className="pt-6">
                           <div className="flex items-start justify-between">
                             <div className="space-y-2 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
+                               <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="font-semibold text-lg">
                                   Modelo {obligation.model} - {obligation.name}
                                 </h3>
@@ -411,6 +410,21 @@ const CalendarioFiscal = () => {
                                     <AlertTriangle className="h-3 w-3 mr-1" />
                                     {urgency.label}
                                   </Badge>
+                                )}
+                                {obligation.amount === 0 && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/30">
+                                          <Info className="h-3 w-3 mr-1" />
+                                          Sin importe a pagar
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Esta obligación no genera pago este período</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">
@@ -422,13 +436,24 @@ const CalendarioFiscal = () => {
                                 })}
                               </p>
                               <p className="text-sm text-muted-foreground">Período: {obligation.period}</p>
-                              <p className="text-base font-semibold text-foreground">
-                                Importe estimado:{" "}
-                                {obligation.amount.toLocaleString("es-ES", {
-                                  style: "currency",
-                                  currency: "EUR",
-                                })}
-                              </p>
+                              {obligation.model === "200" && obligation.amount === 0 ? (
+                                <div className="text-sm space-y-1">
+                                  <p className="text-muted-foreground">
+                                    <span className="font-medium">Base imponible:</span> 0 € (sin beneficios sujetos a tributación)
+                                  </p>
+                                  <p className="text-base font-semibold text-foreground">
+                                    Cuota a pagar: 0,00 €
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-base font-semibold text-foreground">
+                                  Importe estimado:{" "}
+                                  {obligation.amount.toLocaleString("es-ES", {
+                                    style: "currency",
+                                    currency: "EUR",
+                                  })}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -457,6 +482,21 @@ const CalendarioFiscal = () => {
                                 Modelo {obligation.model} - {obligation.name}
                               </h3>
                               <StatusBadge status={obligation.status} />
+                              {obligation.amount === 0 && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/30">
+                                        <Info className="h-3 w-3 mr-1" />
+                                        Sin importe a pagar
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Esta obligación no generó pago este período</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground">
                               Vencimiento:{" "}
@@ -467,13 +507,24 @@ const CalendarioFiscal = () => {
                               })}
                             </p>
                             <p className="text-sm text-muted-foreground">Período: {obligation.period}</p>
-                            <p className="text-base font-semibold text-foreground">
-                              Importe:{" "}
-                              {obligation.amount.toLocaleString("es-ES", {
-                                style: "currency",
-                                currency: "EUR",
-                              })}
-                            </p>
+                            {obligation.model === "200" && obligation.amount === 0 ? (
+                              <div className="text-sm space-y-1">
+                                <p className="text-muted-foreground">
+                                  <span className="font-medium">Base imponible:</span> 0 € (sin beneficios sujetos a tributación)
+                                </p>
+                                <p className="text-base font-semibold text-foreground">
+                                  Cuota pagada: 0,00 €
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-base font-semibold text-foreground">
+                                Importe:{" "}
+                                {obligation.amount.toLocaleString("es-ES", {
+                                  style: "currency",
+                                  currency: "EUR",
+                                })}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </CardContent>
