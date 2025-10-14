@@ -90,7 +90,21 @@ export function useAuthenticatedFetch() {
         throw new Error(`HTTP_${response.status}:${errorData.error || 'Unknown error'}`);
       }
 
-      const data = await response.json();
+      // Detectar tipo de contenido para parsear apropiadamente
+      const contentType = response.headers.get('Content-Type') || '';
+      
+      let data: any;
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else if (contentType.includes('text/html')) {
+        data = await response.text();
+      } else if (contentType.includes('text/plain')) {
+        data = await response.text();
+      } else {
+        // Por defecto, intentar JSON
+        data = await response.json();
+      }
+      
       return data as T;
 
     } catch (error: any) {
