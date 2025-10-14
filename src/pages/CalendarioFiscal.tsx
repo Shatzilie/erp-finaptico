@@ -22,6 +22,14 @@ interface Obligation {
   amount: number;
   status: string;
   submission_date: string | null;
+  // Campos adicionales para Impuesto de Sociedades
+  resultado_ejercicio?: number;
+  cuota_integra?: number;
+  annual_summary?: {
+    beneficio_bruto?: number;
+    impuesto_provision?: number;
+    beneficio_neto?: number;
+  };
 }
 
 const CalendarioFiscal = () => {
@@ -133,6 +141,9 @@ const CalendarioFiscal = () => {
             amount: soc.cuota_diferencial || 0,
             status: "provisional",
             submission_date: null,
+            resultado_ejercicio: soc.resultado_ejercicio,
+            cuota_integra: soc.cuota_integra,
+            annual_summary: soc.annual_summary,
           });
         }
       } catch (err) {
@@ -436,14 +447,44 @@ const CalendarioFiscal = () => {
                                 })}
                               </p>
                               <p className="text-sm text-muted-foreground">Período: {obligation.period}</p>
-                              {obligation.model === "200" && obligation.amount === 0 ? (
-                                <div className="text-sm space-y-1">
-                                  <p className="text-muted-foreground">
-                                    <span className="font-medium">Base imponible:</span> 0 € (sin beneficios sujetos a tributación)
-                                  </p>
-                                  <p className="text-base font-semibold text-foreground">
-                                    Cuota a pagar: 0,00 €
-                                  </p>
+                              {obligation.model === "200" ? (
+                                <div className="space-y-1 mt-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Resultado ejercicio:</span>
+                                    <span className="font-semibold">
+                                      {(obligation.resultado_ejercicio || obligation.annual_summary?.beneficio_bruto || 0).toLocaleString("es-ES", {
+                                        style: "currency",
+                                        currency: "EUR",
+                                      })}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Beneficio bruto:</span>
+                                    <span className="font-semibold">
+                                      {(obligation.annual_summary?.beneficio_bruto || obligation.resultado_ejercicio || 0).toLocaleString("es-ES", {
+                                        style: "currency",
+                                        currency: "EUR",
+                                      })}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Provisión impuesto:</span>
+                                    <span className="font-semibold">
+                                      {(obligation.annual_summary?.impuesto_provision || obligation.cuota_integra || 0).toLocaleString("es-ES", {
+                                        style: "currency",
+                                        currency: "EUR",
+                                      })}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Beneficio neto:</span>
+                                    <span className="font-semibold">
+                                      {(obligation.annual_summary?.beneficio_neto || 0).toLocaleString("es-ES", {
+                                        style: "currency",
+                                        currency: "EUR",
+                                      })}
+                                    </span>
+                                  </div>
                                 </div>
                               ) : (
                                 <p className="text-base font-semibold text-foreground">
@@ -507,14 +548,44 @@ const CalendarioFiscal = () => {
                               })}
                             </p>
                             <p className="text-sm text-muted-foreground">Período: {obligation.period}</p>
-                            {obligation.model === "200" && obligation.amount === 0 ? (
-                              <div className="text-sm space-y-1">
-                                <p className="text-muted-foreground">
-                                  <span className="font-medium">Base imponible:</span> 0 € (sin beneficios sujetos a tributación)
-                                </p>
-                                <p className="text-base font-semibold text-foreground">
-                                  Cuota pagada: 0,00 €
-                                </p>
+                            {obligation.model === "200" ? (
+                              <div className="space-y-1 mt-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Resultado ejercicio:</span>
+                                  <span className="font-semibold">
+                                    {(obligation.resultado_ejercicio || obligation.annual_summary?.beneficio_bruto || 0).toLocaleString("es-ES", {
+                                      style: "currency",
+                                      currency: "EUR",
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Beneficio bruto:</span>
+                                  <span className="font-semibold">
+                                    {(obligation.annual_summary?.beneficio_bruto || obligation.resultado_ejercicio || 0).toLocaleString("es-ES", {
+                                      style: "currency",
+                                      currency: "EUR",
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Provisión impuesto:</span>
+                                  <span className="font-semibold">
+                                    {(obligation.annual_summary?.impuesto_provision || obligation.cuota_integra || 0).toLocaleString("es-ES", {
+                                      style: "currency",
+                                      currency: "EUR",
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Beneficio neto:</span>
+                                  <span className="font-semibold">
+                                    {(obligation.annual_summary?.beneficio_neto || 0).toLocaleString("es-ES", {
+                                      style: "currency",
+                                      currency: "EUR",
+                                    })}
+                                  </span>
+                                </div>
                               </div>
                             ) : (
                               <p className="text-base font-semibold text-foreground">
