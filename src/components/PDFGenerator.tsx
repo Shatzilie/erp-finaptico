@@ -32,7 +32,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
     if (!tenantSlug) {
       toast({
         title: "Error",
-        description: "No se pudo identificar el tenant actual",
+        description: "No se pudo identificar el tenant",
         variant: "destructive",
       });
       return;
@@ -47,7 +47,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
         throw new Error('Sesión expirada');
       }
 
-      console.log('📄 Generando PDF para tenant:', tenantSlug);
+      console.log('📄 Generando PDF para:', tenantSlug);
 
       const response = await fetch(
         `https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf`,
@@ -62,13 +62,22 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
       );
 
       if (!response.ok) {
-        throw new Error(`Error del servidor: ${response.status}`);
+        throw new Error(`Error ${response.status}`);
       }
 
-      // CRÍTICO: NO parsear como JSON - obtener como texto plano
-      const htmlContent = await response.text();
+      // Backend devuelve JSON con HTML en base64
+      const result = await response.json();
       
-      console.log('✅ HTML recibido, longitud:', htmlContent.length);
+      if (!result.success || !result.html_base64) {
+        throw new Error('Respuesta inválida del servidor');
+      }
+
+      console.log('✅ HTML recibido (base64), tamaño:', result.length, 'bytes');
+
+      // Decodificar base64 a HTML
+      const htmlContent = decodeURIComponent(escape(atob(result.html_base64)));
+
+      console.log('✅ HTML decodificado, longitud:', htmlContent.length);
 
       // Abrir en nueva ventana
       const pdfWindow = window.open('', '_blank');
@@ -78,14 +87,14 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
         
         toast({
           title: "✅ PDF generado",
-          description: "Usa Ctrl+P para imprimir o guardar",
+          description: "Usa Ctrl+P para guardar como PDF",
         });
       } else {
-        throw new Error('Popup bloqueado. Habilita popups para este sitio.');
+        throw new Error('Habilita popups para abrir el PDF');
       }
 
     } catch (error: any) {
-      console.error('❌ Error generando PDF:', error);
+      console.error('❌ Error PDF:', error);
       toast({
         title: "Error al generar PDF",
         description: error.message || "Error desconocido",
@@ -101,7 +110,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
       <AlertDialogTrigger asChild>
         <Button
           disabled={isGenerating}
-          className={`${className} bg-violet-600 hover:bg-violet-700 text-white`}
+          className={`${className} bg-violet-600 hover:bg-violet-700`}
           size="lg"
         >
           {isGenerating ? (
@@ -119,10 +128,9 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Generar reporte financiero en PDF?</AlertDialogTitle>
+          <AlertDialogTitle>¿Generar reporte financiero?</AlertDialogTitle>
           <AlertDialogDescription>
-            Se generará un documento PDF con información financiera de{' '}
-            <span className="font-semibold">{tenantName || 'la empresa'}</span>.
+            PDF con datos de {tenantName || 'la empresa'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
