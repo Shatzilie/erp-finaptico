@@ -68,6 +68,11 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
       // Backend devuelve JSON con HTML en base64
       const result = await response.json();
       
+      console.log('🔍 Respuesta completa del backend:', result);
+      console.log('🔍 result.success:', result.success);
+      console.log('🔍 result.html_base64 existe:', !!result.html_base64);
+      console.log('🔍 Primeros 100 caracteres:', result.html_base64?.substring(0, 100));
+      
       if (!result.success || !result.html_base64) {
         throw new Error('Respuesta inválida del servidor');
       }
