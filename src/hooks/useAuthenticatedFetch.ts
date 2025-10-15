@@ -87,8 +87,18 @@ export function useAuthenticatedFetch() {
 
       // Manejar otros errores HTTP
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`HTTP_${response.status}:${errorData.error || 'Unknown error'}`);
+        let errorMessage = 'Unknown error';
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType?.includes('application/json')) {
+          const errorData = await response.json().catch(() => ({}));
+          errorMessage = errorData.error || 'Unknown error';
+        } else {
+          const textError = await response.text().catch(() => 'Could not read error');
+          errorMessage = textError.substring(0, 200);
+        }
+        
+        throw new Error(`HTTP_${response.status}:${errorMessage}`);
       }
 
       // Parsear respuesta según tipo especificado
