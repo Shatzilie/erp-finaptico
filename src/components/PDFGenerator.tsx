@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+
 import { handleApiError } from '@/lib/apiErrorHandler';
 import {
   AlertDialog,
@@ -35,66 +35,73 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
   className = "" 
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const { fetchWithTimeout } = useAuthenticatedFetch();
   const { tenantName } = useTenantAccess();
 
-  const generateFinancialReport = async () => {
-    try {
-      setIsGenerating(true);
-      
-      console.log('🔍 Iniciando petición con responseType: text');
+  const handleGeneratePDF = async () => {
+    if (!tenantSlug) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar el tenant actual",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      const htmlContent = await fetchWithTimeout<string>(
-        'financial-report-pdf',
-        { tenant_slug: tenantSlug },
-        { timeout: 45000, retries: 0, responseType: 'text' }
+    setIsGenerating(true);
+
+    try {
+      // 1. Obtener el token actual directamente de Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('NO_SESSION');
+      }
+
+      // 2. Hacer fetch directo SIN pasar por el hook
+      const response = await fetch(
+        `https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ tenant_slug: tenantSlug }),
+        }
       );
 
-      console.log('✅ Respuesta recibida, tipo:', typeof htmlContent);
-      console.log('📄 Primeros 100 chars:', htmlContent.substring(0, 100));
-
-      if (typeof htmlContent !== 'string') {
-        throw new Error('Invalid PDF response');
+      // 3. Verificar respuesta
+      if (!response.ok) {
+        throw new Error(`HTTP_${response.status}:Error generando PDF`);
       }
 
-      const newWindow = window.open('', '_blank', 'width=800,height=600');
-      if (newWindow) {
-        newWindow.document.write(htmlContent);
-        newWindow.document.close();
-        
-        newWindow.onload = () => {
-          setTimeout(() => {
-            newWindow.print();
-          }, 1000);
-        };
-        
-        console.log('✅ PDF generated successfully');
+      // 4. Obtener HTML como texto (SIN parsear como JSON)
+      const htmlContent = await response.text();
+
+      // 5. Abrir en nueva ventana
+      const pdfWindow = window.open('', '_blank');
+      if (pdfWindow) {
+        pdfWindow.document.write(htmlContent);
+        pdfWindow.document.close();
       } else {
-        const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Informe_Financiero_${new Date().toISOString().slice(0, 7)}.html`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        toast({
+          title: "⚠️ Popup bloqueado",
+          description: "Por favor, permite popups para este sitio y vuelve a intentar",
+          variant: "destructive",
+        });
       }
-      
+
       toast({
-        title: "PDF generado",
-        description: "El informe se ha generado correctamente",
+        title: "✅ PDF generado",
+        description: "Puedes usar Ctrl+P para imprimir o guardar",
       });
-      
+
     } catch (error: any) {
+      console.error('[PDF Generation Error]', error);
       handleApiError(error, 'Generación de PDF');
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const generatePDF = async () => {
-    await generateFinancialReport();
   };
 
   return (
@@ -130,7 +137,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction
-            onClick={generatePDF}
+            onClick={handleGeneratePDF}
             className="bg-violet-600 hover:bg-violet-700"
           >
             Generar PDF
