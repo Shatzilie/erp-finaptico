@@ -47,7 +47,8 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
         throw new Error('Sesión expirada');
       }
 
-      console.log('📄 Generando PDF para:', tenantSlug);
+      console.log('📄 [BUILD-v4] Generando PDF para:', tenantSlug);
+      console.log('🔧 [BUILD-v4] PDFGenerator recompilado correctamente');
 
       const response = await fetch(
         `https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf`,
@@ -74,7 +75,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
       console.log('🔍 Primeros 100 caracteres:', result.html_base64?.substring(0, 100));
       
       if (!result.success || !result.html_base64) {
-        throw new Error('Respuesta inválida del servidor');
+        throw new Error('[BUILD-v4] Respuesta inválida: success=' + result.success + ', html_base64=' + !!result.html_base64);
       }
 
       console.log('✅ HTML recibido (base64), tamaño:', result.length, 'bytes');
