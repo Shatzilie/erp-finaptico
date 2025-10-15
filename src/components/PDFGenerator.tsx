@@ -42,11 +42,16 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
     try {
       setIsGenerating(true);
       
+      console.log('🔍 Iniciando petición con responseType: text');
+
       const htmlContent = await fetchWithTimeout<string>(
         'financial-report-pdf',
         { tenant_slug: tenantSlug },
         { timeout: 45000, retries: 0, responseType: 'text' }
       );
+
+      console.log('✅ Respuesta recibida, tipo:', typeof htmlContent);
+      console.log('📄 Primeros 100 chars:', htmlContent.substring(0, 100));
 
       if (typeof htmlContent !== 'string') {
         throw new Error('Invalid PDF response');
