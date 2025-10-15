@@ -6,6 +6,7 @@ interface FetchOptions {
   timeout?: number;  // Default 30 segundos
   retries?: number;  // Default 0
   retryDelay?: number; // Default 1000ms
+  responseType?: 'json' | 'text'; // Tipo de respuesta esperada
 }
 
 interface RateLimitInfo {
@@ -23,7 +24,7 @@ export function useAuthenticatedFetch() {
     body: any,
     options: FetchOptions = {}
   ): Promise<T> => {
-    const { timeout = 30000, retries = 0, retryDelay = 1000 } = options;
+    const { timeout = 30000, retries = 0, retryDelay = 1000, responseType = 'json' } = options;
 
     // Implementar AbortController para timeout
     const controller = new AbortController();
@@ -90,22 +91,14 @@ export function useAuthenticatedFetch() {
         throw new Error(`HTTP_${response.status}:${errorData.error || 'Unknown error'}`);
       }
 
-      // Detectar tipo de contenido para parsear apropiadamente
-      const contentType = response.headers.get('Content-Type') || '';
-      
-      let data: any;
-      if (contentType.includes('application/json')) {
-        data = await response.json();
-      } else if (contentType.includes('text/html')) {
-        data = await response.text();
-      } else if (contentType.includes('text/plain')) {
-        data = await response.text();
+      // Parsear respuesta según tipo especificado
+      if (responseType === 'text') {
+        const data = await response.text();
+        return data as T;
       } else {
-        // Por defecto, intentar JSON
-        data = await response.json();
+        const data = await response.json();
+        return data as T;
       }
-      
-      return data as T;
 
     } catch (error: any) {
       clearTimeout(timeoutId);

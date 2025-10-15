@@ -45,7 +45,7 @@ export const PDFGenerator: React.FC<PDFGeneratorProps> = ({
       const htmlContent = await fetchWithTimeout<string>(
         'financial-report-pdf',
         { tenant_slug: tenantSlug },
-        { timeout: 45000, retries: 0 }
+        { timeout: 45000, retries: 0, responseType: 'text' }
       );
 
       if (typeof htmlContent !== 'string') {
