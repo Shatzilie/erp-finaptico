@@ -18,6 +18,7 @@ import SociedadesPageWithLayout from "./pages/SociedadesPageWithLayout";
 import PayrollPageWithLayout from "./pages/PayrollPageWithLayout";
 import Modelo111PageWithLayout from "./pages/Modelo111PageWithLayout";
 import MyAccountWithLayout from "./pages/MyAccountWithLayout";
+import AdminLogsPageWithLayout from "./pages/AdminLogsPageWithLayout";
 import { RateLimitIndicator } from '@/components/RateLimitIndicator';
 import { SessionExpiredBanner } from '@/components/SessionExpiredBanner';
 import { CookieConsent } from '@/components/CookieConsent';
@@ -61,6 +62,7 @@ const App = () => (
                 <Route path="/:tenant/advisory" element={<StubPageWithLayout title="Asesoría" />} />
                 <Route path="/:tenant/company" element={<StubPageWithLayout title="Mi empresa" />} />
                 <Route path="/:tenant/account" element={<MyAccountWithLayout />} />
+                <Route path="/admin/logs" element={<AdminLogsPageWithLayout />} />
                 <Route path="/:tenant/:section" element={<Dashboard />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

@@ -12,7 +12,8 @@ export type MenuKey =
   | "docs"
   | "advisory"
   | "company"
-  | "account";
+  | "account"
+  | "admin_logs";
 
 export const MENU_DEF: Record<
   MenuKey,
@@ -31,5 +32,6 @@ export const MENU_DEF: Record<
   docs:      { label: "Documentación", path: (s) => `/${s}/docs`, icon: "paper" },
   advisory:  { label: "Asesoría",    path: (s) => `/${s}/advisory`, icon: "chat" },
   company:   { label: "Mi empresa",  path: (s) => `/${s}/company`, icon: "building" },
-  account:   { label: "Mi cuenta",   path: (s) => `/${s}/account`, icon: "user" }
+  account:   { label: "Mi cuenta",   path: (s) => `/${s}/account`, icon: "user" },
+  admin_logs: { label: "Logs de auditoría", path: () => `/admin/logs`, icon: "file-text" }
 };
