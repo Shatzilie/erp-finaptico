@@ -37,7 +37,7 @@ interface TenantAccessResult {
  * Hook para obtener el tenant al que el usuario autenticado tiene acceso.
  */
 export function useTenantAccess(): TenantAccessResult {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [tenantSlug, setTenantSlug] = useState<string | null>(null);
   const [tenantName, setTenantName] = useState<string | null>(null);
@@ -46,8 +46,16 @@ export function useTenantAccess(): TenantAccessResult {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Si AuthContext aún está cargando, esperar
+    if (authLoading) {
+      console.log("⏳ Esperando carga de sesión...");
+      setIsLoading(true);
+      return;
+    }
+    
+    // Si ya cargó pero no hay usuario, limpiar estado
     if (!isAuthenticated || !user) {
-      console.log("⚠️ No authenticated user");
+      console.log("⚠️ No authenticated user (después de cargar)");
       setTenantId(null);
       setTenantSlug(null);
       setTenantName(null);
@@ -109,7 +117,7 @@ export function useTenantAccess(): TenantAccessResult {
     };
 
     fetchTenantAccess();
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, authLoading]);
 
   return {
     tenantId,
