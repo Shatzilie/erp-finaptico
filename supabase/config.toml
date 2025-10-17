@@ -2,3 +2,27 @@ project_id = "dtmrywilxpilpzokxxif"
 
 [functions.financial-report-pdf]
 verify_jwt = true
+
+[functions.odoo-dashboard-bundle]
+verify_jwt = true
+
+[functions.odoo-dashboard]
+verify_jwt = true
+
+[functions.odoo-expenses]
+verify_jwt = true
+
+[functions.odoo-revenue]
+verify_jwt = true
+
+[functions.odoo-iva]
+verify_jwt = true
+
+[functions.odoo-irpf]
+verify_jwt = true
+
+[functions.odoo-sociedades]
+verify_jwt = true
+
+[functions.odoo-payroll]
+verify_jwt = true
