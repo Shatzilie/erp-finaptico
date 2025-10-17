@@ -43,12 +43,6 @@ const Dashboard = () => {
   const chartsSectionRef = useRef<ChartsSectionRef>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/login");
-    }
-  }, [isAuthenticated, navigate]);
-
-  useEffect(() => {
     const fetchChartsData = async () => {
       // Si el tenant está cargando, esperar
       if (isTenantLoading) {
