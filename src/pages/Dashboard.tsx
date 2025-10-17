@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Loader2, FileText } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
 import KpiBoard from "@/components/dashboard/KpiBoard";
-import ChartsSection from "@/components/dashboard/ChartsSection";
+import ChartsSection, { ChartsSectionRef } from "@/components/dashboard/ChartsSection";
 import { FiscalCalendarWidget } from "@/components/dashboard/FiscalCalendarWidget";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,7 @@ const Dashboard = () => {
   const [isLoadingCharts, setIsLoadingCharts] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const chartsSectionRef = useRef<ChartsSectionRef>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -107,22 +108,66 @@ const Dashboard = () => {
     try {
       setIsGeneratingPDF(true);
       
-      const htmlContent = await fetchWithTimeout<string>(
-        'financial-report-pdf',
-        { tenant_slug: tenantSlug },
-        { timeout: 45000, retries: 0 }
+      // Capturar gráficas
+      console.log('📸 Capturando gráficas del dashboard...');
+      toast({
+        title: "Capturando gráficas...",
+        description: "Por favor espera mientras se prepara el informe"
+      });
+
+      const charts = await chartsSectionRef.current?.captureCharts();
+      
+      if (!charts) {
+        console.warn('⚠️ No se pudieron capturar las gráficas, continuando sin ellas');
+      }
+
+      // Llamar al backend con las gráficas capturadas
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('Sesión expirada');
+      }
+
+      console.log('📤 Enviando solicitud al backend con gráficas...');
+      
+      const response = await fetch(
+        `https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tenant_slug: tenantSlug,
+            ...(charts && {
+              revenue_chart_url: charts.revenue_chart_url,
+              expenses_chart_url: charts.expenses_chart_url,
+              comparison_chart_url: charts.comparison_chart_url
+            })
+          }),
+        }
       );
 
-      if (typeof htmlContent !== 'string') {
-        throw new Error('Invalid PDF response');
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}`);
       }
+
+      const result = await response.json();
+      
+      if (!result.success || !result.html_base64) {
+        throw new Error('Respuesta inválida del servidor');
+      }
+
+      // Decodificar y mostrar HTML
+      const htmlContent = decodeURIComponent(escape(atob(result.html_base64)));
 
       const newWindow = window.open('', '_blank');
       if (newWindow) {
         newWindow.document.write(htmlContent);
         newWindow.document.close();
         
-        console.log('✅ PDF generated successfully');
+        console.log('✅ PDF generado correctamente');
         
         toast({
           title: "Informe generado",
@@ -137,6 +182,7 @@ const Dashboard = () => {
       }
 
     } catch (error: any) {
+      console.error('❌ Error al generar PDF:', error);
       handleApiError(error, 'Generación de PDF');
     } finally {
       setIsGeneratingPDF(false);
@@ -207,7 +253,7 @@ const Dashboard = () => {
 
               <section>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico</h2>
-                <ChartsSection data={chartsData} isLoading={isLoadingCharts} />
+                <ChartsSection ref={chartsSectionRef} data={chartsData} isLoading={isLoadingCharts} />
               </section>
             </div>
           </main>

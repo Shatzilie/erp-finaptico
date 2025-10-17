@@ -1,5 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
+import { forwardRef, useImperativeHandle, useRef } from "react";
+import html2canvas from "html2canvas";
 
 interface MonthlyData {
   month: string;
@@ -16,6 +18,14 @@ interface ChartsData {
 interface ChartsSectionProps {
   data: ChartsData;
   isLoading?: boolean;
+}
+
+export interface ChartsSectionRef {
+  captureCharts: () => Promise<{
+    comparison_chart_url: string;
+    revenue_chart_url: string;
+    expenses_chart_url: string;
+  } | null>;
 }
 
 const MONTH_NAMES: Record<string, string> = {
@@ -193,7 +203,75 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
+const ChartsSection = forwardRef<ChartsSectionRef, ChartsSectionProps>(({ data, isLoading }, ref) => {
+  const comparisonChartRef = useRef<HTMLDivElement>(null);
+  const revenueChartRef = useRef<HTMLDivElement>(null);
+  const expensesChartRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    captureCharts: async () => {
+      try {
+        console.log('📸 Iniciando captura de gráficas...');
+        
+        const charts: {
+          comparison_chart_url: string;
+          revenue_chart_url: string;
+          expenses_chart_url: string;
+        } = {
+          comparison_chart_url: '',
+          revenue_chart_url: '',
+          expenses_chart_url: ''
+        };
+
+        // Capturar gráfica de beneficio neto
+        if (comparisonChartRef.current) {
+          console.log('📸 Capturando gráfica de beneficio neto...');
+          const canvas = await html2canvas(comparisonChartRef.current, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            logging: false
+          });
+          charts.comparison_chart_url = canvas.toDataURL('image/png');
+          console.log('✅ Beneficio neto capturado');
+        }
+
+        // Capturar gráfica de facturación
+        if (revenueChartRef.current) {
+          console.log('📸 Capturando gráfica de facturación...');
+          const canvas = await html2canvas(revenueChartRef.current, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            logging: false
+          });
+          charts.revenue_chart_url = canvas.toDataURL('image/png');
+          console.log('✅ Facturación capturada');
+        }
+
+        // Capturar gráfica de compras
+        if (expensesChartRef.current) {
+          console.log('📸 Capturando gráfica de compras...');
+          const canvas = await html2canvas(expensesChartRef.current, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            logging: false
+          });
+          charts.expenses_chart_url = canvas.toDataURL('image/png');
+          console.log('✅ Compras capturada');
+        }
+
+        if (!charts.comparison_chart_url || !charts.revenue_chart_url || !charts.expenses_chart_url) {
+          console.warn('⚠️ Algunas gráficas no se pudieron capturar');
+          return null;
+        }
+
+        console.log('✅ Todas las gráficas capturadas correctamente');
+        return charts;
+      } catch (error) {
+        console.error('❌ Error al capturar gráficas:', error);
+        return null;
+      }
+    }
+  }));
   const currentYear = new Date().getFullYear();
   const previousYear = currentYear - 1;
 
@@ -261,7 +339,7 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {profitChart.hasData && (
-          <Card className="p-6 col-span-full">
+          <Card className="p-6 col-span-full" ref={comparisonChartRef}>
             <h3 className="text-lg font-semibold mb-4">Beneficio Neto (Comparativa Anual)</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={profitChart.chartData}>
@@ -278,7 +356,7 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
         )}
 
         {revenueChart.hasData && (
-          <Card className="p-6">
+          <Card className="p-6" ref={revenueChartRef}>
             <h3 className="text-lg font-semibold mb-4">Importe Facturado (Comparativa Anual)</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={revenueChart.chartData}>
@@ -295,7 +373,7 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
         )}
 
         {expensesChart.hasData && (
-          <Card className="p-6">
+          <Card className="p-6" ref={expensesChartRef}>
             <h3 className="text-lg font-semibold mb-4">Importe de Compras (Comparativa Anual)</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={expensesChart.chartData}>
@@ -347,6 +425,8 @@ const ChartsSection = ({ data, isLoading }: ChartsSectionProps) => {
       </div>
     </div>
   );
-};
+});
+
+ChartsSection.displayName = 'ChartsSection';
 
 export default ChartsSection;
