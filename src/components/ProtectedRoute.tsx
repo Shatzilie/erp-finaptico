@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Loader2 } from "lucide-react";
@@ -10,8 +10,9 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { hasAccess, isLoading: tenantLoading, error } = useTenantAccess();
+  const { tenantSlug, hasAccess, isLoading: tenantLoading, error } = useTenantAccess();
   const location = useLocation();
+  const { tenant: tenantParam } = useParams<{ tenant: string }>();
 
   console.log("🛡️ ProtectedRoute:", {
     authLoading,
@@ -70,7 +71,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // 5️⃣ Todo OK
+  // 5️⃣ Validar que el tenant de la URL coincide con el tenant del usuario
+  if (tenantParam && tenantSlug && tenantParam !== tenantSlug) {
+    console.log("⚠️ Tenant incorrecto en URL, redirigiendo a:", tenantSlug);
+    return <Navigate to={`/${tenantSlug}/dashboard`} replace />;
+  }
+
+  // 6️⃣ Todo OK
   console.log("✅ Acceso concedido");
   return <>{children}</>;
 };
