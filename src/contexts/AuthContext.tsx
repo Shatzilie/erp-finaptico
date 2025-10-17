@@ -8,7 +8,7 @@ interface AuthContextType {
   logout: () => void;
   user: User | null;
   session: Session | null;
-  isLoading: boolean;
+  isLoading: boolean; // ✅ CRÍTICO: debe estar aquí
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,69 +25,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // ✅ Empieza en true
 
   useEffect(() => {
-    // Obtener sesión existente primero (antes de configurar listener)
+    console.log("🔐 AuthProvider: Inicializando...");
+
+    // 1️⃣ Obtener sesión existente PRIMERO
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        console.error("Error al obtener sesión:", error);
+        console.error("❌ Error al obtener sesión:", error);
       }
+
+      console.log("📦 Sesión inicial:", session ? "EXISTE" : "NO EXISTE");
 
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
-      setIsLoading(false);
+      setIsLoading(false); // ✅ CRÍTICO: marcar como cargado
     });
 
-    // Configurar UN ÚNICO listener de cambios de autenticación
+    // 2️⃣ Configurar listener DESPUÉS
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state change:", event);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("🔄 Auth state change:", event);
 
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
-      setIsLoading(false);
+      setIsLoading(false); // ✅ Siempre marcar como cargado después de cualquier evento
 
-      // Manejo específico de eventos
       if (event === "SIGNED_OUT") {
-        // Limpiar cualquier dato en caché si es necesario
-        console.log("Usuario cerró sesión");
+        console.log("👋 Usuario cerró sesión");
       } else if (event === "TOKEN_REFRESHED") {
-        console.log("Token refrescado exitosamente");
+        console.log("🔄 Token refrescado exitosamente");
       } else if (event === "SIGNED_IN") {
-        console.log("Usuario inició sesión");
+        console.log("✅ Usuario inició sesión");
       }
     });
 
-    // Cleanup: desuscribir cuando el componente se desmonte
     return () => {
+      console.log("🧹 AuthProvider: Limpiando subscripción");
       subscription.unsubscribe();
     };
-  }, []); // Array vacío: solo se ejecuta una vez al montar
+  }, []);
 
   const login = (email: string) => {
-    // Este método se mantiene por compatibilidad pero el login real se hace en Login component
-    console.warn("Use Supabase auth methods directly instead of this login function");
+    console.warn("⚠️ Use Supabase auth methods directly instead of this login function");
   };
 
   const logout = async () => {
     try {
+      console.log("👋 Cerrando sesión...");
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error("Error al cerrar sesión:", error);
+        console.error("❌ Error al cerrar sesión:", error);
         throw error;
       }
     } catch (error) {
-      console.error("Error en logout:", error);
+      console.error("❌ Error en logout:", error);
       throw error;
     }
   };
 
+  // ✅ CRÍTICO: isLoading debe estar en el value
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, user, session, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        login,
+        logout,
+        user,
+        session,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
