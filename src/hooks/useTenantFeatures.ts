@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type TenantFeatures = {
   tenant_id: string;
@@ -26,13 +27,26 @@ function useSlug() {
 }
 
 export function useTenantFeatures() {
+  const { isLoading: authLoading } = useAuth();
   const slug = useSlug();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [features, setFeatures] = useState<TenantFeatures | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!slug) return;
+    // Si auth está cargando, esperar
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    // Si no hay slug, no hacer nada
+    if (!slug) {
+      setLoading(false);
+      return;
+    }
+
+    // Ejecutar lógica normal de consultas
     (async () => {
       setLoading(true);
 
@@ -62,7 +76,7 @@ export function useTenantFeatures() {
       }
       setLoading(false);
     })();
-  }, [slug]);
+  }, [authLoading, slug]);
 
   return { slug, tenantId, features, loading };
 }
