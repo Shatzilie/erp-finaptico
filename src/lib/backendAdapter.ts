@@ -234,7 +234,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
 // 🌐 CLIENTE API CON FALLBACK AUTOMÁTICO + MÉTODOS FISCALES
 export class DashboardApiClient {
-  private readonly NEW_ENDPOINT = 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard';
+  private readonly NEW_ENDPOINT = 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-dashboard-bundle';
   private readonly LEGACY_ENDPOINTS = {
     treasury: 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-sync',
     revenue: 'https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/odoo-revenue',
@@ -251,29 +251,38 @@ export class DashboardApiClient {
 
   private readonly DEFAULT_TENANT = 'c4002f55-f7d5-4dd4-9942-d7ca65a551fd';
 
-  async fetchDashboardData(tenantSlug?: string): Promise<LegacyDashboardData> {
+  async fetchDashboardData(tenantSlug?: string, forceRefresh = false): Promise<LegacyDashboardData> {
     const tenant = tenantSlug || this.DEFAULT_TENANT;
     
     try {
-      console.log('🎯 Intentando NUEVO backend consolidado...');
+      console.log('🎯 Llamando a odoo-dashboard-bundle con caché...');
       
       const headers = await getAuthHeaders();
       
-      // LLAMADA 1: Dashboard básico
+      // LLAMADA 1: Dashboard con caché
       const dashboardResponse = await fetch(this.NEW_ENDPOINT, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ tenant_slug: tenant })
+        body: JSON.stringify({ 
+          tenant_slug: tenant,
+          force_refresh: forceRefresh 
+        })
       });
 
       if (!dashboardResponse.ok) {
-        throw new Error(`Dashboard failed: ${dashboardResponse.status}`);
+        throw new Error(`Dashboard bundle failed: ${dashboardResponse.status}`);
       }
 
-      const newData: NewBackendResponse = await dashboardResponse.json();
-      const adaptedData = adaptNewToLegacy(newData);
+      const bundleData = await dashboardResponse.json();
+      
+      // Log del estado del caché
+      console.log('📦 Cache status:', bundleData.cache_status);
+      console.log('⏰ Cache age:', bundleData.age_minutes ? `${bundleData.age_minutes} min` : 'N/A');
+      console.log('🕐 Cached at:', bundleData.cached_at);
 
-      // LLAMADA 2: Revenue histórico
+      const adaptedData = adaptNewToLegacy(bundleData);
+
+      // LLAMADA 2 y 3: Revenue y Expenses históricos (sin cambios)
       console.log('📊 Cargando historial de ingresos...');
       try {
         const revenueResponse = await fetch(this.LEGACY_ENDPOINTS.revenue, {
@@ -293,7 +302,6 @@ export class DashboardApiClient {
         console.log('⚠️ Error cargando revenue histórico (no crítico)');
       }
 
-      // LLAMADA 3: Expenses histórico
       console.log('📊 Cargando historial de gastos...');
       try {
         const expensesResponse = await fetch(this.LEGACY_ENDPOINTS.expenses, {
@@ -313,12 +321,12 @@ export class DashboardApiClient {
         console.log('⚠️ Error cargando expenses histórico (no crítico)');
       }
 
-      console.log('✅ Nuevo backend exitoso');
+      console.log('✅ Dashboard bundle exitoso con caché');
       return adaptedData;
       
     } catch (error) {
       console.log('🔄 Fallback a endpoints legacy...');
-      handleApiError(error, 'Dashboard');
+      handleApiError(error, 'Dashboard Bundle');
       return await this.fallbackToLegacyEndpoints(tenant);
     }
   }
