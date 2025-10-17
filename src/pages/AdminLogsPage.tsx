@@ -103,12 +103,12 @@ export default function AdminLogsPage() {
     staleTime: 10 * 60 * 1000
   });
 
-  // Establecer el primer tenant por defecto
+  // Establecer el primer tenant por defecto (solo una vez cuando se cargan los tenants)
   useEffect(() => {
     if (tenants && tenants.length > 0 && !selectedTenant) {
       setSelectedTenant(tenants[0].id);
     }
-  }, [tenants, selectedTenant]);
+  }, [tenants]);
 
   // Fetch logs
   const { data: logsData, isLoading: logsLoading, refetch } = useQuery({
