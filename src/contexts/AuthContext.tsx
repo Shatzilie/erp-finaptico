@@ -8,7 +8,7 @@ interface AuthContextType {
   logout: () => void;
   user: User | null;
   session: Session | null;
-  isLoading: boolean; // ✅ CRÍTICO: debe estar aquí
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,12 +25,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // ✅ Empieza en true
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     console.log("🔐 AuthProvider: Inicializando...");
 
-    // 1️⃣ Obtener sesión existente PRIMERO
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error("❌ Error al obtener sesión:", error);
@@ -41,10 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
-      setIsLoading(false); // ✅ CRÍTICO: marcar como cargado
+      setIsLoading(false);
     });
 
-    // 2️⃣ Configurar listener DESPUÉS
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -53,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
-      setIsLoading(false); // ✅ Siempre marcar como cargado después de cualquier evento
+      setIsLoading(false);
 
       if (event === "SIGNED_OUT") {
         console.log("👋 Usuario cerró sesión");
@@ -88,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ✅ CRÍTICO: isLoading debe estar en el value
   return (
     <AuthContext.Provider
       value={{
