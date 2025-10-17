@@ -50,8 +50,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchChartsData = async () => {
+      // Si el tenant está cargando, esperar
+      if (isTenantLoading) {
+        return;
+      }
+
+      // Si no hay tenantSlug después de cargar, no hacer nada
       if (!tenantSlug) {
-        console.log("No tenantSlug disponible");
         setIsLoadingCharts(false);
         return;
       }
@@ -78,7 +83,7 @@ const Dashboard = () => {
     };
 
     fetchChartsData();
-  }, [tenantSlug]);
+  }, [tenantSlug, isTenantLoading]);
 
   const handleSyncNow = async () => {
     if (!tenantSlug) {
