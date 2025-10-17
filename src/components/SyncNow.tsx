@@ -1,49 +1,48 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
-import { handleApiError } from '@/lib/apiErrorHandler';
 
-interface SyncNowProps {
-  slug: string;
-  onSyncComplete?: () => void;
+// Nueva interfaz
+interface SyncNowPropsNew {
+  onRefresh: () => void;
+  isRefreshing: boolean;
+  slug?: never;
+  onSyncComplete?: never;
 }
 
-export function SyncNow({ slug, onSyncComplete }: SyncNowProps) {
-  const [loading, setLoading] = useState(false);
-  const { fetchWithTimeout } = useAuthenticatedFetch();
+// Interfaz legacy (deprecated)
+interface SyncNowPropsLegacy {
+  slug: string;
+  onSyncComplete?: () => void;
+  onRefresh?: never;
+  isRefreshing?: never;
+}
 
-  const handleSync = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchWithTimeout(
-        'odoo-sync',
-        { tenant_slug: slug },
-        { timeout: 60000, retries: 0 }
-      );
+type SyncNowProps = SyncNowPropsNew | SyncNowPropsLegacy;
 
-      if (data.ok) {
-        console.log('✅ Sincronización completada');
-        onSyncComplete?.();
-      } else {
-        throw new Error('Error en la sincronización');
-      }
-    } catch (error: any) {
-      handleApiError(error, 'Sincronización');
-    } finally {
-      setLoading(false);
-    }
-  };
+export function SyncNow(props: SyncNowProps) {
+  // Nueva versión con React Query
+  if ('onRefresh' in props && props.onRefresh) {
+    return (
+      <Button 
+        disabled={props.isRefreshing} 
+        onClick={props.onRefresh}
+        variant="outline"
+        className="gap-2"
+      >
+        {props.isRefreshing && <Loader2 className="h-4 w-4 animate-spin" />}
+        {props.isRefreshing ? 'Sincronizando…' : 'Sincronizar ahora'}
+      </Button>
+    );
+  }
 
+  // Versión legacy (deprecated) - mostrar solo el botón sin funcionalidad por ahora
   return (
     <Button 
-      disabled={loading} 
-      onClick={handleSync}
-      variant="default"
+      disabled={true}
+      variant="outline"
       className="gap-2"
     >
-      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-      {loading ? 'Sincronizando…' : 'Sincronizar ahora'}
+      Sincronizar ahora
     </Button>
   );
 }

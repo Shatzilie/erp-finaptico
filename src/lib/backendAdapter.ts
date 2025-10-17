@@ -27,6 +27,10 @@ export interface LegacyDashboardData {
   }>;
   revenue_history?: MonthlyData[];
   expenses_history?: MonthlyData[];
+  // Datos de caché
+  cache_status?: 'hit' | 'miss' | 'refresh';
+  cached_at?: string;
+  age_minutes?: number;
 }
 
 export interface MonthlyData {
@@ -170,6 +174,10 @@ export interface NewBackendResponse {
     execution_time: string;
     modules_loaded: string[];
   };
+  // Datos de caché
+  cache_status?: 'hit' | 'miss' | 'refresh';
+  cached_at?: string;
+  age_minutes?: number;
 }
 
 // 🔄 ADAPTADOR PRINCIPAL
@@ -206,13 +214,20 @@ export function adaptNewToLegacy(newData: NewBackendResponse): LegacyDashboardDa
     marginPercentage: payload.profitability?.marginPercentage || 0,
     
     // Alerts
-    alerts: payload.alerts || []
+    alerts: payload.alerts || [],
+    
+    // Datos de caché
+    cache_status: newData.cache_status,
+    cached_at: newData.cached_at,
+    age_minutes: newData.age_minutes
   };
 
   console.log('✅ Adaptación completada:', {
     totalCash: adapted.totalCash,
     monthlyRevenue: adapted.monthlyRevenue,
-    alertsCount: adapted.alerts?.length || 0
+    alertsCount: adapted.alerts?.length || 0,
+    cacheStatus: adapted.cache_status,
+    ageMinutes: adapted.age_minutes
   });
   
   return adapted;
