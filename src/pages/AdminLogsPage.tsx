@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useTenantAccess } from '@/hooks/useTenantAccess';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -42,6 +43,12 @@ interface AuditLog {
   data_summary: any;
 }
 
+interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 const ENDPOINTS = [
   'Todos',
   'odoo-dashboard-bundle',
@@ -62,10 +69,12 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AdminLogsPage() {
-  const { tenantId, tenantSlug, isLoading: tenantLoading } = useTenantAccess();
+  const { isSuperAdmin } = useSuperAdmin();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Estados de filtros
+  // Estados de filtros y tenant
+  const [selectedTenant, setSelectedTenant] = useState<string>('');
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 7));
   const [dateTo, setDateTo] = useState<Date>(new Date());
   const [endpointFilter, setEndpointFilter] = useState('Todos');
@@ -77,16 +86,40 @@ export default function AdminLogsPage() {
 
   const ITEMS_PER_PAGE = 100;
 
+  // Cargar lista de tenants
+  const { data: tenants, isLoading: tenantsLoading } = useQuery({
+    queryKey: ['tenants'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('id, name, slug')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []) as Tenant[];
+    },
+    enabled: isSuperAdmin,
+    staleTime: 10 * 60 * 1000
+  });
+
+  // Establecer el primer tenant por defecto
+  useEffect(() => {
+    if (tenants && tenants.length > 0 && !selectedTenant) {
+      setSelectedTenant(tenants[0].id);
+    }
+  }, [tenants, selectedTenant]);
+
   // Fetch logs
   const { data: logsData, isLoading: logsLoading, refetch } = useQuery({
-    queryKey: ['admin-logs', tenantId, dateFrom, dateTo, endpointFilter, statusFilter, page],
+    queryKey: ['admin-logs', selectedTenant, dateFrom, dateTo, endpointFilter, statusFilter, page],
     queryFn: async () => {
-      if (!tenantId) throw new Error('No tenant ID');
+      if (!selectedTenant) throw new Error('No tenant selected');
 
       let query = supabase
         .from('audit_log')
         .select('*', { count: 'exact' })
-        .eq('tenant_id', tenantId)
+        .eq('tenant_id', selectedTenant)
         .gte('created_at', dateFrom.toISOString())
         .lte('created_at', dateTo.toISOString())
         .order('created_at', { ascending: false })
@@ -112,8 +145,8 @@ export default function AdminLogsPage() {
 
       return { logs: data || [], totalCount: count || 0 };
     },
-    enabled: !!tenantId,
-    staleTime: 5 * 60 * 1000
+    enabled: !!selectedTenant && isSuperAdmin,
+    staleTime: 1 * 60 * 1000 // 1 minuto
   });
 
   // Limpiar filtros
@@ -128,13 +161,16 @@ export default function AdminLogsPage() {
   // Export CSV
   const handleExportCSV = async () => {
     try {
-      if (!tenantId) return;
+      if (!selectedTenant) return;
+
+      const currentTenant = tenants?.find(t => t.id === selectedTenant);
+      if (!currentTenant) return;
 
       // Fetch todos los logs sin límite
       let query = supabase
         .from('audit_log')
         .select('*')
-        .eq('tenant_id', tenantId)
+        .eq('tenant_id', selectedTenant)
         .gte('created_at', dateFrom.toISOString())
         .lte('created_at', dateTo.toISOString())
         .order('created_at', { ascending: false });
@@ -171,7 +207,7 @@ export default function AdminLogsPage() {
       const url = URL.createObjectURL(blob);
       
       link.setAttribute('href', url);
-      link.setAttribute('download', `logs_finaptico_${tenantSlug}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.setAttribute('download', `logs_finaptico_${currentTenant.slug}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -213,23 +249,30 @@ export default function AdminLogsPage() {
     return "destructive";
   };
 
-  if (tenantLoading) {
+  // Verificar permisos de super-admin PRIMERO
+  if (!isSuperAdmin) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Skeleton className="w-20 h-20 rounded-full" />
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Acceso denegado. Esta página es solo para administradores de Finaptico.
+          </AlertDescription>
+        </Alert>
+        <Button 
+          onClick={() => navigate('/young-minds/dashboard')} 
+          className="mt-4"
+        >
+          Volver al Dashboard
+        </Button>
       </div>
     );
   }
 
-  // Verificar permisos de admin (simplificado por ahora)
-  // TODO: Implementar verificación real con tabla user_roles
-  if (!tenantId) {
+  if (tenantsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Acceso denegado. Solo administradores pueden ver esta página.</AlertDescription>
-        </Alert>
+        <Skeleton className="w-20 h-20 rounded-full" />
       </div>
     );
   }
@@ -244,10 +287,35 @@ export default function AdminLogsPage() {
       <div>
         <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
           <FileText className="h-8 w-8" />
-          Logs de Auditoría
+          Logs de Auditoría del Sistema
         </h1>
-        <p className="text-muted-foreground">Monitoreo de llamadas a Edge Functions y errores del sistema</p>
+        <p className="text-muted-foreground">Monitoreo de llamadas a Edge Functions. Solo visible para administradores de Finaptico.</p>
       </div>
+
+      {/* Selector de Tenant */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Seleccionar Empresa</CardTitle>
+          <CardDescription>Elige la empresa para ver sus logs de auditoría</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedTenant} onValueChange={(value) => {
+            setSelectedTenant(value);
+            setPage(1); // Reset page cuando cambia el tenant
+          }}>
+            <SelectTrigger className="w-full md:w-96">
+              <SelectValue placeholder="Selecciona una empresa" />
+            </SelectTrigger>
+            <SelectContent>
+              {tenants?.map(tenant => (
+                <SelectItem key={tenant.id} value={tenant.id}>
+                  {tenant.name} ({tenant.slug})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Filtros */}
       <Card>

@@ -31,11 +31,10 @@ export const DashboardSidebar = () => {
   if (features.show_advisory)  visible.push("advisory");
   if (features.show_company)   visible.push("company");
   
-  // Nóminas, Modelo 111, Mi cuenta y Admin logs siempre visibles
+  // Nóminas, Modelo 111 y Mi cuenta siempre visibles
   visible.push("payroll");
   visible.push("modelo111");
   visible.push("account");
-  visible.push("admin_logs");
 
   return (
     <div className="bg-gradient-sidebar w-64 min-h-screen p-6">
