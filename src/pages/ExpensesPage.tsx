@@ -104,8 +104,28 @@ export default function ExpensesPage() {
     if (!data?.history || !Array.isArray(data.history) || data.history.length === 0) {
       return 0;
     }
-    const lastThreeMonths = data.history.slice(-3);
-    return lastThreeMonths.reduce((sum, month) => {
+
+    // Obtener el mes actual desde el último elemento
+    const currentMonth = data.history[data.history.length - 1];
+    const currentMonthNumber = currentMonth?.month_number;
+    const currentYear = currentMonth?.year;
+
+    if (!currentMonthNumber || !currentYear) return 0;
+
+    // Calcular el trimestre actual (Q1: 1-3, Q2: 4-6, Q3: 7-9, Q4: 10-12)
+    const currentQuarter = Math.ceil(currentMonthNumber / 3);
+    const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
+    const quarterEndMonth = currentQuarter * 3;
+
+    // Filtrar los meses del trimestre actual
+    const quarterMonths = data.history.filter((month) => {
+      return (
+        month.year === currentYear && month.month_number >= quarterStartMonth && month.month_number <= quarterEndMonth
+      );
+    });
+
+    // Sumar los totales
+    return quarterMonths.reduce((sum, month) => {
       const expenses = typeof month?.total === "number" ? month.total : 0;
       return sum + expenses;
     }, 0);
@@ -123,7 +143,7 @@ export default function ExpensesPage() {
       title: "Gastos del trimestre",
       value: getQuarterlyExpenses(),
       icon: TrendingDown,
-      description: "Total gastado en el trimestre",
+      description: "Total gastado en el trimestre actual",
       color: "text-orange-600",
     },
     {
