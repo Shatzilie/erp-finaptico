@@ -1,20 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ShoppingCart, TrendingDown, FileText, Clock, RefreshCw } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useTenantAccess } from '@/hooks/useTenantAccess';
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
-import { handleApiError } from '@/lib/apiErrorHandler';
-import { Loader2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatters';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart, TrendingDown, FileText, Clock, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
+import { handleApiError } from "@/lib/apiErrorHandler";
+import { Loader2 } from "lucide-react";
+import { formatCurrency } from "@/lib/formatters";
 
 type ExpensesData = {
-  monthly_expenses: number;
-  quarterly_expenses: number;
-  annual_expenses: number;
-  pending_invoices_count: number;
-  total_invoices: number;
+  total_expenses: number;
+  invoice_count: number;
+  average_monthly: number;
+  history: Array<{
+    month: string;
+    expenses: number;
+    invoice_count: number;
+  }>;
 };
 
 export default function ExpensesPage() {
@@ -22,43 +26,36 @@ export default function ExpensesPage() {
   const [data, setData] = useState<ExpensesData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cacheStatus, setCacheStatus] = useState<string>("");
   const { fetchWithTimeout } = useAuthenticatedFetch();
-
-  // Mock data como fallback
-  const mockData: ExpensesData = {
-    monthly_expenses: 529,
-    quarterly_expenses: 6640.08,
-    annual_expenses: 24883.68,
-    pending_invoices_count: 7,
-    total_invoices: 148
-  };
 
   const fetchExpensesData = async () => {
     if (!tenantSlug) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await fetchWithTimeout(
-        'odoo-expenses',
-        { 
+        "odoo-expenses",
+        {
           tenant_slug: tenantSlug,
           date_from: undefined,
-          date_to: undefined
+          date_to: undefined,
         },
-        { timeout: 30000, retries: 1 }
+        { timeout: 30000, retries: 1 },
       );
 
-      if (result.ok && result.widget_data?.expenses?.payload) {
-        setData(result.widget_data.expenses.payload);
-        console.log('✅ Expenses data loaded successfully');
+      if (result.ok && result.widget_data?.expenses_history?.payload) {
+        setData(result.widget_data.expenses_history.payload);
+        setCacheStatus(result.meta?.cache_status || "");
+        console.log("✅ Expenses data loaded successfully");
       } else {
-        throw new Error('Invalid expenses response structure');
+        throw new Error("Invalid expenses response structure");
       }
     } catch (error: any) {
-      handleApiError(error, 'Gastos');
-      setError('No se pudieron cargar los datos de gastos');
+      handleApiError(error, "Gastos");
+      setError("No se pudieron cargar los datos de gastos");
     } finally {
       setLoading(false);
     }
@@ -88,54 +85,76 @@ export default function ExpensesPage() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-red-500 text-center">
           <p className="font-semibold">Error cargando tenant</p>
-          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
+          <p>{tenantError || "No se pudo obtener el tenant"}</p>
         </div>
       </div>
     );
   }
 
-  // Si hay error, mostrar datos mock
-  const displayData = data || mockData;
+  // Calcular datos mensuales y trimestrales desde el histórico
+  const getMonthlyExpenses = () => {
+    if (!data?.history?.length) return 0;
+    return data.history[data.history.length - 1]?.expenses || 0;
+  };
+
+  const getQuarterlyExpenses = () => {
+    if (!data?.history?.length) return 0;
+    return data.history.slice(-3).reduce((sum, month) => sum + month.expenses, 0);
+  };
 
   const kpiCards = [
     {
       title: "Gastos de este mes",
-      value: displayData.monthly_expenses,
+      value: getMonthlyExpenses(),
       icon: ShoppingCart,
       description: "Has gastado este mes",
-      color: "text-red-600"
+      color: "text-red-600",
     },
     {
-      title: "Gastos del trimestre", 
-      value: displayData.quarterly_expenses,
+      title: "Gastos del trimestre",
+      value: getQuarterlyExpenses(),
       icon: TrendingDown,
       description: "Total gastado en el trimestre",
-      color: "text-orange-600"
+      color: "text-orange-600",
     },
     {
       title: "Gastos del año",
-      value: displayData.annual_expenses,
+      value: data?.total_expenses || 0,
       icon: TrendingDown,
       description: "Has gastado este año",
-      color: "text-purple-600"
+      color: "text-purple-600",
     },
     {
-      title: "Facturas por pagar",
-      value: displayData.pending_invoices_count,
-      icon: Clock,
-      description: "Estoy controlando los pagos pendientes",
-      color: "text-yellow-600",
-      isCount: true
+      title: "Media mensual",
+      value: data?.average_monthly || 0,
+      icon: TrendingDown,
+      description: "Promedio de gastos mensuales",
+      color: "text-blue-600",
     },
     {
       title: "Facturas de gastos",
-      value: displayData.total_invoices,
+      value: data?.invoice_count || 0,
       icon: FileText,
       description: "Total de facturas registradas",
       color: "text-gray-600",
-      isCount: true
-    }
+      isCount: true,
+    },
   ];
+
+  const getCacheStatusColor = () => {
+    switch (cacheStatus) {
+      case "fresh":
+        return "bg-green-500";
+      case "stale":
+        return "bg-yellow-500";
+      case "miss":
+        return "bg-blue-500";
+      case "refreshed":
+        return "bg-purple-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
 
   return (
     <div className="container mx-auto px-6 py-8 max-w-7xl">
@@ -146,16 +165,18 @@ export default function ExpensesPage() {
             Estoy controlando todos tus gastos y facturas de proveedores para optimizar tu fiscalidad
           </p>
         </div>
-        
-        <Button 
-          onClick={fetchExpensesData} 
-          disabled={loading}
-          variant="outline"
-          className="gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          {loading ? 'Actualizando datos...' : 'Actualizar datos'}
-        </Button>
+
+        <div className="flex items-center gap-3">
+          {cacheStatus && (
+            <Badge variant="outline" className={`${getCacheStatusColor()} text-white`}>
+              {cacheStatus}
+            </Badge>
+          )}
+          <Button onClick={fetchExpensesData} disabled={loading} variant="outline" className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            {loading ? "Actualizando datos..." : "Actualizar datos"}
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -172,22 +193,20 @@ export default function ExpensesPage() {
         {kpiCards.map((card, index) => (
           <Card key={index} className="hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {card.title}
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
               <card.icon className={`h-4 w-4 ${card.color}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {loading ? (
                   <Skeleton className="h-8 w-20" />
+                ) : card.isCount ? (
+                  card.value.toString()
                 ) : (
-                  card.isCount ? card.value.toString() : formatCurrency(card.value)
+                  formatCurrency(card.value)
                 )}
               </div>
-              <CardDescription className="text-xs text-muted-foreground">
-                {card.description}
-              </CardDescription>
+              <CardDescription className="text-xs text-muted-foreground">{card.description}</CardDescription>
             </CardContent>
           </Card>
         ))}
