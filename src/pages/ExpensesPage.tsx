@@ -15,9 +15,11 @@ type ExpensesData = {
   total_invoices: number;
   average_monthly: number;
   history: Array<{
+    year: number;
     month: string;
-    expenses: number;
-    invoice_count: number;
+    month_number: number;
+    total: number;
+    count: number;
   }>;
 };
 
@@ -46,19 +48,15 @@ export default function ExpensesPage() {
         { timeout: 30000, retries: 1 },
       );
 
-      console.log("📦 Respuesta completa de odoo-expenses:", result);
-
       if (result.ok && result.widget_data?.expenses_history?.payload) {
         const payload = result.widget_data.expenses_history.payload;
-        console.log("✅ Payload de expenses:", payload);
         setData(payload);
         setCacheStatus(result.meta?.cache_status || "");
+        console.log("✅ Expenses data loaded successfully");
       } else {
-        console.error("❌ Estructura incorrecta:", result);
         throw new Error("Invalid expenses response structure");
       }
     } catch (error: any) {
-      console.error("❌ Error completo:", error);
       handleApiError(error, "Gastos");
       setError("No se pudieron cargar los datos de gastos");
     } finally {
@@ -72,7 +70,6 @@ export default function ExpensesPage() {
     }
   }, [tenantSlug]);
 
-  // Validar tenant loading
   if (tenantLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -84,7 +81,6 @@ export default function ExpensesPage() {
     );
   }
 
-  // Validar tenant error
   if (tenantError || !tenantSlug) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -96,13 +92,12 @@ export default function ExpensesPage() {
     );
   }
 
-  // Calcular datos mensuales y trimestrales desde el histórico CON VALIDACIÓN
   const getMonthlyExpenses = () => {
     if (!data?.history || !Array.isArray(data.history) || data.history.length === 0) {
       return 0;
     }
     const lastMonth = data.history[data.history.length - 1];
-    return typeof lastMonth?.expenses === "number" ? lastMonth.expenses : 0;
+    return typeof lastMonth?.total === "number" ? lastMonth.total : 0;
   };
 
   const getQuarterlyExpenses = () => {
@@ -111,7 +106,7 @@ export default function ExpensesPage() {
     }
     const lastThreeMonths = data.history.slice(-3);
     return lastThreeMonths.reduce((sum, month) => {
-      const expenses = typeof month?.expenses === "number" ? month.expenses : 0;
+      const expenses = typeof month?.total === "number" ? month.total : 0;
       return sum + expenses;
     }, 0);
   };
