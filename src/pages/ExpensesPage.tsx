@@ -12,7 +12,7 @@ import { formatCurrency } from "@/lib/formatters";
 
 type ExpensesData = {
   total_expenses: number;
-  invoice_count: number;
+  total_invoices: number;
   average_monthly: number;
   history: Array<{
     month: string;
@@ -147,7 +147,7 @@ export default function ExpensesPage() {
     },
     {
       title: "Facturas de gastos",
-      value: data?.invoice_count || 0,
+      value: data?.total_invoices || 0,
       icon: FileText,
       description: "Total de facturas registradas",
       color: "text-gray-600",

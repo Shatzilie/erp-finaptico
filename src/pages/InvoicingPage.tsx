@@ -11,7 +11,7 @@ import { formatCurrency } from "@/lib/formatters";
 
 type InvoicingData = {
   total_revenue: number;
-  invoice_count: number;
+  total_invoices: number;
   average_monthly: number;
   history: Array<{
     month: string;
@@ -146,7 +146,7 @@ export default function InvoicingPage() {
     },
     {
       title: "Total Facturas",
-      value: data?.invoice_count || 0,
+      value: data?.total_invoices || 0,
       icon: FileText,
       description: "Facturas emitidas este año",
       color: "text-gray-600",
