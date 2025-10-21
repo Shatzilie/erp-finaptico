@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useTenantFeatures } from '@/hooks/useTenantFeatures';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { MENU_DEF } from '@/lib/menu';
-import { Building2, FileText } from 'lucide-react';
+import { Building2, ScrollText } from 'lucide-react';
 
 export const DashboardSidebar = () => {
   const { slug, features } = useTenantFeatures();
@@ -94,8 +94,8 @@ export const DashboardSidebar = () => {
                 }`
               }
             >
-              <FileText className="h-4 w-4" />
-              Logs
+              <ScrollText className="h-4 w-4" />
+              Logs de Auditoría
             </NavLink>
           </>
         )}

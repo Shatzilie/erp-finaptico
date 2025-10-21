@@ -64,8 +64,18 @@ export default function Login() {
         return;
       }
 
-      // Tras login exitoso, buscar tenant del usuario
+      // Tras login exitoso, verificar si es super-admin
       if (data.user) {
+        // Verificar si es super-admin
+        const isSuperAdmin = data.user.user_metadata?.is_super_admin === true;
+        
+        if (isSuperAdmin) {
+          // Super-admin → redirigir a /admin/clients
+          navigate('/admin/clients', { replace: true });
+          return;
+        }
+
+        // Usuario normal → buscar su tenant
         const supabaseClient = supabase as any;
 
         // 1. Obtener tenant_id del perfil del usuario
