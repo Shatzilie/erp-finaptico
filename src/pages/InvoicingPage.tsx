@@ -1,35 +1,34 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, TrendingDown, FileText, Clock, RefreshCw } from "lucide-react";
+import { Euro, TrendingUp, FileText, Clock, RefreshCw, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
 import { handleApiError } from "@/lib/apiErrorHandler";
-import { Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 
-type ExpensesData = {
-  total_expenses: number;
+type InvoicingData = {
+  total_revenue: number;
   invoice_count: number;
   average_monthly: number;
   history: Array<{
     month: string;
-    expenses: number;
+    revenue: number;
     invoice_count: number;
   }>;
 };
 
-export default function ExpensesPage() {
+export default function InvoicingPage() {
   const { tenantSlug, isLoading: tenantLoading, error: tenantError } = useTenantAccess();
-  const [data, setData] = useState<ExpensesData | null>(null);
+  const [data, setData] = useState<InvoicingData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cacheStatus, setCacheStatus] = useState<string>("");
   const { fetchWithTimeout } = useAuthenticatedFetch();
 
-  const fetchExpensesData = async () => {
+  const fetchRevenueData = async () => {
     if (!tenantSlug) return;
 
     setLoading(true);
@@ -37,7 +36,7 @@ export default function ExpensesPage() {
 
     try {
       const result = await fetchWithTimeout(
-        "odoo-expenses",
+        "odoo-revenue",
         {
           tenant_slug: tenantSlug,
           date_from: undefined,
@@ -46,16 +45,16 @@ export default function ExpensesPage() {
         { timeout: 30000, retries: 1 },
       );
 
-      if (result.ok && result.widget_data?.expenses_history?.payload) {
-        setData(result.widget_data.expenses_history.payload);
+      if (result.ok && result.widget_data?.revenue_history?.payload) {
+        setData(result.widget_data.revenue_history.payload);
         setCacheStatus(result.meta?.cache_status || "");
-        console.log("✅ Expenses data loaded successfully");
+        console.log("✅ Revenue data loaded successfully");
       } else {
-        throw new Error("Invalid expenses response structure");
+        throw new Error("Invalid revenue response structure");
       }
     } catch (error: any) {
-      handleApiError(error, "Gastos");
-      setError("No se pudieron cargar los datos de gastos");
+      handleApiError(error, "Facturación");
+      setError("No se pudieron cargar los datos de facturación");
     } finally {
       setLoading(false);
     }
@@ -63,7 +62,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     if (tenantSlug) {
-      fetchExpensesData();
+      fetchRevenueData();
     }
   }, [tenantSlug]);
 
@@ -92,50 +91,50 @@ export default function ExpensesPage() {
   }
 
   // Calcular datos mensuales y trimestrales desde el histórico
-  const getMonthlyExpenses = () => {
+  const getMonthlyRevenue = () => {
     if (!data?.history?.length) return 0;
-    return data.history[data.history.length - 1]?.expenses || 0;
+    return data.history[data.history.length - 1]?.revenue || 0;
   };
 
-  const getQuarterlyExpenses = () => {
+  const getQuarterlyRevenue = () => {
     if (!data?.history?.length) return 0;
-    return data.history.slice(-3).reduce((sum, month) => sum + month.expenses, 0);
+    return data.history.slice(-3).reduce((sum, month) => sum + month.revenue, 0);
   };
 
   const kpiCards = [
     {
-      title: "Gastos de este mes",
-      value: getMonthlyExpenses(),
-      icon: ShoppingCart,
-      description: "Has gastado este mes",
-      color: "text-red-600",
+      title: "Facturación Mensual",
+      value: getMonthlyRevenue(),
+      icon: Euro,
+      description: "Ingresos del mes actual",
+      color: "text-green-600",
     },
     {
-      title: "Gastos del trimestre",
-      value: getQuarterlyExpenses(),
-      icon: TrendingDown,
-      description: "Total gastado en el trimestre",
-      color: "text-orange-600",
-    },
-    {
-      title: "Gastos del año",
-      value: data?.total_expenses || 0,
-      icon: TrendingDown,
-      description: "Has gastado este año",
-      color: "text-purple-600",
-    },
-    {
-      title: "Media mensual",
-      value: data?.average_monthly || 0,
-      icon: TrendingDown,
-      description: "Promedio de gastos mensuales",
+      title: "Facturación Trimestral",
+      value: getQuarterlyRevenue(),
+      icon: TrendingUp,
+      description: "Ingresos del trimestre",
       color: "text-blue-600",
     },
     {
-      title: "Facturas de gastos",
+      title: "Facturación Anual",
+      value: data?.total_revenue || 0,
+      icon: TrendingUp,
+      description: "Ingresos del año",
+      color: "text-purple-600",
+    },
+    {
+      title: "Media Mensual",
+      value: data?.average_monthly || 0,
+      icon: TrendingUp,
+      description: "Promedio de ingresos mensuales",
+      color: "text-indigo-600",
+    },
+    {
+      title: "Total Facturas",
       value: data?.invoice_count || 0,
       icon: FileText,
-      description: "Total de facturas registradas",
+      description: "Facturas emitidas este año",
       color: "text-gray-600",
       isCount: true,
     },
@@ -160,10 +159,8 @@ export default function ExpensesPage() {
     <div className="container mx-auto px-6 py-8 max-w-7xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Control de Gastos</h1>
-          <p className="text-muted-foreground mt-2">
-            Estoy controlando todos tus gastos y facturas de proveedores para optimizar tu fiscalidad
-          </p>
+          <h1 className="text-3xl font-bold text-foreground">Facturación</h1>
+          <p className="text-muted-foreground mt-2">Gestión y seguimiento de ingresos y facturas</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -172,9 +169,9 @@ export default function ExpensesPage() {
               {cacheStatus}
             </Badge>
           )}
-          <Button onClick={fetchExpensesData} disabled={loading} variant="outline" className="gap-2">
+          <Button onClick={fetchRevenueData} disabled={loading} variant="outline" className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            {loading ? "Actualizando datos..." : "Actualizar datos"}
+            {loading ? "Actualizando..." : "Actualizar datos"}
           </Button>
         </div>
       </div>
@@ -182,9 +179,7 @@ export default function ExpensesPage() {
       {error && (
         <Card className="mb-6 border-destructive">
           <CardContent className="p-4">
-            <p className="text-destructive">
-              No puedo conectar con Odoo ahora mismo. Te muestro los últimos datos disponibles.
-            </p>
+            <p className="text-destructive">Error: {error}</p>
           </CardContent>
         </Card>
       )}
@@ -216,11 +211,11 @@ export default function ExpensesPage() {
         <Card className="mt-8">
           <CardContent className="p-8 text-center">
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Cargando tus datos de gastos</h3>
+            <h3 className="text-lg font-semibold mb-2">No hay datos disponibles</h3>
             <p className="text-muted-foreground mb-4">
-              Estoy conectando con Odoo para traerte la información más actualizada de tus gastos.
+              Haz clic en "Actualizar datos" para cargar la información de facturación.
             </p>
-            <Button onClick={fetchExpensesData} variant="outline">
+            <Button onClick={fetchRevenueData} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
               Cargar datos
             </Button>
