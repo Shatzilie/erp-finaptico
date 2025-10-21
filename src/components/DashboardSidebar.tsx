@@ -1,9 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import { useTenantFeatures } from '@/hooks/useTenantFeatures';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { MENU_DEF } from '@/lib/menu';
+import { Building2, FileText } from 'lucide-react';
 
 export const DashboardSidebar = () => {
   const { slug, features } = useTenantFeatures();
+  const { isSuperAdmin } = useSuperAdmin();
 
   // Mientras carga, muestra un placeholder simple
   if (!features || !slug) {
@@ -61,6 +64,41 @@ export const DashboardSidebar = () => {
             </NavLink>
           );
         })}
+
+        {/* Admin Section - Only visible for super-admins */}
+        {isSuperAdmin && (
+          <>
+            <div className="pt-4 pb-2">
+              <div className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Administración
+              </div>
+            </div>
+            
+            <NavLink
+              to="/admin/clients"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                  isActive ? "bg-white/20 text-white shadow-sm" : "text-gray-300 hover:bg-white/10 hover:text-white"
+                }`
+              }
+            >
+              <Building2 className="h-4 w-4" />
+              Clientes
+            </NavLink>
+
+            <NavLink
+              to="/admin/logs"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                  isActive ? "bg-white/20 text-white shadow-sm" : "text-gray-300 hover:bg-white/10 hover:text-white"
+                }`
+              }
+            >
+              <FileText className="h-4 w-4" />
+              Logs
+            </NavLink>
+          </>
+        )}
       </nav>
     </div>
   );
