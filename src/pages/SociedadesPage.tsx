@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Building, TrendingUp, TrendingDown, Calculator, Percent, Euro, RefreshCw, Loader2 } from 'lucide-react';
-import { FreshnessBadge } from '@/components/FreshnessBadge';
-import { SyncNow } from '@/components/SyncNow';
-import { useTenantAccess } from '@/hooks/useTenantAccess';
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
-import { handleApiError } from '@/lib/apiErrorHandler';
-import { formatCurrency, formatNumber } from '@/lib/formatters';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Building, TrendingUp, TrendingDown, Calculator, Percent, Euro, RefreshCw, Loader2 } from "lucide-react";
+import { FreshnessBadge } from "@/components/FreshnessBadge";
+import { SyncNow } from "@/components/SyncNow";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
+import { handleApiError } from "@/lib/apiErrorHandler";
+import { formatCurrency, formatNumber } from "@/lib/formatters";
 
 interface SociedadesData {
   resultado_ejercicio: number;
@@ -27,6 +27,11 @@ interface SociedadesData {
     date_from: string;
     date_to: string;
   };
+  annual_summary: {
+    beneficio_bruto: number;
+    impuesto_provision: number;
+    beneficio_neto: number;
+  };
   prevision?: {
     es_prevision: boolean;
     progreso_anual: number;
@@ -40,7 +45,6 @@ interface SociedadesData {
 const generateYearOptions = () => {
   const currentYear = new Date().getFullYear();
   const years = [];
-  // Mostrar desde el año actual hasta 5 años atrás
   for (let year = currentYear; year >= currentYear - 5; year--) {
     years.push({ value: year, label: year.toString() });
   }
@@ -49,7 +53,6 @@ const generateYearOptions = () => {
 
 const years = generateYearOptions();
 
-// Función para verificar si un período está en el futuro
 const isPeriodInFuture = (year: number) => {
   const currentYear = new Date().getFullYear();
   return year > currentYear;
@@ -64,21 +67,21 @@ export default function SociedadesPage() {
   const { fetchWithTimeout } = useAuthenticatedFetch();
 
   const fetchSociedadesData = async (year?: number) => {
-    if (!tenantSlug) throw new Error('No tenant available');
+    if (!tenantSlug) throw new Error("No tenant available");
     const result = await fetchWithTimeout(
-      'odoo-sociedades',
-      { 
+      "odoo-sociedades",
+      {
         tenant_slug: tenantSlug,
-        year: year || new Date().getFullYear()
+        year: year || new Date().getFullYear(),
       },
-      { timeout: 30000, retries: 1 }
+      { timeout: 30000, retries: 1 },
     );
 
     if (result.ok && result.widget_data?.sociedades?.payload) {
-      console.log('✅ Sociedades data loaded successfully');
+      console.log("✅ Sociedades data loaded successfully");
       return result.widget_data.sociedades.payload;
     } else {
-      throw new Error('Invalid Sociedades response structure');
+      throw new Error("Invalid Sociedades response structure");
     }
   };
 
@@ -89,7 +92,7 @@ export default function SociedadesPage() {
       setData(newData);
       setLastUpdated(new Date());
     } catch (error: any) {
-      handleApiError(error, 'Impuesto de Sociedades');
+      handleApiError(error, "Impuesto de Sociedades");
     } finally {
       setLoading(false);
     }
@@ -98,13 +101,13 @@ export default function SociedadesPage() {
   useEffect(() => {
     if (tenantSlug) {
       fetchSociedadesData(selectedYear)
-        .then(result => {
+        .then((result) => {
           setData(result);
           setLastUpdated(new Date());
           setLoading(false);
         })
-        .catch(error => {
-          handleApiError(error, 'Impuesto de Sociedades');
+        .catch((error) => {
+          handleApiError(error, "Impuesto de Sociedades");
           setLoading(false);
         });
     }
@@ -116,36 +119,37 @@ export default function SociedadesPage() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
-      case 'A DEVOLVER':
-        return 'default'; // Verde
-      case 'A PAGAR':
-        return 'destructive'; // Rojo
-      case 'NEUTRO':
-        return 'secondary'; // Gris
+      case "A DEVOLVER":
+        return "default";
+      case "A PAGAR":
+        return "destructive";
+      case "PÉRDIDAS":
+        return "secondary";
+      case "NEUTRO":
+        return "secondary";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
   const getDiferenciaColor = (diferencia: number) => {
-    if (diferencia < 0) return 'text-green-600'; // A devolver
-    if (diferencia > 0) return 'text-red-600';   // A pagar
-    return 'text-gray-600'; // Neutro
+    if (diferencia < 0) return "text-green-600";
+    if (diferencia > 0) return "text-red-600";
+    return "text-gray-600";
   };
 
   const getStatusMessage = (data: SociedadesData | null) => {
-    if (!data) return '';
-    
+    if (!data) return "";
+
     if (data.resultado_ejercicio < 0) {
-      return 'No hay impuesto porque el resultado ha sido negativo';
+      return "No hay impuesto porque el resultado ha sido negativo";
     } else if (data.cuota_diferencial > 0) {
       return `Pagarás ${formatCurrency(data.cuota_diferencial)} de Impuesto de Sociedades`;
     } else {
-      return 'Sin impuesto este año';
+      return "Sin impuesto este año";
     }
   };
 
-  // Validar tenant loading
   if (tenantLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -157,13 +161,12 @@ export default function SociedadesPage() {
     );
   }
 
-  // Validar tenant error
   if (tenantError || !tenantSlug) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-red-500 text-center">
           <p className="font-semibold">Error cargando tenant</p>
-          <p>{tenantError || 'No se pudo obtener el tenant'}</p>
+          <p>{tenantError || "No se pudo obtener el tenant"}</p>
         </div>
       </div>
     );
@@ -182,15 +185,12 @@ export default function SociedadesPage() {
         </div>
         <div className="flex items-center space-x-2">
           {lastUpdated && (
-            <FreshnessBadge 
-              seconds={Math.floor((new Date().getTime() - lastUpdated.getTime()) / 1000)} 
-            />
+            <FreshnessBadge seconds={Math.floor((new Date().getTime() - lastUpdated.getTime()) / 1000)} />
           )}
           <SyncNow slug={tenantSlug} onSyncComplete={() => handleRefresh()} />
         </div>
       </div>
 
-      {/* Selector de Año */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg font-medium">Selecciona el año a consultar</CardTitle>
@@ -198,14 +198,14 @@ export default function SociedadesPage() {
         <CardContent className="space-y-4">
           <div className="flex flex-col space-y-2">
             <label className="text-sm font-medium">Año</label>
-              <Select 
-                value={selectedYear.toString()} 
-                onValueChange={(value) => {
-                  const newYear = parseInt(value);
-                  setSelectedYear(newYear);
-                  handleYearChange(newYear);
-                }}
-              >
+            <Select
+              value={selectedYear.toString()}
+              onValueChange={(value) => {
+                const newYear = parseInt(value);
+                setSelectedYear(newYear);
+                handleYearChange(newYear);
+              }}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Seleccionar año" />
               </SelectTrigger>
@@ -221,7 +221,6 @@ export default function SociedadesPage() {
         </CardContent>
       </Card>
 
-      {/* KPIs Principales */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -229,17 +228,21 @@ export default function SociedadesPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-          <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold">
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
-                <span className={data?.resultado_ejercicio < 0 ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}>
+                <span
+                  className={
+                    data?.resultado_ejercicio < 0 ? "text-red-600 font-semibold" : "text-green-600 font-semibold"
+                  }
+                >
                   {formatCurrency(data?.resultado_ejercicio || 0)}
                 </span>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {data?.resultado_ejercicio < 0 ? 'Pérdidas del ejercicio' : 'Beneficios del ejercicio'}
+              {data?.resultado_ejercicio < 0 ? "Pérdidas del ejercicio" : "Beneficios del ejercicio"}
             </p>
           </CardContent>
         </Card>
@@ -251,15 +254,9 @@ export default function SociedadesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : (
-                formatCurrency(data?.base_imponible || 0)
-              )}
+              {loading ? <Skeleton className="h-8 w-24" /> : formatCurrency(data?.base_imponible || 0)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Base imponible calculada
-            </p>
+            <p className="text-xs text-muted-foreground">Base imponible calculada</p>
           </CardContent>
         </Card>
 
@@ -270,14 +267,10 @@ export default function SociedadesPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${getDiferenciaColor(data?.cuota_diferencial || 0)}`}>
-              {loading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : (
-                formatCurrency(Math.abs(data?.cuota_diferencial || 0))
-              )}
+              {loading ? <Skeleton className="h-8 w-24" /> : formatCurrency(Math.abs(data?.cuota_diferencial || 0))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {(data?.cuota_diferencial || 0) > 0 ? 'Vas a pagar' : 'Sin impuesto'}
+              {(data?.cuota_diferencial || 0) > 0 ? "Vas a pagar" : "Sin impuesto"}
             </p>
           </CardContent>
         </Card>
@@ -292,54 +285,45 @@ export default function SociedadesPage() {
               {loading ? (
                 <Skeleton className="h-6 w-20" />
               ) : (
-                <Badge variant={getStatusColor(data?.status || 'NEUTRO')}>
-                  {data?.status === 'A PAGAR' ? 'PREPARANDO PAGO' : 
-                   data?.status === 'A DEVOLVER' ? 'GESTIONANDO DEVOLUCIÓN' : 
-                   'SIN IMPUESTO'}
+                <Badge variant={getStatusColor(data?.status || "NEUTRO")}>
+                  {data?.status === "A PAGAR"
+                    ? "PREPARANDO PAGO"
+                    : data?.status === "PÉRDIDAS"
+                      ? "SIN IMPUESTO"
+                      : data?.status === "A DEVOLVER"
+                        ? "GESTIONANDO DEVOLUCIÓN"
+                        : "SIN IMPUESTO"}
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Ejercicio {data?.period?.year || selectedYear}
-            </p>
+            <p className="text-xs text-muted-foreground mt-2">Ejercicio {data?.period?.year || selectedYear}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Alertas informativas para pérdidas */}
       {!loading && data && data.resultado_ejercicio < 0 && (
         <Alert className="bg-blue-50 border-blue-200">
           <AlertDescription className="text-blue-800">
-            Las pérdidas pueden compensarse con beneficios de ejercicios futuros. Esto reduce impuestos en años venideros.
+            Las pérdidas pueden compensarse con beneficios de ejercicios futuros. Esto reduce impuestos en años
+            venideros.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Explicación para pérdidas con estado neutro */}
-      {!loading && data && data.status === "NEUTRO" && data.resultado_ejercicio < 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md">
-          <p className="text-yellow-800 text-sm">
-            <strong>Resultado negativo:</strong> Al tener pérdidas ({data.resultado_ejercicio.toFixed(2)}€), no hay beneficios que tributar. 
-            No pagarás Impuesto de Sociedades este ejercicio.
-          </p>
-        </div>
-      )}
-
-      {/* Avisos para períodos futuros */}
       {isInFuture && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2 text-yellow-800">
               <Building className="h-4 w-4" />
               <p className="text-sm">
-                <strong>Año futuro:</strong> Los datos del año {selectedYear} no están disponibles hasta que termine el ejercicio.
+                <strong>Año futuro:</strong> Los datos del año {selectedYear} no están disponibles hasta que termine el
+                ejercicio.
               </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Sección de previsión */}
       {data?.prevision?.es_prevision && (
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="text-lg font-semibold text-blue-800 mb-3">
@@ -348,15 +332,11 @@ export default function SociedadesPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-gray-600">Facturación proyectada</p>
-              <p className="text-lg font-bold text-blue-700">
-                {formatNumber(data.prevision.ingresos_proyectados, 0)}€
-              </p>
+              <p className="text-lg font-bold text-blue-700">{formatNumber(data.prevision.ingresos_proyectados, 0)}€</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Resultado proyectado</p>
-              <p className="text-lg font-bold text-blue-700">
-                {formatNumber(data.prevision.resultado_proyectado, 0)}€
-              </p>
+              <p className="text-lg font-bold text-blue-700">{formatNumber(data.prevision.resultado_proyectado, 0)}€</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Impuesto estimado</p>
@@ -371,7 +351,6 @@ export default function SociedadesPage() {
         </div>
       )}
 
-      {/* Resumen detallado */}
       {!loading && data && (
         <Card>
           <CardHeader>
@@ -379,51 +358,75 @@ export default function SociedadesPage() {
               <Building className="h-5 w-5" />
               <span>Mi análisis para el ejercicio {selectedYear}</span>
             </CardTitle>
-            <p className="text-muted-foreground text-sm mt-2">
-              {getStatusMessage(data)}
-            </p>
+            <p className="text-muted-foreground text-sm mt-2">{getStatusMessage(data)}</p>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* Sección 1: Cálculo del Impuesto */}
+            <div>
+              <h4 className="font-semibold text-sm mb-3 text-gray-700">Cálculo del Impuesto de Sociedades</h4>
+              <div className="space-y-2 bg-gray-50 p-4 rounded-md">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Resultado del ejercicio:</span>
+                  <span className="font-medium">{formatCurrency(data.resultado_ejercicio)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Base imponible:</span>
+                  <span className="font-medium">{formatCurrency(data.base_imponible)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Tipo impositivo aplicado:</span>
+                  <span className="font-medium">{data.tipo_impositivo}%</span>
+                </div>
+                <div className="flex justify-between border-t pt-2 mt-2">
+                  <span className="text-sm font-semibold">Cuota calculada:</span>
+                  <span className="font-bold">{formatCurrency(data.cuota_integra)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sección 2: Resumen Anual */}
+            <div>
+              <h4 className="font-semibold text-sm mb-3 text-gray-700">Resumen del Ejercicio</h4>
+              <div className="space-y-2 bg-blue-50 p-4 rounded-md">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Beneficio bruto:</span>
+                  <span className="font-medium">{formatCurrency(data.annual_summary.beneficio_bruto)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Provisión impuesto:</span>
+                  <span className="font-medium">{formatCurrency(data.annual_summary.impuesto_provision)}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2 mt-2">
+                  <span className="text-sm font-semibold">Beneficio neto:</span>
+                  <span className="font-bold">{formatCurrency(data.annual_summary.beneficio_neto)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sección 3: Información General */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tipo impositivo aplicado:</span>
-                  <span className="font-medium">{data.tipo_impositivo}%</span>
+                  <span className="text-muted-foreground text-sm">Tipo de empresa:</span>
+                  <span className="font-medium text-sm">
+                    {data.empresa_tipo === "PYME" ? "PYME (ventajas fiscales)" : data.empresa_tipo}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cuota calculada:</span>
-                  <span className="font-medium">{formatCurrency(data.cuota_integra)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tipo de empresa:</span>
-                  <span className="font-medium">{data.empresa_tipo === 'PYME' ? 'PYME (ventajas fiscales)' : data.empresa_tipo}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Facturación anual:</span>
-                  <span className="font-medium">{formatCurrency(data.ingresos_anuales)}</span>
+                  <span className="text-muted-foreground text-sm">Facturación anual:</span>
+                  <span className="font-medium text-sm">{formatCurrency(data.ingresos_anuales)}</span>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Período fiscal:</span>
-                  <span className="font-medium">
+                  <span className="text-muted-foreground text-sm">Período fiscal:</span>
+                  <span className="font-medium text-sm">
                     {data.period?.date_from} - {data.period?.date_to}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ejercicio:</span>
-                  <span className="font-medium">{data.period?.year}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Situación:</span>
-                  <span className={`font-medium ${data.resultado_ejercicio < 0 ? 'text-green-600' : data.status === 'A PAGAR' ? 'text-red-600' : 'text-green-600'}`}>
-                    {data.resultado_ejercicio < 0 ? 'Sin obligación de pago' : 
-                     data.status === 'A PAGAR' ? 'Pendiente de pago' : 'Sin obligación de pago'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Presentación declaración:</span>
-                  <span className="font-medium">Julio {data.period?.year + 1}</span>
+                  <span className="text-muted-foreground text-sm">Presentación declaración:</span>
+                  <span className="font-medium text-sm">Julio {data.period?.year + 1}</span>
                 </div>
               </div>
             </div>
