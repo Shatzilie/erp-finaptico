@@ -104,30 +104,37 @@ export default function InvoicingPage() {
       return 0;
     }
 
-    // Obtener el mes actual desde el último elemento
     const currentMonth = data.history[data.history.length - 1];
     const currentMonthNumber = currentMonth?.month_number;
     const currentYear = currentMonth?.year;
 
     if (!currentMonthNumber || !currentYear) return 0;
 
-    // Calcular el trimestre actual (Q1: 1-3, Q2: 4-6, Q3: 7-9, Q4: 10-12)
     const currentQuarter = Math.ceil(currentMonthNumber / 3);
     const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
     const quarterEndMonth = currentQuarter * 3;
 
-    // Filtrar los meses del trimestre actual
+    console.log("🔢 DEBUG Trimestre:", currentQuarter, "| Rango:", quarterStartMonth, "-", quarterEndMonth);
+
     const quarterMonths = data.history.filter((month) => {
-      return (
-        month.year === currentYear && month.month_number >= quarterStartMonth && month.month_number <= quarterEndMonth
-      );
+      const isInQuarter =
+        month.year === currentYear && month.month_number >= quarterStartMonth && month.month_number <= quarterEndMonth;
+
+      if (isInQuarter) {
+        console.log("✅ DEBUG Mes incluido:", month.month_number, "- Total:", month.total);
+      }
+
+      return isInQuarter;
     });
 
-    // Sumar los totales
-    return quarterMonths.reduce((sum, month) => {
+    const total = quarterMonths.reduce((sum, month) => {
       const revenue = typeof month?.total === "number" ? month.total : 0;
       return sum + revenue;
     }, 0);
+
+    console.log("💰 DEBUG Total trimestre:", total);
+
+    return total;
   };
 
   const kpiCards = [
