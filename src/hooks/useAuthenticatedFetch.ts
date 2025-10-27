@@ -56,7 +56,7 @@ export function useAuthenticatedFetch() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
             'apikey': supabaseAnonKey,
-            'X-Rate-Limit-Remaining': getRemainingRequests(endpoint).toString()
+            'X-RateLimit-Remaining': getRemainingRequests(endpoint).toString()
           },
           body: JSON.stringify(body),
           signal: controller.signal
