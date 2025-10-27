@@ -40,8 +40,8 @@ export function useTenantFeatures() {
       return;
     }
 
-    // Si no hay slug, no hacer nada
-    if (!slug) {
+    // Si no hay slug o es ruta admin, no hacer nada
+    if (!slug || slug === 'admin') {
       setLoading(false);
       return;
     }

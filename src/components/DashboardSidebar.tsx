@@ -8,7 +8,51 @@ export const DashboardSidebar = () => {
   const { slug, features } = useTenantFeatures();
   const { isSuperAdmin } = useSuperAdmin();
 
-  // Mientras carga, muestra un placeholder simple
+  // Si es super-admin en rutas /admin/*, renderizar sidebar sin tenant
+  if (isSuperAdmin && (!slug || slug === 'admin')) {
+    return (
+      <div className="bg-gradient-sidebar w-64 min-h-screen p-6">
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-white mb-2">Portal Financiero</h2>
+          <p className="text-gray-300 text-sm">Gestión empresarial</p>
+        </div>
+
+        <nav className="space-y-2">
+          <div className="pt-2 pb-2">
+            <div className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Administración
+            </div>
+          </div>
+          
+          <NavLink
+            to="/admin/clients"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                isActive ? "bg-white/20 text-white shadow-sm" : "text-gray-300 hover:bg-white/10 hover:text-white"
+              }`
+            }
+          >
+            <Building2 className="h-4 w-4" />
+            Clientes
+          </NavLink>
+
+          <NavLink
+            to="/admin/logs"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                isActive ? "bg-white/20 text-white shadow-sm" : "text-gray-300 hover:bg-white/10 hover:text-white"
+              }`
+            }
+          >
+            <ScrollText className="h-4 w-4" />
+            Logs de Auditoría
+          </NavLink>
+        </nav>
+      </div>
+    );
+  }
+
+  // Mientras carga tenant features, muestra un placeholder
   if (!features || !slug) {
     return (
       <div className="bg-gradient-sidebar w-64 min-h-screen p-6">
