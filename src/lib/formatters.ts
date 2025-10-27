@@ -43,3 +43,26 @@ export function formatPercentage(value: number, decimals: number = 1): string {
     maximumFractionDigits: decimals
   }).format(value / 100);
 }
+
+/**
+ * Calcula el cambio porcentual entre dos valores
+ * @param current - Valor actual
+ * @param previous - Valor anterior
+ * @returns Porcentaje de cambio (puede ser positivo o negativo)
+ */
+export function calculateDelta(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+/**
+ * Formatea un delta como string con signo
+ * @param delta - Valor del delta
+ * @param decimals - Número de decimales (por defecto 1)
+ * @returns String formateado con signo (ej: "+12.5%" o "-3.2%")
+ */
+export function formatDelta(delta: number | null, decimals: number = 1): string {
+  if (delta === null) return 'N/A';
+  const sign = delta >= 0 ? '+' : '';
+  return `${sign}${delta.toFixed(decimals)}%`;
+}

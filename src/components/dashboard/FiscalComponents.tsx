@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
-import { FileText, Receipt } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Receipt, CheckCircle, XCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 
 interface IVAData {
@@ -34,9 +35,28 @@ interface IrpfCardProps {
 }
 
 export const IvaCard = ({ data }: IvaCardProps) => {
+  // Determinar el estado del semáforo
+  const getStatusBadge = () => {
+    if (data.status === 'A COMPENSAR') {
+      return { variant: 'success' as const, icon: CheckCircle, label: 'Al día' };
+    } else if (data.status === 'A INGRESAR') {
+      return { variant: 'danger' as const, icon: XCircle, label: 'Pendiente' };
+    } else {
+      return { variant: 'success' as const, icon: CheckCircle, label: 'Neutro' };
+    }
+  };
+
+  const statusBadge = getStatusBadge();
+  const StatusIcon = statusBadge.icon;
+
   return (
-    <Card className="p-6 hover:shadow-lg transition-shadow">
-      <div className="flex items-start justify-between mb-4">
+    <Card className="p-6 hover:shadow-lg transition-shadow relative">
+      <Badge variant={statusBadge.variant} className="absolute top-4 right-4">
+        <StatusIcon className="w-3 h-3 mr-1" />
+        {statusBadge.label}
+      </Badge>
+      
+      <div className="flex items-start justify-between mb-4 pr-24">
         <div>
           <p className="text-sm text-gray-600 mb-1">
             IVA Q{data.period.quarter} {data.period.year}
@@ -73,9 +93,28 @@ export const IvaCard = ({ data }: IvaCardProps) => {
 };
 
 export const IrpfCard = ({ data }: IrpfCardProps) => {
+  // Determinar el estado del semáforo
+  const getStatusBadge = () => {
+    if (data.status === 'A COMPENSAR') {
+      return { variant: 'success' as const, icon: CheckCircle, label: 'Al día' };
+    } else if (data.status === 'A INGRESAR') {
+      return { variant: 'danger' as const, icon: XCircle, label: 'Pendiente' };
+    } else {
+      return { variant: 'success' as const, icon: CheckCircle, label: 'Neutro' };
+    }
+  };
+
+  const statusBadge = getStatusBadge();
+  const StatusIcon = statusBadge.icon;
+
   return (
-    <Card className="p-6 hover:shadow-lg transition-shadow">
-      <div className="flex items-start justify-between mb-4">
+    <Card className="p-6 hover:shadow-lg transition-shadow relative">
+      <Badge variant={statusBadge.variant} className="absolute top-4 right-4">
+        <StatusIcon className="w-3 h-3 mr-1" />
+        {statusBadge.label}
+      </Badge>
+      
+      <div className="flex items-start justify-between mb-4 pr-24">
         <div>
           <p className="text-sm text-gray-600 mb-1">
             IRPF Q{data.period.quarter} {data.period.year}

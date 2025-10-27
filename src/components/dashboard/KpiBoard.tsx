@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle } from "lucide-react";
 import { backendAdapter } from "@/lib/backendAdapter";
 import { IvaCard, IrpfCard } from "./FiscalComponents";
 import { PayrollCostWidget } from "./PayrollCostWidget";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, calculateDelta, formatDelta } from "@/lib/formatters";
 
 interface KpiBoardProps {
   tenantId: string;
@@ -78,11 +79,19 @@ interface SociedadesData {
   };
 }
 
+interface MonthlyData {
+  month: string;
+  total: number;
+  currency: string;
+}
+
 const KpiBoard = ({ tenantId }: KpiBoardProps) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [ivaData, setIvaData] = useState<IVAData | null>(null);
   const [irpfData, setIRPFData] = useState<IRPFData | null>(null);
   const [sociedadesData, setSociedadesData] = useState<SociedadesData | null>(null);
+  const [revenueHistory, setRevenueHistory] = useState<MonthlyData[]>([]);
+  const [expensesHistory, setExpensesHistory] = useState<MonthlyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,6 +147,10 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
             alerts: legacyData.alerts || []
           };
           setDashboardData(convertedData);
+          
+          // Guardar historial para calcular deltas
+          setRevenueHistory(legacyData.revenue_history || []);
+          setExpensesHistory(legacyData.expenses_history || []);
         }
 
         if (ivaResponse.ok && ivaResponse.widget_data?.iva?.payload) {
@@ -186,6 +199,21 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
     );
   }
 
+  // Calcular deltas para KPIs principales
+  const calculateKpiDelta = (history: MonthlyData[], currentValue: number) => {
+    if (history.length < 2) return null;
+    
+    // Obtener el mes actual y el anterior
+    const sortedHistory = [...history].sort((a, b) => b.month.localeCompare(a.month));
+    const currentMonth = sortedHistory[0]?.total || currentValue;
+    const previousMonth = sortedHistory[1]?.total || 0;
+    
+    return calculateDelta(currentMonth, previousMonth);
+  };
+
+  const revenueDelta = calculateKpiDelta(revenueHistory, dashboardData.revenue.monthly);
+  const expensesDelta = calculateKpiDelta(expensesHistory, dashboardData.expenses.monthly);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -204,9 +232,16 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
 
         <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm text-gray-600 mb-1">Ingresos (mes)</p>
               <p className="text-2xl font-bold">{formatCurrency(dashboardData.revenue.monthly, 0)}</p>
+              {revenueDelta !== null && (
+                <div className={`flex items-center gap-1 mt-2 text-sm ${revenueDelta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {revenueDelta >= 0 ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+                  <span className="font-medium">{formatDelta(revenueDelta)}</span>
+                  <span className="text-xs text-gray-500">vs mes anterior</span>
+                </div>
+              )}
               <p className="text-xs text-gray-500 mt-1">Anual: {formatCurrency(dashboardData.revenue.yearly, 0)}</p>
             </div>
             <div className="bg-green-50 p-3 rounded-full">
@@ -217,9 +252,16 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
 
         <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm text-gray-600 mb-1">Gastos (mes)</p>
               <p className="text-2xl font-bold">{formatCurrency(dashboardData.expenses.monthly, 0)}</p>
+              {expensesDelta !== null && (
+                <div className={`flex items-center gap-1 mt-2 text-sm ${expensesDelta >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {expensesDelta >= 0 ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+                  <span className="font-medium">{formatDelta(expensesDelta)}</span>
+                  <span className="text-xs text-gray-500">vs mes anterior</span>
+                </div>
+              )}
               <p className="text-xs text-gray-500 mt-1">Anual: {formatCurrency(dashboardData.expenses.yearly, 0)}</p>
             </div>
             <div className="bg-red-50 p-3 rounded-full">
@@ -254,8 +296,18 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         <PayrollCostWidget />
 
         {sociedadesData && (
-          <Card className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-4">
+          <Card className="p-6 hover:shadow-lg transition-shadow relative">
+            <Badge 
+              variant={sociedadesData.status === 'A DEVOLVER' ? 'success' : sociedadesData.status === 'A PAGAR' ? 'danger' : 'warning'}
+              className="absolute top-4 right-4"
+            >
+              {sociedadesData.status === 'A DEVOLVER' && <CheckCircle className="w-3 h-3 mr-1" />}
+              {sociedadesData.status === 'A PAGAR' && <XCircle className="w-3 h-3 mr-1" />}
+              {sociedadesData.status === 'NEUTRO' && <AlertTriangle className="w-3 h-3 mr-1" />}
+              {sociedadesData.status === 'A DEVOLVER' ? 'A devolver' : sociedadesData.status === 'A PAGAR' ? 'Pendiente' : 'Revisar'}
+            </Badge>
+            
+            <div className="flex items-start justify-between mb-4 pr-24">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Impuesto de Sociedades {sociedadesData.period.year}</p>
                 <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>

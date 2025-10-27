@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, FileText } from "lucide-react";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection, { ChartsSectionRef } from "@/components/dashboard/ChartsSection";
+import RevenueExpensesChart from "@/components/dashboard/RevenueExpensesChart";
 import { FiscalCalendarWidget } from "@/components/dashboard/FiscalCalendarWidget";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -173,12 +174,21 @@ const Dashboard = () => {
                 <KpiBoard tenantId={tenantSlug} />
               </section>
 
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Evolución Financiera</h2>
+                <RevenueExpensesChart 
+                  revenueData={dashboardData?.revenue_history || []}
+                  expensesData={dashboardData?.expenses_history || []}
+                  isLoading={isLoadingCharts}
+                />
+              </section>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <FiscalCalendarWidget />
               </div>
 
               <section>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico Detallado</h2>
                 <ChartsSection ref={chartsSectionRef} data={chartsData} isLoading={isLoadingCharts} />
               </section>
             </div>
