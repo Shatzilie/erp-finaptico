@@ -21,35 +21,59 @@ const MONTH_NAMES: Record<string, string> = {
 };
 
 const RevenueExpensesChart = ({ revenueData, expensesData, isLoading }: RevenueExpensesChartProps) => {
-  // Preparar datos para los últimos 12 meses
+  // Preparar datos combinando revenue y expenses por mes
   const prepareChartData = () => {
-    const currentDate = new Date();
-    const chartData: any[] = [];
-    
-    // Generar últimos 12 meses
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const monthKey = `${year}-${month}`;
-      const monthLabel = `${MONTH_NAMES[month]} ${year}`;
-      
-      // Buscar revenue y expenses para este mes
-      const revenue = revenueData.find(r => r.month === monthKey)?.total || 0;
-      const expenses = expensesData.find(e => e.month === monthKey)?.total || 0;
-      
-      chartData.push({
-        month: monthLabel,
-        Ingresos: Math.round(revenue),
-        Gastos: Math.round(expenses)
-      });
+    if (!revenueData.length && !expensesData.length) {
+      return [];
     }
-    
-    return chartData;
+
+    // Crear un mapa con todos los meses disponibles
+    const monthsMap = new Map<string, { Ingresos: number; Gastos: number }>();
+
+    // Agregar datos de revenue
+    revenueData.forEach(item => {
+      if (item.month) {
+        const [year, month] = item.month.split('-');
+        const monthLabel = `${MONTH_NAMES[month]} ${year}`;
+        if (!monthsMap.has(item.month)) {
+          monthsMap.set(item.month, { Ingresos: 0, Gastos: 0 });
+        }
+        const existing = monthsMap.get(item.month)!;
+        existing.Ingresos = Math.round(item.total);
+      }
+    });
+
+    // Agregar datos de expenses
+    expensesData.forEach(item => {
+      if (item.month) {
+        const [year, month] = item.month.split('-');
+        const monthLabel = `${MONTH_NAMES[month]} ${year}`;
+        if (!monthsMap.has(item.month)) {
+          monthsMap.set(item.month, { Ingresos: 0, Gastos: 0 });
+        }
+        const existing = monthsMap.get(item.month)!;
+        existing.Gastos = Math.round(item.total);
+      }
+    });
+
+    // Convertir a array, ordenar por fecha y tomar últimos 12 meses
+    const sortedData = Array.from(monthsMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-12)
+      .map(([monthKey, values]) => {
+        const [year, month] = monthKey.split('-');
+        return {
+          month: `${MONTH_NAMES[month]} ${year}`,
+          Ingresos: values.Ingresos,
+          Gastos: values.Gastos
+        };
+      });
+
+    return sortedData;
   };
 
   const chartData = prepareChartData();
-  const hasData = chartData.some(d => d.Ingresos > 0 || d.Gastos > 0);
+  const hasData = chartData.length > 0 && chartData.some(d => d.Ingresos > 0 || d.Gastos > 0);
 
   if (isLoading) {
     return (
