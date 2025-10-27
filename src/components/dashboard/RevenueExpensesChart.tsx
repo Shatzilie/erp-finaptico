@@ -5,12 +5,18 @@ import { formatCurrency } from "@/lib/formatters";
 interface MonthlyData {
   month: string;
   total: number;
-  currency?: string;
+  year?: number;
+  count?: number;
+}
+
+interface HistoricalData {
+  history?: MonthlyData[];
+  monthlyData?: MonthlyData[];
 }
 
 interface RevenueExpensesChartProps {
-  revenueData: MonthlyData[] | { monthlyData: MonthlyData[] };
-  expensesData: MonthlyData[] | { monthlyData: MonthlyData[] };
+  revenueData: MonthlyData[] | HistoricalData;
+  expensesData: MonthlyData[] | HistoricalData;
   isLoading?: boolean;
 }
 
@@ -21,12 +27,13 @@ const MONTH_NAMES: Record<string, string> = {
 };
 
 const RevenueExpensesChart = ({ revenueData, expensesData, isLoading }: RevenueExpensesChartProps) => {
-  // Normalizar datos: si viene con monthlyData, extraerlo
-  const normalizeData = (data: MonthlyData[] | { monthlyData: MonthlyData[] }): MonthlyData[] => {
+  // Normalizar datos: extraer array correcto
+  const normalizeData = (data: MonthlyData[] | HistoricalData): MonthlyData[] => {
     if (Array.isArray(data)) {
       return data;
     }
-    return data.monthlyData || [];
+    // Prioridad: history > monthlyData > array vacío
+    return data.history || data.monthlyData || [];
   };
 
   const revenueArray = normalizeData(revenueData);
@@ -81,14 +88,6 @@ const RevenueExpensesChart = ({ revenueData, expensesData, isLoading }: RevenueE
 
   const chartData = prepareChartData();
   const hasData = chartData.length > 0 && chartData.some(d => d.Ingresos > 0 || d.Gastos > 0);
-
-  console.log('📊 RevenueExpensesChart DEBUG:', {
-    revenueArrayLength: revenueArray.length,
-    expensesArrayLength: expensesArray.length,
-    chartDataLength: chartData.length,
-    hasData,
-    chartData
-  });
 
   if (isLoading) {
     return (
