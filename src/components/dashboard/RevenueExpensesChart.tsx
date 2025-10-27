@@ -5,12 +5,12 @@ import { formatCurrency } from "@/lib/formatters";
 interface MonthlyData {
   month: string;
   total: number;
-  currency: string;
+  currency?: string;
 }
 
 interface RevenueExpensesChartProps {
-  revenueData: MonthlyData[];
-  expensesData: MonthlyData[];
+  revenueData: MonthlyData[] | { monthlyData: MonthlyData[] };
+  expensesData: MonthlyData[] | { monthlyData: MonthlyData[] };
   isLoading?: boolean;
 }
 
@@ -21,9 +21,20 @@ const MONTH_NAMES: Record<string, string> = {
 };
 
 const RevenueExpensesChart = ({ revenueData, expensesData, isLoading }: RevenueExpensesChartProps) => {
+  // Normalizar datos: si viene con monthlyData, extraerlo
+  const normalizeData = (data: MonthlyData[] | { monthlyData: MonthlyData[] }): MonthlyData[] => {
+    if (Array.isArray(data)) {
+      return data;
+    }
+    return data.monthlyData || [];
+  };
+
+  const revenueArray = normalizeData(revenueData);
+  const expensesArray = normalizeData(expensesData);
+
   // Preparar datos combinando revenue y expenses por mes
   const prepareChartData = () => {
-    if (!revenueData.length && !expensesData.length) {
+    if (!revenueArray.length && !expensesArray.length) {
       return [];
     }
 
@@ -31,10 +42,8 @@ const RevenueExpensesChart = ({ revenueData, expensesData, isLoading }: RevenueE
     const monthsMap = new Map<string, { Ingresos: number; Gastos: number }>();
 
     // Agregar datos de revenue
-    revenueData.forEach(item => {
+    revenueArray.forEach(item => {
       if (item.month) {
-        const [year, month] = item.month.split('-');
-        const monthLabel = `${MONTH_NAMES[month]} ${year}`;
         if (!monthsMap.has(item.month)) {
           monthsMap.set(item.month, { Ingresos: 0, Gastos: 0 });
         }
@@ -44,10 +53,8 @@ const RevenueExpensesChart = ({ revenueData, expensesData, isLoading }: RevenueE
     });
 
     // Agregar datos de expenses
-    expensesData.forEach(item => {
+    expensesArray.forEach(item => {
       if (item.month) {
-        const [year, month] = item.month.split('-');
-        const monthLabel = `${MONTH_NAMES[month]} ${year}`;
         if (!monthsMap.has(item.month)) {
           monthsMap.set(item.month, { Ingresos: 0, Gastos: 0 });
         }
@@ -75,6 +82,14 @@ const RevenueExpensesChart = ({ revenueData, expensesData, isLoading }: RevenueE
   const chartData = prepareChartData();
   const hasData = chartData.length > 0 && chartData.some(d => d.Ingresos > 0 || d.Gastos > 0);
 
+  console.log('📊 RevenueExpensesChart DEBUG:', {
+    revenueArrayLength: revenueArray.length,
+    expensesArrayLength: expensesArray.length,
+    chartDataLength: chartData.length,
+    hasData,
+    chartData
+  });
+
   if (isLoading) {
     return (
       <Card className="p-6">
@@ -90,6 +105,9 @@ const RevenueExpensesChart = ({ revenueData, expensesData, isLoading }: RevenueE
     return (
       <Card className="p-6 text-center">
         <p className="text-gray-500">No hay datos históricos disponibles</p>
+        <p className="text-xs text-gray-400 mt-2">
+          Revenue: {revenueArray.length} registros | Expenses: {expensesArray.length} registros
+        </p>
       </Card>
     );
   }
