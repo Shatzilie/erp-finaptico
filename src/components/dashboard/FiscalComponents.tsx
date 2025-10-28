@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Receipt, CheckCircle, XCircle } from "lucide-react";
+import { FileText, Receipt, CheckCircle, XCircle, Info } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface IVAData {
   amount: number;
@@ -58,9 +59,21 @@ export const IvaCard = ({ data }: IvaCardProps) => {
       
       <div className="flex items-start justify-between mb-4 pr-24">
         <div>
-          <p className="text-sm text-gray-600 mb-1">
-            IVA Q{data.period.quarter} {data.period.year}
-          </p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-sm text-gray-600">
+              IVA Q{data.period.quarter} {data.period.year}
+            </p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[300px]">
+                  <p>Este importe corresponde al IVA acumulado del trimestre. Lo uso para calcular la previsión del modelo 303.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <p className={`text-2xl font-bold ${(data.amount || data.iva_diferencia) < 0 ? 'text-green-600' : 'text-red-600'}`}>
             {formatCurrency(data.amount || data.iva_diferencia, 0)}
           </p>
@@ -116,9 +129,21 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
       
       <div className="flex items-start justify-between mb-4 pr-24">
         <div>
-          <p className="text-sm text-gray-600 mb-1">
-            IRPF Q{data.period.quarter} {data.period.year}
-          </p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-sm text-gray-600">
+              IRPF Q{data.period.quarter} {data.period.year}
+            </p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[300px]">
+                  <p>Refleja la estimación del IRPF trimestral (modelo 130 o retenciones aplicadas). Solo es informativo, no tienes que hacer nada.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <p className={`text-2xl font-bold ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
             {formatCurrency(data.diferencia, 0)}
           </p>

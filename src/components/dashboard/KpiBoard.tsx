@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { backendAdapter } from "@/lib/backendAdapter";
 import { IvaCard, IrpfCard } from "./FiscalComponents";
 import { PayrollCostWidget } from "./PayrollCostWidget";
@@ -220,7 +221,19 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Tesoreria</p>
+              <div className="flex items-center gap-1.5 mb-1">
+                <p className="text-sm text-gray-600">Tesoreria</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[300px]">
+                      <p>Aquí ves el saldo total que tengo controlado en las cuentas de la empresa. No necesitas hacer nada, solo refleja la tesorería real del momento.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className="text-2xl font-bold">{formatCurrency(dashboardData.treasury.total, 0)}</p>
               <p className="text-xs text-gray-500 mt-1">{dashboardData.treasury.accounts} cuenta{dashboardData.treasury.accounts !== 1 ? 's' : ''}</p>
             </div>
@@ -233,7 +246,19 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <p className="text-sm text-gray-600 mb-1">Ingresos (mes)</p>
+              <div className="flex items-center gap-1.5 mb-1">
+                <p className="text-sm text-gray-600">Ingresos (mes)</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[300px]">
+                      <p>Este bloque muestra las facturas emitidas en el periodo. Son ingresos facturados, no necesariamente cobrados todavía.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className="text-2xl font-bold">{formatCurrency(dashboardData.revenue.monthly, 0)}</p>
               {revenueDelta !== null && (
                 <div className={`flex items-center gap-1 mt-2 text-sm ${revenueDelta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -253,7 +278,19 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <p className="text-sm text-gray-600 mb-1">Gastos (mes)</p>
+              <div className="flex items-center gap-1.5 mb-1">
+                <p className="text-sm text-gray-600">Gastos (mes)</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[300px]">
+                      <p>Aquí aparecen los gastos registrados en la contabilidad. Incluye todos los pagos con factura a nombre de la empresa.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className="text-2xl font-bold">{formatCurrency(dashboardData.expenses.monthly, 0)}</p>
               {expensesDelta !== null && (
                 <div className={`flex items-center gap-1 mt-2 text-sm ${expensesDelta >= 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -309,7 +346,19 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
             
             <div className="flex items-start justify-between mb-4 pr-24">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Impuesto de Sociedades {sociedadesData.period.year}</p>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-sm text-gray-600">Impuesto de Sociedades {sociedadesData.period.year}</p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-[300px]">
+                        <p>Este dato muestra la previsión del Impuesto de Sociedades anual. Se actualiza automáticamente con los resultados contables.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(sociedadesData.cuota_diferencial, 0)}
                 </p>
