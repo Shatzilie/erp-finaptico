@@ -178,9 +178,12 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         }
 
         // ✅ PARSING DE IVA - Lee los datos del payload
+        console.log('🔍 IVA Response recibida:', ivaResponse);
+        console.log('🔍 Tipo de ivaResponse:', typeof ivaResponse);
+        
         if (ivaResponse?.ok && ivaResponse.widget_data?.iva?.payload) {
           const payload = ivaResponse.widget_data.iva.payload;
-          setIvaData({
+          const ivaDataToSet = {
             amount: payload.amount || 0,
             iva_repercutido: payload.iva_repercutido || 0,
             iva_soportado: payload.iva_soportado || 0,
@@ -197,7 +200,9 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
               total_purchases: 0,
               net_result: 0
             }
-          });
+          };
+          setIvaData(ivaDataToSet);
+          console.log('🔍 ivaData seteado a:', ivaDataToSet);
         }
 
         // ✅ PARSING DE IRPF - Lee los datos del payload
@@ -251,6 +256,8 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
 
     fetchDashboardData();
   }, [tenantId]);
+
+  console.log('🎨 Renderizando KpiBoard - ivaData:', ivaData);
 
   if (isLoading) {
     return (
