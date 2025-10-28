@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle, Info, Circle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { backendAdapter } from "@/lib/backendAdapter";
-import { IvaCard, IrpfCard } from "./FiscalComponents";
+import { IvaCard, IrpfCard, getFiscalStatusLabel } from "./FiscalComponents";
 import { PayrollCostWidget } from "./PayrollCostWidget";
 import { formatCurrency, calculateDelta, formatDelta } from "@/lib/formatters";
 
@@ -406,18 +406,8 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         <PayrollCostWidget />
 
         {sociedadesData && (
-          <Card className="p-6 hover:shadow-lg transition-shadow relative">
-            <Badge 
-              variant={sociedadesData.status === 'A DEVOLVER' ? 'success' : sociedadesData.status === 'A PAGAR' ? 'danger' : 'warning'}
-              className="absolute top-4 right-4"
-            >
-              {sociedadesData.status === 'A DEVOLVER' && <CheckCircle className="w-3 h-3 mr-1" />}
-              {sociedadesData.status === 'A PAGAR' && <XCircle className="w-3 h-3 mr-1" />}
-              {sociedadesData.status === 'NEUTRO' && <AlertTriangle className="w-3 h-3 mr-1" />}
-              {sociedadesData.status === 'A DEVOLVER' ? 'A devolver' : sociedadesData.status === 'A PAGAR' ? 'Pendiente' : 'Revisar'}
-            </Badge>
-            
-            <div className="flex items-start justify-between mb-4 pr-24">
+          <Card className="p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-start justify-between mb-4">
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <p className="text-sm text-gray-600">Impuesto de Sociedades {sociedadesData.period.year}</p>
@@ -432,16 +422,17 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <div className="flex items-center gap-2">
-                  <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(sociedadesData.cuota_diferencial, 0)}
-                  </p>
-                  <Circle 
-                    size={12} 
-                    fill={getFiscalStatusColor(sociedadesData.cuota_diferencial)} 
-                    stroke="none" 
-                    className="shadow-sm flex-shrink-0" 
-                  />
+                <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(sociedadesData.cuota_diferencial, 0)}
+                </p>
+                <div
+                  className="mt-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
+                  style={{ 
+                    backgroundColor: getFiscalStatusLabel("is", sociedadesData.cuota_diferencial).color, 
+                    color: getFiscalStatusLabel("is", sociedadesData.cuota_diferencial).textColor 
+                  }}
+                >
+                  {getFiscalStatusLabel("is", sociedadesData.cuota_diferencial).label}
                 </div>
               </div>
               <div className={`p-3 rounded-full ${sociedadesData.cuota_diferencial < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -464,15 +455,6 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
               <div className="flex justify-between">
                 <span className="text-gray-600">Beneficio neto:</span>
                 <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_neto, 0)}</span>
-              </div>
-              <div className="pt-2 border-t">
-                <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                  sociedadesData.status === 'A PAGAR' ? 'bg-red-100 text-red-700' :
-                  sociedadesData.status === 'A DEVOLVER' ? 'bg-green-100 text-green-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {sociedadesData.status}
-                </span>
               </div>
             </div>
           </Card>

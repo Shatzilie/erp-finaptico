@@ -1,13 +1,13 @@
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { FileText, Receipt, CheckCircle, XCircle, Info } from "lucide-react";
+import { FileText, Receipt, Info } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const getFiscalStatusLabel = (type: string, value: number | null | undefined, currentDate: Date = new Date()) => {
+export const getFiscalStatusLabel = (type: string, value: number | null | undefined, currentDate: Date = new Date()) => {
   const month = currentDate.getMonth() + 1; // 1-12
   const year = currentDate.getFullYear();
   const quarter = Math.ceil(month / 3); // 1-4
+  const isCurrentQuarter = quarter === 4; // Octubre-Diciembre 2025
 
   if (value === null || value === undefined || isNaN(value)) {
     return { label: "Sin datos disponibles", color: "#F3F4F6", textColor: "#4B5563" };
@@ -15,7 +15,7 @@ const getFiscalStatusLabel = (type: string, value: number | null | undefined, cu
 
   // IVA (Modelo 303)
   if (type === "iva") {
-    if (quarter === 4) {
+    if (isCurrentQuarter) {
       return { label: "Trimestre en curso. Aún no se presenta.", color: "#E0E7FF", textColor: "#1E3A8A" };
     }
     if (value > 0) {
@@ -29,7 +29,7 @@ const getFiscalStatusLabel = (type: string, value: number | null | undefined, cu
 
   // IRPF (Modelo 130)
   if (type === "irpf") {
-    if (quarter === 4) {
+    if (isCurrentQuarter) {
       return { label: "Trimestre en curso. Cierre en enero.", color: "#E0E7FF", textColor: "#1E3A8A" };
     }
     if (value > 0) {
@@ -81,28 +81,9 @@ interface IrpfCardProps {
 }
 
 export const IvaCard = ({ data }: IvaCardProps) => {
-  // Determinar el estado del semáforo
-  const getStatusBadge = () => {
-    if (data.status === 'A COMPENSAR') {
-      return { variant: 'success' as const, icon: CheckCircle, label: 'Al día' };
-    } else if (data.status === 'A INGRESAR') {
-      return { variant: 'danger' as const, icon: XCircle, label: 'Pendiente' };
-    } else {
-      return { variant: 'success' as const, icon: CheckCircle, label: 'Neutro' };
-    }
-  };
-
-  const statusBadge = getStatusBadge();
-  const StatusIcon = statusBadge.icon;
-
   return (
-    <Card className="p-6 hover:shadow-lg transition-shadow relative">
-      <Badge variant={statusBadge.variant} className="absolute top-4 right-4">
-        <StatusIcon className="w-3 h-3 mr-1" />
-        {statusBadge.label}
-      </Badge>
-      
-      <div className="flex items-start justify-between mb-4 pr-24">
+    <Card className="p-6 hover:shadow-lg transition-shadow">
+      <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-1.5 mb-1">
             <p className="text-sm text-gray-600">
@@ -145,43 +126,15 @@ export const IvaCard = ({ data }: IvaCardProps) => {
           <span className="text-gray-600">IVA Soportado:</span>
           <span className="font-medium">{formatCurrency(data.iva_soportado, 0)}</span>
         </div>
-        <div className="pt-2 border-t">
-          <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-            data.status === 'A INGRESAR' ? 'bg-red-100 text-red-700' :
-            data.status === 'A COMPENSAR' ? 'bg-green-100 text-green-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {data.status}
-          </span>
-        </div>
       </div>
     </Card>
   );
 };
 
 export const IrpfCard = ({ data }: IrpfCardProps) => {
-  // Determinar el estado del semáforo
-  const getStatusBadge = () => {
-    if (data.status === 'A COMPENSAR') {
-      return { variant: 'success' as const, icon: CheckCircle, label: 'Al día' };
-    } else if (data.status === 'A INGRESAR') {
-      return { variant: 'danger' as const, icon: XCircle, label: 'Pendiente' };
-    } else {
-      return { variant: 'success' as const, icon: CheckCircle, label: 'Neutro' };
-    }
-  };
-
-  const statusBadge = getStatusBadge();
-  const StatusIcon = statusBadge.icon;
-
   return (
-    <Card className="p-6 hover:shadow-lg transition-shadow relative">
-      <Badge variant={statusBadge.variant} className="absolute top-4 right-4">
-        <StatusIcon className="w-3 h-3 mr-1" />
-        {statusBadge.label}
-      </Badge>
-      
-      <div className="flex items-start justify-between mb-4 pr-24">
+    <Card className="p-6 hover:shadow-lg transition-shadow">
+      <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-1.5 mb-1">
             <p className="text-sm text-gray-600">
@@ -223,15 +176,6 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
         <div className="flex justify-between">
           <span className="text-gray-600">Retenciones Soportadas:</span>
           <span className="font-medium">{formatCurrency(data.retenciones_soportadas, 0)}</span>
-        </div>
-        <div className="pt-2 border-t">
-          <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-            data.status === 'A INGRESAR' ? 'bg-red-100 text-red-700' :
-            data.status === 'A COMPENSAR' ? 'bg-green-100 text-green-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {data.status}
-          </span>
         </div>
       </div>
     </Card>
