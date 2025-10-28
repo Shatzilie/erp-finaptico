@@ -66,7 +66,7 @@ export const IvaCard = ({ data }: IvaCardProps) => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                  <Info className="w-4 h-4 text-[#6C5CE7] cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[300px]">
                   <p>Este importe corresponde al IVA acumulado del trimestre. Lo uso para calcular la previsión del modelo 303.</p>
@@ -136,7 +136,7 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                  <Info className="w-4 h-4 text-[#6C5CE7] cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[300px]">
                   <p>Refleja la estimación del IRPF trimestral (modelo 130 o retenciones aplicadas). Solo es informativo, no tienes que hacer nada.</p>

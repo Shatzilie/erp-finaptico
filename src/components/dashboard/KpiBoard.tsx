@@ -225,8 +225,8 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
                 <p className="text-sm text-gray-600">Tesoreria</p>
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                <TooltipTrigger asChild>
+                      <Info className="w-4 h-4 text-[#6C5CE7] cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-[300px]">
                       <p>Aquí ves el saldo total que tengo controlado en las cuentas de la empresa. No necesitas hacer nada, solo refleja la tesorería real del momento.</p>
@@ -251,7 +251,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                      <Info className="w-4 h-4 text-[#6C5CE7] cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-[300px]">
                       <p>Este bloque muestra las facturas emitidas en el periodo. Son ingresos facturados, no necesariamente cobrados todavía.</p>
@@ -283,7 +283,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                      <Info className="w-4 h-4 text-[#6C5CE7] cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-[300px]">
                       <p>Aquí aparecen los gastos registrados en la contabilidad. Incluye todos los pagos con factura a nombre de la empresa.</p>
@@ -351,7 +351,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                        <Info className="w-4 h-4 text-[#6C5CE7] cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-[300px]">
                         <p>Este dato muestra la previsión del Impuesto de Sociedades anual. Se actualiza automáticamente con los resultados contables.</p>
