@@ -4,28 +4,49 @@ import { FileText, Receipt, CheckCircle, XCircle, Info } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const getFiscalStatusLabel = (type: string, value: number | null | undefined) => {
+const getFiscalStatusLabel = (type: string, value: number | null | undefined, currentDate: Date = new Date()) => {
+  const month = currentDate.getMonth() + 1; // 1-12
+  const year = currentDate.getFullYear();
+  const quarter = Math.ceil(month / 3); // 1-4
+
   if (value === null || value === undefined || isNaN(value)) {
     return { label: "Sin datos disponibles", color: "#F3F4F6", textColor: "#4B5563" };
   }
 
+  // IVA (Modelo 303)
   if (type === "iva") {
-    if (value > 0) return { label: "IVA calculado: se presentará con el modelo 303", color: "#EDE9FE", textColor: "#4B5563" };
-    if (value === 0) return { label: "Sin IVA a ingresar", color: "#D1FAE5", textColor: "#065F46" };
-    if (value < 0) return { label: "IVA a compensar", color: "#DBEAFE", textColor: "#1E3A8A" };
+    if (quarter === 4) {
+      return { label: "Trimestre en curso. Aún no se presenta.", color: "#E0E7FF", textColor: "#1E3A8A" };
+    }
+    if (value > 0) {
+      return { label: "IVA calculado: se presentará con el modelo 303", color: "#EDE9FE", textColor: "#4B5563" };
+    }
+    if (value < 0) {
+      return { label: "IVA a compensar", color: "#DBEAFE", textColor: "#1E3A8A" };
+    }
+    return { label: "Sin IVA a ingresar", color: "#D1FAE5", textColor: "#065F46" };
   }
 
+  // IRPF (Modelo 130)
   if (type === "irpf") {
-    if (value > 0) return { label: "IRPF pendiente de presentar", color: "#FEF3C7", textColor: "#92400E" };
+    if (quarter === 4) {
+      return { label: "Trimestre en curso. Cierre en enero.", color: "#E0E7FF", textColor: "#1E3A8A" };
+    }
+    if (value > 0) {
+      return { label: "IRPF pendiente de presentar", color: "#FEF3C7", textColor: "#92400E" };
+    }
     return { label: "IRPF presentado y compensado", color: "#D1FAE5", textColor: "#065F46" };
   }
 
+  // Impuesto de Sociedades (Modelo 200)
   if (type === "is") {
-    if (value > 0) return { label: "IS previsto para cierre anual", color: "#E0E7FF", textColor: "#3730A3" };
-    return { label: "Pendiente de cierre anual", color: "#F3F4F6", textColor: "#4B5563" };
+    if (month < 7) {
+      return { label: `Pendiente de cierre del ejercicio ${year - 1}`, color: "#F3F4F6", textColor: "#4B5563" };
+    }
+    return { label: "IS previsto para el cierre anual", color: "#E0E7FF", textColor: "#3730A3" };
   }
 
-  return { label: "Sin información fiscal", color: "#F3F4F6", textColor: "#4B5563" };
+  return { label: "Sin información fiscal disponible", color: "#F3F4F6", textColor: "#4B5563" };
 };
 
 interface IVAData {
