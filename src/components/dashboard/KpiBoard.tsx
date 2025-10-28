@@ -222,14 +222,18 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         // ✅ PARSING DE SOCIEDADES - Lee los datos del payload
         if (sociedadesResponse && typeof sociedadesResponse === 'object') {
           const socResp = sociedadesResponse as any;
+          
+          // Backend devuelve: { ok, widget_data: { sociedades: { payload } } }
+          const payload = socResp.widget_data?.sociedades?.payload || socResp;
+          
           setSociedadesData({
-            resultado_ejercicio: socResp.resultado_ejercicio || 0,
-            cuota_diferencial: socResp.cuota_diferencial || 0,
-            status: socResp.status || 'NEUTRO',
+            resultado_ejercicio: payload.resultado_ejercicio || 0,
+            cuota_diferencial: payload.cuota_diferencial || 0,
+            status: payload.status || 'NEUTRO',
             period: {
-              year: socResp.year || currentYear
+              year: payload.period?.year || currentYear
             },
-            annual_summary: socResp.annual_summary || {
+            annual_summary: payload.annual_summary || {
               beneficio_bruto: 0,
               impuesto_provision: 0,
               beneficio_neto: 0
