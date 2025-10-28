@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle, Info } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle, Info, Circle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { backendAdapter } from "@/lib/backendAdapter";
 import { IvaCard, IrpfCard } from "./FiscalComponents";
@@ -79,6 +79,13 @@ interface SociedadesData {
     beneficio_neto: number;
   };
 }
+
+const getFiscalStatusColor = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || isNaN(value)) return "#9CA3AF"; // Gris (sin datos)
+  if (value <= 0) return "#00BFA5"; // Verde (al día / a favor)
+  if (value > 0 && value <= 1000) return "#FBBF24"; // Amarillo (pendiente controlado)
+  return "#EF4444"; // Rojo (pendiente crítico)
+};
 
 interface MonthlyData {
   month: string;
@@ -348,6 +355,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <p className="text-sm text-gray-600">Impuesto de Sociedades {sociedadesData.period.year}</p>
+                  <Circle size={10} fill={getFiscalStatusColor(sociedadesData.cuota_diferencial)} stroke="none" />
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>

@@ -1,8 +1,15 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Receipt, CheckCircle, XCircle, Info } from "lucide-react";
+import { FileText, Receipt, CheckCircle, XCircle, Info, Circle } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+const getFiscalStatusColor = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || isNaN(value)) return "#9CA3AF"; // Gris (sin datos)
+  if (value <= 0) return "#00BFA5"; // Verde (al día / a favor)
+  if (value > 0 && value <= 1000) return "#FBBF24"; // Amarillo (pendiente controlado)
+  return "#EF4444"; // Rojo (pendiente crítico)
+};
 
 interface IVAData {
   amount: number;
@@ -63,6 +70,7 @@ export const IvaCard = ({ data }: IvaCardProps) => {
             <p className="text-sm text-gray-600">
               IVA Q{data.period.quarter} {data.period.year}
             </p>
+            <Circle size={10} fill={getFiscalStatusColor(data.amount || data.iva_diferencia)} stroke="none" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -133,6 +141,7 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
             <p className="text-sm text-gray-600">
               IRPF Q{data.period.quarter} {data.period.year}
             </p>
+            <Circle size={10} fill={getFiscalStatusColor(data.diferencia)} stroke="none" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
