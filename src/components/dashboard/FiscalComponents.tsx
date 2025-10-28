@@ -6,8 +6,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const getFiscalStatusColor = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return "#9CA3AF"; // Gris (sin datos)
-  if (value <= 0) return "#00BFA5"; // Verde (al día / a favor)
-  if (value > 0 && value <= 1000) return "#FBBF24"; // Amarillo (pendiente controlado)
+  if (value <= 0) return "#00BFA5"; // Verde Finaptico (al día / a favor)
+  if (value > 0 && value <= 1000) return "#EAB308"; // Amarillo visible (pendiente controlado)
   return "#EF4444"; // Rojo (pendiente crítico)
 };
 
@@ -70,7 +70,6 @@ export const IvaCard = ({ data }: IvaCardProps) => {
             <p className="text-sm text-gray-600">
               IVA Q{data.period.quarter} {data.period.year}
             </p>
-            <Circle size={10} fill={getFiscalStatusColor(data.amount || data.iva_diferencia)} stroke="none" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -82,9 +81,17 @@ export const IvaCard = ({ data }: IvaCardProps) => {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <p className={`text-2xl font-bold ${(data.amount || data.iva_diferencia) < 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(data.amount || data.iva_diferencia, 0)}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className={`text-2xl font-bold ${(data.amount || data.iva_diferencia) < 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(data.amount || data.iva_diferencia, 0)}
+            </p>
+            <Circle 
+              size={12} 
+              fill={getFiscalStatusColor(data.amount || data.iva_diferencia)} 
+              stroke="none" 
+              className="shadow-sm flex-shrink-0" 
+            />
+          </div>
         </div>
         <div className={`p-3 rounded-full ${(data.amount || data.iva_diferencia) < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
           <Receipt className={`w-6 h-6 ${(data.amount || data.iva_diferencia) < 0 ? 'text-green-600' : 'text-red-600'}`} />
@@ -141,7 +148,6 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
             <p className="text-sm text-gray-600">
               IRPF Q{data.period.quarter} {data.period.year}
             </p>
-            <Circle size={10} fill={getFiscalStatusColor(data.diferencia)} stroke="none" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -153,9 +159,17 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <p className={`text-2xl font-bold ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(data.diferencia, 0)}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className={`text-2xl font-bold ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(data.diferencia, 0)}
+            </p>
+            <Circle 
+              size={12} 
+              fill={getFiscalStatusColor(data.diferencia)} 
+              stroke="none" 
+              className="shadow-sm flex-shrink-0" 
+            />
+          </div>
         </div>
         <div className={`p-3 rounded-full ${data.diferencia < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
           <FileText className={`w-6 h-6 ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`} />

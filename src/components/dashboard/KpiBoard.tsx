@@ -82,8 +82,8 @@ interface SociedadesData {
 
 const getFiscalStatusColor = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return "#9CA3AF"; // Gris (sin datos)
-  if (value <= 0) return "#00BFA5"; // Verde (al día / a favor)
-  if (value > 0 && value <= 1000) return "#FBBF24"; // Amarillo (pendiente controlado)
+  if (value <= 0) return "#00BFA5"; // Verde Finaptico (al día / a favor)
+  if (value > 0 && value <= 1000) return "#EAB308"; // Amarillo visible (pendiente controlado)
   return "#EF4444"; // Rojo (pendiente crítico)
 };
 
@@ -355,7 +355,6 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <p className="text-sm text-gray-600">Impuesto de Sociedades {sociedadesData.period.year}</p>
-                  <Circle size={10} fill={getFiscalStatusColor(sociedadesData.cuota_diferencial)} stroke="none" />
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -367,9 +366,17 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(sociedadesData.cuota_diferencial, 0)}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(sociedadesData.cuota_diferencial, 0)}
+                  </p>
+                  <Circle 
+                    size={12} 
+                    fill={getFiscalStatusColor(sociedadesData.cuota_diferencial)} 
+                    stroke="none" 
+                    className="shadow-sm flex-shrink-0" 
+                  />
+                </div>
               </div>
               <div className={`p-3 rounded-full ${sociedadesData.cuota_diferencial < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
                 <FileText className={`w-6 h-6 ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`} />
