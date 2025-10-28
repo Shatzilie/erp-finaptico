@@ -1,14 +1,31 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Receipt, CheckCircle, XCircle, Info, Circle } from "lucide-react";
+import { FileText, Receipt, CheckCircle, XCircle, Info } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const getFiscalStatusColor = (value: number | null | undefined): string => {
-  if (value === null || value === undefined || isNaN(value)) return "#9CA3AF"; // Gris (sin datos)
-  if (value <= 0) return "#00BFA5"; // Verde Finaptico (al día / a favor)
-  if (value > 0 && value <= 1000) return "#EAB308"; // Amarillo visible (pendiente controlado)
-  return "#EF4444"; // Rojo (pendiente crítico)
+const getFiscalStatusLabel = (type: string, value: number | null | undefined) => {
+  if (value === null || value === undefined || isNaN(value)) {
+    return { label: "Sin datos disponibles", color: "#F3F4F6", textColor: "#4B5563" };
+  }
+
+  if (type === "iva") {
+    if (value > 0) return { label: "IVA calculado: se presentará con el modelo 303", color: "#EDE9FE", textColor: "#4B5563" };
+    if (value === 0) return { label: "Sin IVA a ingresar", color: "#D1FAE5", textColor: "#065F46" };
+    if (value < 0) return { label: "IVA a compensar", color: "#DBEAFE", textColor: "#1E3A8A" };
+  }
+
+  if (type === "irpf") {
+    if (value > 0) return { label: "IRPF pendiente de presentar", color: "#FEF3C7", textColor: "#92400E" };
+    return { label: "IRPF presentado y compensado", color: "#D1FAE5", textColor: "#065F46" };
+  }
+
+  if (type === "is") {
+    if (value > 0) return { label: "IS previsto para cierre anual", color: "#E0E7FF", textColor: "#3730A3" };
+    return { label: "Pendiente de cierre anual", color: "#F3F4F6", textColor: "#4B5563" };
+  }
+
+  return { label: "Sin información fiscal", color: "#F3F4F6", textColor: "#4B5563" };
 };
 
 interface IVAData {
@@ -81,16 +98,17 @@ export const IvaCard = ({ data }: IvaCardProps) => {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <div className="flex items-center gap-2">
-            <p className={`text-2xl font-bold ${(data.amount || data.iva_diferencia) < 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(data.amount || data.iva_diferencia, 0)}
-            </p>
-            <Circle 
-              size={12} 
-              fill={getFiscalStatusColor(data.amount || data.iva_diferencia)} 
-              stroke="none" 
-              className="shadow-sm flex-shrink-0" 
-            />
+          <p className={`text-2xl font-bold ${(data.amount || data.iva_diferencia) < 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatCurrency(data.amount || data.iva_diferencia, 0)}
+          </p>
+          <div
+            className="mt-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
+            style={{ 
+              backgroundColor: getFiscalStatusLabel("iva", data.amount || data.iva_diferencia).color, 
+              color: getFiscalStatusLabel("iva", data.amount || data.iva_diferencia).textColor 
+            }}
+          >
+            {getFiscalStatusLabel("iva", data.amount || data.iva_diferencia).label}
           </div>
         </div>
         <div className={`p-3 rounded-full ${(data.amount || data.iva_diferencia) < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -159,16 +177,17 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <div className="flex items-center gap-2">
-            <p className={`text-2xl font-bold ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(data.diferencia, 0)}
-            </p>
-            <Circle 
-              size={12} 
-              fill={getFiscalStatusColor(data.diferencia)} 
-              stroke="none" 
-              className="shadow-sm flex-shrink-0" 
-            />
+          <p className={`text-2xl font-bold ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatCurrency(data.diferencia, 0)}
+          </p>
+          <div
+            className="mt-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
+            style={{ 
+              backgroundColor: getFiscalStatusLabel("irpf", data.diferencia).color, 
+              color: getFiscalStatusLabel("irpf", data.diferencia).textColor 
+            }}
+          >
+            {getFiscalStatusLabel("irpf", data.diferencia).label}
           </div>
         </div>
         <div className={`p-3 rounded-full ${data.diferencia < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
