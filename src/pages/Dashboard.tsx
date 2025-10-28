@@ -174,15 +174,6 @@ const Dashboard = () => {
                 <KpiBoard tenantId={tenantSlug} />
               </section>
 
-              <section>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Evolución Financiera</h2>
-                <RevenueExpensesChart 
-                  revenueData={dashboardData?.revenue_history || []}
-                  expensesData={dashboardData?.expenses_history || []}
-                  isLoading={isLoadingCharts}
-                />
-              </section>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <FiscalCalendarWidget />
               </div>
