@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle, Info, Circle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { backendAdapter } from "@/lib/backendAdapter";
-import { IvaCard, IrpfCard, getFiscalStatusLabel } from "./FiscalComponents";
+import { IvaCard, IrpfCard, SociedadesCard, getFiscalStatusLabel } from "./FiscalComponents";
 import { PayrollCostWidget } from "./PayrollCostWidget";
 import { formatCurrency, calculateDelta, formatDelta } from "@/lib/formatters";
 
@@ -406,58 +406,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         <PayrollCostWidget />
 
         {sociedadesData && (
-          <Card className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-sm text-gray-600">Impuesto de Sociedades {sociedadesData.period.year}</p>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="w-4 h-4 text-[#6C5CE7] cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-[300px]">
-                        <p>Este dato muestra la previsión del Impuesto de Sociedades anual. Se actualiza automáticamente con los resultados contables.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <p className={`text-2xl font-bold ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(sociedadesData.cuota_diferencial, 0)}
-                </p>
-                <div
-                  className="mt-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
-                  style={{ 
-                    backgroundColor: getFiscalStatusLabel("is", sociedadesData.cuota_diferencial).color, 
-                    color: getFiscalStatusLabel("is", sociedadesData.cuota_diferencial).textColor 
-                  }}
-                >
-                  {getFiscalStatusLabel("is", sociedadesData.cuota_diferencial).label}
-                </div>
-              </div>
-              <div className={`p-3 rounded-full ${sociedadesData.cuota_diferencial < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                <FileText className={`w-6 h-6 ${sociedadesData.cuota_diferencial < 0 ? 'text-green-600' : 'text-red-600'}`} />
-              </div>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Resultado ejercicio:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.resultado_ejercicio, 0)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Beneficio bruto:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_bruto, 0)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Provisión impuesto:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.impuesto_provision, 0)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Beneficio neto:</span>
-                <span className="font-medium">{formatCurrency(sociedadesData.annual_summary.beneficio_neto, 0)}</span>
-              </div>
-            </div>
-          </Card>
+          <SociedadesCard data={sociedadesData} />
         )}
       </div>
 
