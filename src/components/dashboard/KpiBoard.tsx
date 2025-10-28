@@ -52,6 +52,13 @@ interface IVAData {
   period: {
     quarter: number;
     year: number;
+    date_from?: string;
+    date_to?: string;
+  };
+  quarterly_summary?: {
+    total_sales: number;
+    total_purchases: number;
+    net_result: number;
   };
 }
 
@@ -63,6 +70,13 @@ interface IRPFData {
   period: {
     quarter: number;
     year: number;
+    date_from?: string;
+    date_to?: string;
+  };
+  quarterly_summary?: {
+    total_retenciones_practicadas: number;
+    total_retenciones_soportadas: number;
+    net_result: number;
   };
 }
 
@@ -72,6 +86,8 @@ interface SociedadesData {
   status: string;
   period: {
     year: number;
+    date_from?: string;
+    date_to?: string;
   };
   annual_summary: {
     beneficio_bruto: number;
@@ -161,16 +177,69 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
           setExpensesHistory(legacyData.expenses_history || []);
         }
 
-        if (ivaResponse.ok && ivaResponse.widget_data?.iva?.payload) {
-          setIvaData(ivaResponse.widget_data.iva.payload);
+        // ✅ PARSING DE IVA - Lee los datos del payload
+        if (ivaResponse?.ok && ivaResponse.widget_data?.iva?.payload) {
+          const payload = ivaResponse.widget_data.iva.payload;
+          setIvaData({
+            amount: payload.amount || 0,
+            iva_repercutido: payload.iva_repercutido || 0,
+            iva_soportado: payload.iva_soportado || 0,
+            iva_diferencia: payload.iva_diferencia || 0,
+            status: payload.status || ((payload.amount || 0) > 0 ? 'A INGRESAR' : 'A COMPENSAR'),
+            period: payload.period || {
+              quarter: currentQuarter,
+              year: currentYear,
+              date_from: '',
+              date_to: ''
+            },
+            quarterly_summary: payload.quarterly_summary || {
+              total_sales: 0,
+              total_purchases: 0,
+              net_result: 0
+            }
+          });
         }
 
-        if (irpfResponse.ok && irpfResponse.widget_data?.irpf?.payload) {
-          setIRPFData(irpfResponse.widget_data.irpf.payload);
+        // ✅ PARSING DE IRPF - Lee los datos del payload
+        if (irpfResponse?.ok && irpfResponse.widget_data?.irpf?.payload) {
+          const payload = irpfResponse.widget_data.irpf.payload;
+          setIRPFData({
+            retenciones_practicadas: payload.retenciones_practicadas || 0,
+            retenciones_soportadas: payload.retenciones_soportadas || 0,
+            diferencia: payload.diferencia || 0,
+            status: payload.status || ((payload.diferencia || 0) > 0 ? 'A INGRESAR' : 'A COMPENSAR'),
+            period: payload.period || {
+              quarter: currentQuarter,
+              year: currentYear,
+              date_from: '',
+              date_to: ''
+            },
+            quarterly_summary: payload.quarterly_summary || {
+              total_retenciones_practicadas: 0,
+              total_retenciones_soportadas: 0,
+              net_result: 0
+            }
+          });
         }
 
-        if (sociedadesResponse.ok && sociedadesResponse.widget_data?.sociedades?.payload) {
-          setSociedadesData(sociedadesResponse.widget_data.sociedades.payload);
+        // ✅ PARSING DE SOCIEDADES - Lee los datos del payload
+        if (sociedadesResponse?.ok && sociedadesResponse.widget_data?.sociedades?.payload) {
+          const payload = sociedadesResponse.widget_data.sociedades.payload;
+          setSociedadesData({
+            resultado_ejercicio: payload.resultado_ejercicio || 0,
+            cuota_diferencial: payload.cuota_diferencial || 0,
+            status: payload.status || 'NEUTRO',
+            period: payload.period || {
+              year: currentYear,
+              date_from: '',
+              date_to: ''
+            },
+            annual_summary: payload.annual_summary || {
+              beneficio_bruto: 0,
+              impuesto_provision: 0,
+              beneficio_neto: 0
+            }
+          });
         }
 
       } catch (err) {
