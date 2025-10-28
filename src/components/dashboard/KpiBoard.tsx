@@ -181,65 +181,55 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
         console.log('🔍 IVA Response recibida:', ivaResponse);
         console.log('🔍 Tipo de ivaResponse:', typeof ivaResponse);
         
-        if (ivaResponse?.ok && ivaResponse.widget_data?.iva?.payload) {
-          const payload = ivaResponse.widget_data.iva.payload;
+        if (ivaResponse && typeof ivaResponse === 'object') {
+          const ivaResp = ivaResponse as any;
+          console.log('✅ Condición IVA cumplida, datos a setear:', {
+            iva_a_ingresar: ivaResp.iva_a_ingresar,
+            quarter: ivaResp.quarter,
+            year: ivaResp.year
+          });
+          
           const ivaDataToSet = {
-            amount: payload.amount || 0,
-            iva_repercutido: payload.iva_repercutido || 0,
-            iva_soportado: payload.iva_soportado || 0,
-            iva_diferencia: payload.iva_diferencia || 0,
-            status: payload.status || ((payload.amount || 0) > 0 ? 'A INGRESAR' : 'A COMPENSAR'),
-            period: payload.period || {
-              quarter: currentQuarter,
-              year: currentYear,
-              date_from: '',
-              date_to: ''
-            },
-            quarterly_summary: payload.quarterly_summary || {
-              total_sales: 0,
-              total_purchases: 0,
-              net_result: 0
+            amount: ivaResp.iva_a_ingresar || 0,
+            iva_repercutido: ivaResp.iva_repercutido || 0,
+            iva_soportado: ivaResp.iva_soportado || 0,
+            iva_diferencia: ivaResp.iva_a_ingresar || 0,
+            status: (ivaResp.iva_a_ingresar || 0) > 0 ? 'A INGRESAR' : 'A COMPENSAR',
+            period: {
+              quarter: ivaResp.quarter || currentQuarter,
+              year: ivaResp.year || currentYear
             }
           };
           setIvaData(ivaDataToSet);
-          console.log('🔍 ivaData seteado a:', ivaDataToSet);
+          console.log('🔍 ivaData seteado correctamente:', ivaDataToSet);
         }
 
         // ✅ PARSING DE IRPF - Lee los datos del payload
-        if (irpfResponse?.ok && irpfResponse.widget_data?.irpf?.payload) {
-          const payload = irpfResponse.widget_data.irpf.payload;
+        if (irpfResponse && typeof irpfResponse === 'object') {
+          const irpfResp = irpfResponse as any;
           setIRPFData({
-            retenciones_practicadas: payload.retenciones_practicadas || 0,
-            retenciones_soportadas: payload.retenciones_soportadas || 0,
-            diferencia: payload.diferencia || 0,
-            status: payload.status || ((payload.diferencia || 0) > 0 ? 'A INGRESAR' : 'A COMPENSAR'),
-            period: payload.period || {
-              quarter: currentQuarter,
-              year: currentYear,
-              date_from: '',
-              date_to: ''
-            },
-            quarterly_summary: payload.quarterly_summary || {
-              total_retenciones_practicadas: 0,
-              total_retenciones_soportadas: 0,
-              net_result: 0
+            retenciones_practicadas: irpfResp.retenciones_practicadas || 0,
+            retenciones_soportadas: irpfResp.retenciones_soportadas || 0,
+            diferencia: irpfResp.diferencia || 0,
+            status: (irpfResp.diferencia || 0) > 0 ? 'A INGRESAR' : 'A COMPENSAR',
+            period: {
+              quarter: irpfResp.quarter || currentQuarter,
+              year: irpfResp.year || currentYear
             }
           });
         }
 
         // ✅ PARSING DE SOCIEDADES - Lee los datos del payload
-        if (sociedadesResponse?.ok && sociedadesResponse.widget_data?.sociedades?.payload) {
-          const payload = sociedadesResponse.widget_data.sociedades.payload;
+        if (sociedadesResponse && typeof sociedadesResponse === 'object') {
+          const socResp = sociedadesResponse as any;
           setSociedadesData({
-            resultado_ejercicio: payload.resultado_ejercicio || 0,
-            cuota_diferencial: payload.cuota_diferencial || 0,
-            status: payload.status || 'NEUTRO',
-            period: payload.period || {
-              year: currentYear,
-              date_from: '',
-              date_to: ''
+            resultado_ejercicio: socResp.resultado_ejercicio || 0,
+            cuota_diferencial: socResp.cuota_diferencial || 0,
+            status: socResp.status || 'NEUTRO',
+            period: {
+              year: socResp.year || currentYear
             },
-            annual_summary: payload.annual_summary || {
+            annual_summary: socResp.annual_summary || {
               beneficio_bruto: 0,
               impuesto_provision: 0,
               beneficio_neto: 0
