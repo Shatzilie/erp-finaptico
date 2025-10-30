@@ -474,7 +474,7 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent>🟢 OK | 🟡 Caché expirado | 🔴 Sin datos</TooltipContent>
+                          <TooltipContent>🟢 Activo | 🟡 Caché expirado | 🔴 Sin datos</TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
@@ -491,7 +491,7 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent>Minutos desde la última sincronización</TooltipContent>
+                          <TooltipContent>Minutos desde la última sincronización con Odoo</TooltipContent>
                         </Tooltip>
                         
                         <TableHead>Acciones</TableHead>
