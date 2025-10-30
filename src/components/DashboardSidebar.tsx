@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useTenantFeatures } from '@/hooks/useTenantFeatures';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { MENU_DEF } from '@/lib/menu';
-import { Building2, ScrollText } from 'lucide-react';
+import { Building2, ScrollText, Activity } from 'lucide-react';
 
 export const DashboardSidebar = () => {
   const { slug, features } = useTenantFeatures();
@@ -46,6 +46,18 @@ export const DashboardSidebar = () => {
           >
             <ScrollText className="h-4 w-4" />
             Logs de Auditoría
+          </NavLink>
+
+          <NavLink
+            to="/admin/monitoring"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                isActive ? "bg-white/20 text-white shadow-sm" : "text-gray-300 hover:bg-white/10 hover:text-white"
+              }`
+            }
+          >
+            <Activity className="h-4 w-4" />
+            Monitorización
           </NavLink>
         </nav>
       </div>
@@ -140,6 +152,18 @@ export const DashboardSidebar = () => {
             >
               <ScrollText className="h-4 w-4" />
               Logs de Auditoría
+            </NavLink>
+
+            <NavLink
+              to="/admin/monitoring"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                  isActive ? "bg-white/20 text-white shadow-sm" : "text-gray-300 hover:bg-white/10 hover:text-white"
+                }`
+              }
+            >
+              <Activity className="h-4 w-4" />
+              Monitorización
             </NavLink>
           </>
         )}
