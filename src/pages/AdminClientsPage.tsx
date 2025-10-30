@@ -409,100 +409,100 @@ export default function AdminClientsPage() {
                           </div>
                         </TableHead>
                         
-                        <Tooltip delayDuration={200}>
-                          <TooltipTrigger asChild>
-                            <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
-                              onClick={() => handleSort('tesoreria_total')}
-                            >
-                              <div className="flex items-center gap-1">
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
+                          onClick={() => handleSort('tesoreria_total')}
+                        >
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 w-full">
                                 Tesorería Total
                                 {sortField === 'tesoreria_total' && (
                                   <span className="text-primary">{sortAsc ? '↑' : '↓'}</span>
                                 )}
                               </div>
-                            </TableHead>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>
-                            Suma de todas las cuentas bancarias
-                          </TooltipContent>
-                        </Tooltip>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={8} className="pointer-events-none">
+                              Suma de todas las cuentas bancarias
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
                         
-                        <Tooltip delayDuration={200}>
-                          <TooltipTrigger asChild>
-                            <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
-                              onClick={() => handleSort('facturacion_mes')}
-                            >
-                              <div className="flex items-center gap-1">
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
+                          onClick={() => handleSort('facturacion_mes')}
+                        >
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 w-full">
                                 Ingresos Mensuales
                                 {sortField === 'facturacion_mes' && (
                                   <span className="text-primary">{sortAsc ? '↑' : '↓'}</span>
                                 )}
                               </div>
-                            </TableHead>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>
-                            Facturación del mes en curso
-                          </TooltipContent>
-                        </Tooltip>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={8} className="pointer-events-none">
+                              Facturación del mes en curso
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
                         
-                        <Tooltip delayDuration={200}>
-                          <TooltipTrigger asChild>
-                            <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
-                              onClick={() => handleSort('facturacion_anual')}
-                            >
-                              <div className="flex items-center gap-1">
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
+                          onClick={() => handleSort('facturacion_anual')}
+                        >
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 w-full">
                                 Ingresos Anuales
                                 {sortField === 'facturacion_anual' && (
                                   <span className="text-primary">{sortAsc ? '↑' : '↓'}</span>
                                 )}
                               </div>
-                            </TableHead>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>
-                            Facturación total del año fiscal actual
-                          </TooltipContent>
-                        </Tooltip>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={8} className="pointer-events-none">
+                              Facturación total del año fiscal actual
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
                         
-                        <Tooltip delayDuration={200}>
-                          <TooltipTrigger asChild>
-                            <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[100px]"
-                              onClick={() => handleSort('alerta_estado')}
-                            >
-                              <div className="flex items-center gap-1">
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 transition-colors w-[100px]"
+                          onClick={() => handleSort('alerta_estado')}
+                        >
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 w-full">
                                 Estado
                                 {sortField === 'alerta_estado' && (
                                   <span className="text-primary">{sortAsc ? '↑' : '↓'}</span>
                                 )}
                               </div>
-                            </TableHead>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>
-                            🟢 Activo | 🟡 Caché expirado | 🔴 Sin datos
-                          </TooltipContent>
-                        </Tooltip>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={8} className="pointer-events-none">
+                              🟢 Activo | 🟡 Caché expirado | 🔴 Sin datos
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
                         
-                        <Tooltip delayDuration={200}>
-                          <TooltipTrigger asChild>
-                            <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[120px]"
-                              onClick={() => handleSort('ult_sync_min')}
-                            >
-                              <div className="flex items-center gap-1">
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 transition-colors w-[120px]"
+                          onClick={() => handleSort('ult_sync_min')}
+                        >
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 w-full">
                                 Última Sync
                                 {sortField === 'ult_sync_min' && (
                                   <span className="text-primary">{sortAsc ? '↑' : '↓'}</span>
                                 )}
                               </div>
-                            </TableHead>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>
-                            Minutos desde la última sincronización con Odoo
-                          </TooltipContent>
-                        </Tooltip>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={8} className="pointer-events-none">
+                              Minutos desde la última sincronización con Odoo
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
                         
                         <TableHead className="w-[130px]">Acciones</TableHead>
                       </TableRow>
