@@ -152,16 +152,22 @@ export default function Monitoring() {
         })
     : [];
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return new Intl.DateTimeFormat('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(date);
+  const formatTimestamp = (timestamp: string | null) => {
+    if (!timestamp) return 'N/A';
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'N/A';
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }).format(date);
+    } catch {
+      return 'N/A';
+    }
   };
 
   const getStatusBadge = (status: number) => {
@@ -395,7 +401,7 @@ export default function Monitoring() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.recent_logs.map((log, index) => (
+                    {data.recent_logs.filter(log => log.timestamp).map((log, index) => (
                       <TableRow key={index}>
                         <TableCell className="text-xs">
                           {formatTimestamp(log.timestamp)}
