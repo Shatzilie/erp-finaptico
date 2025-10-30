@@ -75,10 +75,10 @@ export default function Monitoring() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [countdown, setCountdown] = useState(60);
 
-  const numberFormatter = new Intl.NumberFormat('es-ES', { 
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2 
-  });
+  const formatNumber = (num: number | null | undefined) => {
+    if (num === null || num === undefined || isNaN(num)) return '0';
+    return new Intl.NumberFormat('es-ES').format(num);
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -181,12 +181,21 @@ export default function Monitoring() {
   };
 
   const getCacheBadge = (fresh: number, stale: number, expired: number) => {
-    if (fresh > stale && fresh > expired) {
-      return <Badge className="bg-green-500">Fresh</Badge>;
-    } else if (stale > fresh && stale > expired) {
-      return <Badge className="bg-yellow-500">Stale</Badge>;
+    const total = fresh + stale + expired;
+    if (total === 0) return <Badge className="bg-gray-500">Sin datos</Badge>;
+    
+    const freshPercent = (fresh / total) * 100;
+    const stalePercent = (stale / total) * 100;
+    const expiredPercent = (expired / total) * 100;
+    
+    if (freshPercent > 50) {
+      return <Badge className="bg-green-500">Activo</Badge>;
+    } else if (stalePercent > 50) {
+      return <Badge className="bg-yellow-500">Obsoleto</Badge>;
+    } else if (expiredPercent > 50) {
+      return <Badge className="bg-red-500">Caducado</Badge>;
     } else {
-      return <Badge className="bg-red-500">Expired</Badge>;
+      return <Badge className="bg-yellow-500">Mixto</Badge>;
     }
   };
 
@@ -238,7 +247,7 @@ export default function Monitoring() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {numberFormatter.format(data.summary.total_calls_24h)}
+                {formatNumber(data.summary.total_calls_24h)}
               </div>
             </CardContent>
           </Card>
@@ -250,7 +259,7 @@ export default function Monitoring() {
             </CardHeader>
             <CardContent>
               <div className={`text-3xl font-bold ${data.summary.total_errors_24h > 0 ? 'text-red-500' : ''}`}>
-                {numberFormatter.format(data.summary.total_errors_24h)}
+                {formatNumber(data.summary.total_errors_24h)}
               </div>
             </CardContent>
           </Card>
@@ -262,7 +271,7 @@ export default function Monitoring() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {numberFormatter.format(data.summary.active_functions)}
+                {formatNumber(data.summary.active_functions)}
               </div>
             </CardContent>
           </Card>
@@ -322,12 +331,12 @@ export default function Monitoring() {
                       className={metric.error_rate > 5 ? 'bg-red-50 dark:bg-red-950/20' : ''}
                     >
                       <TableCell className="font-medium">{metric.function_name}</TableCell>
-                      <TableCell>{numberFormatter.format(metric.calls_per_hour)}</TableCell>
-                      <TableCell>{numberFormatter.format(metric.total_calls_24h)}</TableCell>
-                      <TableCell>{numberFormatter.format(metric.error_count)}</TableCell>
-                      <TableCell>{numberFormatter.format(metric.error_rate)}%</TableCell>
-                      <TableCell>{numberFormatter.format(metric.avg_latency_ms)} ms</TableCell>
-                      <TableCell>{numberFormatter.format(metric.p95_latency_ms)} ms</TableCell>
+                      <TableCell>{formatNumber(metric.calls_per_hour)}</TableCell>
+                      <TableCell>{formatNumber(metric.total_calls_24h)}</TableCell>
+                      <TableCell>{formatNumber(metric.error_count)}</TableCell>
+                      <TableCell>{metric.error_rate?.toFixed(1) ?? '0.0'}%</TableCell>
+                      <TableCell>{formatNumber(metric.avg_latency_ms)} ms</TableCell>
+                      <TableCell>{formatNumber(metric.p95_latency_ms)} ms</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -364,10 +373,10 @@ export default function Monitoring() {
                   {data.cache_status.map((cache) => (
                     <TableRow key={cache.cache_key}>
                       <TableCell className="font-medium">{cache.cache_key}</TableCell>
-                      <TableCell>{numberFormatter.format(cache.fresh_count)}</TableCell>
-                      <TableCell>{numberFormatter.format(cache.stale_count)}</TableCell>
-                      <TableCell>{numberFormatter.format(cache.expired_count)}</TableCell>
-                      <TableCell>{numberFormatter.format(cache.total_count)}</TableCell>
+                      <TableCell>{formatNumber(cache.fresh_count)}</TableCell>
+                      <TableCell>{formatNumber(cache.stale_count)}</TableCell>
+                      <TableCell>{formatNumber(cache.expired_count)}</TableCell>
+                      <TableCell>{formatNumber(cache.total_count)}</TableCell>
                       <TableCell>
                         {getCacheBadge(cache.fresh_count, cache.stale_count, cache.expired_count)}
                       </TableCell>
@@ -409,7 +418,7 @@ export default function Monitoring() {
                         <TableCell className="font-medium">{log.function_name}</TableCell>
                         <TableCell className="text-xs">{log.user_id.substring(0, 8)}...</TableCell>
                         <TableCell>{getStatusBadge(log.status_code)}</TableCell>
-                        <TableCell>{numberFormatter.format(log.latency_ms)} ms</TableCell>
+                        <TableCell>{formatNumber(log.latency_ms)} ms</TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
                           {typeof log.details === 'object' 
                             ? JSON.stringify(log.details) 
