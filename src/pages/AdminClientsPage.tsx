@@ -232,7 +232,7 @@ export default function AdminClientsPage() {
   });
 
   return (
-    <TooltipProvider delayDuration={200} skipDelayDuration={500}>
+    <TooltipProvider>
       <div className="container mx-auto py-8 px-4 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -398,7 +398,7 @@ export default function AdminClientsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead 
-                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          className="cursor-pointer hover:bg-muted/50 transition-colors w-[200px]"
                           onClick={() => handleSort('tenant_name')}
                         >
                           <div className="flex items-center gap-1">
@@ -409,10 +409,10 @@ export default function AdminClientsPage() {
                           </div>
                         </TableHead>
                         
-                        <Tooltip>
+                        <Tooltip delayDuration={200}>
                           <TooltipTrigger asChild>
                             <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
                               onClick={() => handleSort('tesoreria_total')}
                             >
                               <div className="flex items-center gap-1">
@@ -423,13 +423,15 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>Suma de todas las cuentas bancarias</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>
+                            Suma de todas las cuentas bancarias
+                          </TooltipContent>
                         </Tooltip>
                         
-                        <Tooltip>
+                        <Tooltip delayDuration={200}>
                           <TooltipTrigger asChild>
                             <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
                               onClick={() => handleSort('facturacion_mes')}
                             >
                               <div className="flex items-center gap-1">
@@ -440,13 +442,15 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>Facturación del mes en curso</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>
+                            Facturación del mes en curso
+                          </TooltipContent>
                         </Tooltip>
                         
-                        <Tooltip>
+                        <Tooltip delayDuration={200}>
                           <TooltipTrigger asChild>
                             <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[150px]"
                               onClick={() => handleSort('facturacion_anual')}
                             >
                               <div className="flex items-center gap-1">
@@ -457,13 +461,15 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>Facturación total del año fiscal actual</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>
+                            Facturación total del año fiscal actual
+                          </TooltipContent>
                         </Tooltip>
                         
-                        <Tooltip>
+                        <Tooltip delayDuration={200}>
                           <TooltipTrigger asChild>
                             <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[100px]"
                               onClick={() => handleSort('alerta_estado')}
                             >
                               <div className="flex items-center gap-1">
@@ -474,13 +480,15 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>🟢 Activo | 🟡 Caché expirado | 🔴 Sin datos</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>
+                            🟢 Activo | 🟡 Caché expirado | 🔴 Sin datos
+                          </TooltipContent>
                         </Tooltip>
                         
-                        <Tooltip>
+                        <Tooltip delayDuration={200}>
                           <TooltipTrigger asChild>
                             <TableHead 
-                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              className="cursor-pointer hover:bg-muted/50 transition-colors w-[120px]"
                               onClick={() => handleSort('ult_sync_min')}
                             >
                               <div className="flex items-center gap-1">
@@ -491,10 +499,12 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={8}>Minutos desde la última sincronización con Odoo</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>
+                            Minutos desde la última sincronización con Odoo
+                          </TooltipContent>
                         </Tooltip>
                         
-                        <TableHead>Acciones</TableHead>
+                        <TableHead className="w-[130px]">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
