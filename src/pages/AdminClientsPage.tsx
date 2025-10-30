@@ -232,7 +232,7 @@ export default function AdminClientsPage() {
   });
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={200} skipDelayDuration={500}>
       <div className="container mx-auto py-8 px-4 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -423,7 +423,7 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent>Suma de todas las cuentas bancarias</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>Suma de todas las cuentas bancarias</TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
@@ -440,7 +440,7 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent>Facturación del mes en curso</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>Facturación del mes en curso</TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
@@ -457,7 +457,7 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent>Facturación total del año fiscal actual</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>Facturación total del año fiscal actual</TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
@@ -474,7 +474,7 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent>🟢 Activo | 🟡 Caché expirado | 🔴 Sin datos</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>🟢 Activo | 🟡 Caché expirado | 🔴 Sin datos</TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
@@ -491,7 +491,7 @@ export default function AdminClientsPage() {
                               </div>
                             </TableHead>
                           </TooltipTrigger>
-                          <TooltipContent>Minutos desde la última sincronización con Odoo</TooltipContent>
+                          <TooltipContent side="top" sideOffset={8}>Minutos desde la última sincronización con Odoo</TooltipContent>
                         </Tooltip>
                         
                         <TableHead>Acciones</TableHead>
