@@ -31,10 +31,10 @@ interface FunctionMetric {
 
 interface CacheStatus {
   cache_key: string;
-  fresh_count: number;
-  stale_count: number;
-  expired_count: number;
-  total_count: number;
+  fresh: number;
+  stale: number;
+  expired: number;
+  total: number;
 }
 
 interface RecentLog {
@@ -78,6 +78,16 @@ export default function Monitoring() {
   const formatNumber = (num: number | null | undefined) => {
     if (num === null || num === undefined || isNaN(num)) return '0';
     return new Intl.NumberFormat('es-ES').format(num);
+  };
+
+  const formatCacheKey = (key: string) => {
+    const parts = key.split(':');
+    return parts.map(part => {
+      if (part.length > 20 && part.includes('-')) {
+        return `...${part.slice(-6)}`;
+      }
+      return part;
+    }).join(':');
   };
 
   const fetchData = async () => {
@@ -180,9 +190,8 @@ export default function Monitoring() {
     }
   };
 
-  const getCacheBadge = (fresh: number, stale: number, expired: number) => {
-    const total = fresh + stale + expired;
-    if (total === 0) return <Badge className="bg-gray-500">Sin datos</Badge>;
+  const getCacheBadge = (fresh: number, stale: number, expired: number, total: number) => {
+    if (total === 0) return <Badge className="bg-gray-500">Vacío</Badge>;
     
     const freshPercent = (fresh / total) * 100;
     const stalePercent = (stale / total) * 100;
@@ -190,10 +199,10 @@ export default function Monitoring() {
     
     if (freshPercent > 50) {
       return <Badge className="bg-green-500">Activo</Badge>;
-    } else if (stalePercent > 50) {
-      return <Badge className="bg-yellow-500">Obsoleto</Badge>;
     } else if (expiredPercent > 50) {
       return <Badge className="bg-red-500">Caducado</Badge>;
+    } else if (stalePercent > 50) {
+      return <Badge className="bg-yellow-500">Obsoleto</Badge>;
     } else {
       return <Badge className="bg-yellow-500">Mixto</Badge>;
     }
@@ -372,13 +381,13 @@ export default function Monitoring() {
                 <TableBody>
                   {data.cache_status.map((cache) => (
                     <TableRow key={cache.cache_key}>
-                      <TableCell className="font-medium">{cache.cache_key}</TableCell>
-                      <TableCell>{formatNumber(cache.fresh_count)}</TableCell>
-                      <TableCell>{formatNumber(cache.stale_count)}</TableCell>
-                      <TableCell>{formatNumber(cache.expired_count)}</TableCell>
-                      <TableCell>{formatNumber(cache.total_count)}</TableCell>
+                      <TableCell className="font-medium">{formatCacheKey(cache.cache_key)}</TableCell>
+                      <TableCell>{formatNumber(cache.fresh)}</TableCell>
+                      <TableCell>{formatNumber(cache.stale)}</TableCell>
+                      <TableCell>{formatNumber(cache.expired)}</TableCell>
+                      <TableCell>{formatNumber(cache.total)}</TableCell>
                       <TableCell>
-                        {getCacheBadge(cache.fresh_count, cache.stale_count, cache.expired_count)}
+                        {getCacheBadge(cache.fresh, cache.stale, cache.expired, cache.total)}
                       </TableCell>
                     </TableRow>
                   ))}
