@@ -132,6 +132,9 @@ export const IvaCard = ({ data }: IvaCardProps) => {
 };
 
 export const IrpfCard = ({ data }: IrpfCardProps) => {
+  // Calcular la diferencia si no viene en el data
+  const diferencia = data.diferencia ?? (data.retenciones_practicadas - data.retenciones_soportadas);
+  
   return (
     <Card className="p-6 hover:shadow-lg transition-shadow">
       <div className="flex items-start justify-between mb-4">
@@ -151,21 +154,21 @@ export const IrpfCard = ({ data }: IrpfCardProps) => {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <p className={`text-2xl font-bold ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(data.diferencia, 0)}
+          <p className={`text-2xl font-bold ${diferencia < 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatCurrency(diferencia, 0)}
           </p>
           <div
             className="mt-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
             style={{ 
-              backgroundColor: getFiscalStatusLabel("irpf", data.diferencia).color, 
-              color: getFiscalStatusLabel("irpf", data.diferencia).textColor 
+              backgroundColor: getFiscalStatusLabel("irpf", diferencia).color, 
+              color: getFiscalStatusLabel("irpf", diferencia).textColor 
             }}
           >
-            {getFiscalStatusLabel("irpf", data.diferencia).label}
+            {getFiscalStatusLabel("irpf", diferencia).label}
           </div>
         </div>
-        <div className={`p-3 rounded-full ${data.diferencia < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-          <FileText className={`w-6 h-6 ${data.diferencia < 0 ? 'text-green-600' : 'text-red-600'}`} />
+        <div className={`p-3 rounded-full ${diferencia < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+          <FileText className={`w-6 h-6 ${diferencia < 0 ? 'text-green-600' : 'text-red-600'}`} />
         </div>
       </div>
       <div className="space-y-2 text-sm">

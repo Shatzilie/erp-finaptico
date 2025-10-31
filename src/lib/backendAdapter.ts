@@ -31,6 +31,23 @@ export interface LegacyDashboardData {
   cache_status?: 'hit' | 'miss' | 'refresh';
   cached_at?: string;
   age_minutes?: number;
+  // Datos fiscales del dashboard bundle
+  irpf?: {
+    quarterly: number;
+    retencionesPracticadas: number;
+    retencionesSoportadas: number;
+    quarter: number;
+    year: number;
+  };
+  payroll?: {
+    quarterly: number;
+    totalBruto: number;
+    totalNeto: number;
+    irpfRetenido: number;
+    employeeCount: number;
+    quarter: number;
+    year: number;
+  };
 }
 
 export interface MonthlyData {
@@ -166,6 +183,22 @@ export interface NewBackendResponse {
           message: string;
           module: string;
         }>;
+        irpf?: {
+          quarterly: number;
+          retencionesPracticadas: number;
+          retencionesSoportadas: number;
+          quarter: number;
+          year: number;
+        };
+        payroll?: {
+          quarterly: number;
+          totalBruto: number;
+          totalNeto: number;
+          irpfRetenido: number;
+          employeeCount: number;
+          quarter: number;
+          year: number;
+        };
       };
     };
   };
@@ -219,7 +252,11 @@ export function adaptNewToLegacy(newData: NewBackendResponse): LegacyDashboardDa
     // Datos de caché
     cache_status: newData.cache_status,
     cached_at: newData.cached_at,
-    age_minutes: newData.age_minutes
+    age_minutes: newData.age_minutes,
+    
+    // Datos fiscales
+    irpf: payload.irpf,
+    payroll: payload.payroll
   };
 
   console.log('✅ Adaptación completada:', {

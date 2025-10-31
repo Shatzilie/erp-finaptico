@@ -396,7 +396,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
           <IrpfCard data={irpfData} />
         )}
 
-        <PayrollCostWidget />
+        <PayrollCostWidget tenantId={tenantId} />
 
         {sociedadesData && (
           <SociedadesCard data={sociedadesData} />
