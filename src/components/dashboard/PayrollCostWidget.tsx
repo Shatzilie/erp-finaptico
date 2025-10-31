@@ -21,12 +21,9 @@ export const PayrollCostWidget = ({ tenantId }: PayrollCostWidgetProps) => {
     }
   };
 
-  if (!payrollData) {
-    return null;
-  }
-
-  const count = payrollData.employeeCount || 0;
-  const quarterText = `Q${payrollData.quarter || 4} ${payrollData.year || 2025}`;
+  // Siempre mostrar el widget, incluso sin datos
+  const count = payrollData?.employeeCount || 0;
+  const quarterText = `Q${payrollData?.quarter || 4} ${payrollData?.year || 2025}`;
   
   let statusText = '';
   let statusColor = '';
