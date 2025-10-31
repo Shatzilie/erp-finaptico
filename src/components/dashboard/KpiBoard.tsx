@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle, Info, Circle } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, CreditCard, AlertTriangle, FileText, ArrowUp, ArrowDown, CheckCircle, XCircle, Info, Circle, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { backendAdapter } from "@/lib/backendAdapter";
 import { IvaCard, IrpfCard, SociedadesCard, getFiscalStatusLabel } from "./FiscalComponents";
-import { PayrollCostWidget } from "./PayrollCostWidget";
 import { formatCurrency, calculateDelta, formatDelta } from "@/lib/formatters";
 
 interface KpiBoardProps {
@@ -36,6 +35,7 @@ interface DashboardData {
     yearlyMargin: number;
     marginPercentage: number;
   };
+  payroll?: number;
   alerts: Array<{
     type: string;
     message: string;
@@ -168,6 +168,7 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
               yearlyMargin: legacyData.yearlyMargin || 0,
               marginPercentage: legacyData.marginPercentage || 0
             },
+            payroll: (legacyData as any).payroll || 0,
             alerts: legacyData.alerts || []
           };
           setDashboardData(convertedData);
@@ -396,7 +397,33 @@ const KpiBoard = ({ tenantId }: KpiBoardProps) => {
           <IrpfCard data={irpfData} />
         )}
 
-        <PayrollCostWidget tenantId={tenantId} />
+        {/* Widget 5: Coste Laboral */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-[#6C5CE7]" />
+                <h3 className="text-sm font-medium text-gray-600">Coste Laboral 4T</h3>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-[#6C5CE7]" />
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-[#111827] text-white text-sm max-w-[300px] rounded-md p-2.5 shadow-md">
+                      Aquí ves el coste laboral del trimestre actual. Incluye salarios y seguridad social de los empleados.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-[#111827]">
+              {formatCurrency(dashboardData?.payroll || 0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Trimestre en curso. Aún no se presenta.
+            </p>
+          </CardContent>
+        </Card>
 
         {sociedadesData && (
           <SociedadesCard data={sociedadesData} />
