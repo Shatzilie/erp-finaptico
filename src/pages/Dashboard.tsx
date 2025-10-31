@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, FileText } from "lucide-react";
 import KpiBoard from "@/components/dashboard/KpiBoard";
 import ChartsSection, { ChartsSectionRef } from "@/components/dashboard/ChartsSection";
-import RevenueExpensesChart from "@/components/dashboard/RevenueExpensesChart";
 import { FiscalCalendarWidget } from "@/components/dashboard/FiscalCalendarWidget";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,17 +15,10 @@ import { useTenantAccess } from '@/hooks/useTenantAccess';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { SyncNow } from '@/components/SyncNow';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
-
-interface MonthlyData {
-  month: string;
-  total: number;
-  currency: string;
-}
-
-interface ChartsData {
-  revenue_history: MonthlyData[];
-  expenses_history: MonthlyData[];
-}
+import { TreasuryChart } from '@/components/charts/TreasuryChart';
+import { RevenueExpensesChart } from '@/components/charts/RevenueExpensesChart';
+import { IVAChart } from '@/components/charts/IVAChart';
+import { IRPFChart } from '@/components/charts/IRPFChart';
 
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -35,12 +27,10 @@ const Dashboard = () => {
   const { data: dashboardData, isLoading: isLoadingDashboard, refresh, isRefreshing } = useDashboardData(tenantSlug);
   const chartsSectionRef = useRef<ChartsSectionRef>(null);
 
-  const chartsData: ChartsData = {
-    revenue_history: dashboardData?.revenue_history || [],
-    expenses_history: dashboardData?.expenses_history || []
-  };
-
   const isLoadingCharts = isTenantLoading || isLoadingDashboard;
+
+  // Datos de gráficas temporales
+  const chartData = dashboardData?.chart_data;
 
   const handleGeneratePDF = async () => {
     if (!tenantSlug) {
@@ -178,9 +168,50 @@ const Dashboard = () => {
                 <FiscalCalendarWidget />
               </div>
 
+              {/* Gráficas temporales */}
               <section>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Análisis Histórico Detallado</h2>
-                <ChartsSection ref={chartsSectionRef} data={chartsData} isLoading={isLoadingCharts} />
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Evolución Temporal</h2>
+                {isLoadingCharts ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {chartData?.treasury && (
+                      <TreasuryChart 
+                        labels={chartData.treasury.labels} 
+                        series={chartData.treasury.series} 
+                      />
+                    )}
+                    
+                    {chartData?.revenue_expenses && (
+                      <RevenueExpensesChart 
+                        labels={chartData.revenue_expenses.labels} 
+                        series={chartData.revenue_expenses.series} 
+                      />
+                    )}
+                    
+                    {chartData?.iva && (
+                      <IVAChart 
+                        labels={chartData.iva.labels} 
+                        series={chartData.iva.series} 
+                      />
+                    )}
+                    
+                    {chartData?.irpf && (
+                      <IRPFChart 
+                        labels={chartData.irpf.labels} 
+                        series={chartData.irpf.series} 
+                      />
+                    )}
+                    
+                    {!chartData && (
+                      <div className="col-span-2 text-center py-12 text-muted-foreground">
+                        No hay datos de gráficas disponibles
+                      </div>
+                    )}
+                  </div>
+                )}
               </section>
             </div>
           </main>

@@ -6,6 +6,31 @@
 import { supabase } from '@/integrations/supabase/client';
 import { handleApiError } from '@/lib/apiErrorHandler';
 
+export interface ChartData {
+  treasury?: {
+    labels: string[];
+    series: number[];
+  };
+  revenue_expenses?: {
+    labels: string[];
+    series: {
+      revenue: number[];
+      expenses: number[];
+    };
+  };
+  iva?: {
+    labels: string[];
+    series: number[];
+  };
+  irpf?: {
+    labels: string[];
+    series: {
+      practicadas: number[];
+      soportadas: number[];
+    };
+  };
+}
+
 export interface LegacyDashboardData {
   totalCash?: number;
   monthlyRevenue?: number;
@@ -48,6 +73,8 @@ export interface LegacyDashboardData {
     quarter: number;
     year: number;
   };
+  // Datos de gráficas temporales
+  chart_data?: ChartData;
 }
 
 export interface MonthlyData {
@@ -202,6 +229,7 @@ export interface NewBackendResponse {
       };
     };
   };
+  chart_data?: ChartData;
   meta: {
     tenant_slug: string;
     execution_time: string;
@@ -256,7 +284,10 @@ export function adaptNewToLegacy(newData: NewBackendResponse): LegacyDashboardDa
     
     // Datos fiscales
     irpf: payload.irpf,
-    payroll: payload.payroll
+    payroll: payload.payroll,
+    
+    // Datos de gráficas temporales
+    chart_data: newData.chart_data
   };
 
   console.log('✅ Adaptación completada:', {
