@@ -31,6 +31,10 @@ const Dashboard = () => {
 
   // Datos de gráficas temporales
   const chartData = dashboardData?.chart_data;
+  
+  // Debug: verificar datos de gráficas
+  console.log('📊 Dashboard render - chartData:', chartData);
+  console.log('📊 dashboardData completo:', dashboardData);
 
   const handleGeneratePDF = async () => {
     if (!tenantSlug) {
