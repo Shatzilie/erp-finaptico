@@ -71,10 +71,12 @@ export function useTenantAccess(): TenantAccessResult {
         setIsLoading(true);
         setError(null);
 
-        const { data, error: queryError } = await (supabase as any)
+        // Obtener TODOS los tenants del usuario
+        const { data: tenantAccessList, error: queryError } = await (supabase as any)
           .from("user_tenant_access")
           .select(`
             tenant_id,
+            role,
             tenants (
               id,
               slug,
@@ -82,7 +84,7 @@ export function useTenantAccess(): TenantAccessResult {
             )
           `)
           .eq("user_id", user.id)
-          .single();
+          .order('created_at', { ascending: true }); // Primer tenant registrado
 
         if (queryError) {
           console.error("❌ Error consultando tenant:", queryError);
@@ -92,7 +94,7 @@ export function useTenantAccess(): TenantAccessResult {
           return;
         }
 
-        if (!data || !data.tenants) {
+        if (!tenantAccessList || tenantAccessList.length === 0) {
           console.error("❌ Usuario sin tenant asignado");
           setError("Usuario sin tenant asignado");
           setHasAccess(false);
@@ -100,12 +102,14 @@ export function useTenantAccess(): TenantAccessResult {
           return;
         }
 
-        const tenant = data.tenants as TenantRow;
-        console.log("✅ Tenant encontrado:", tenant.slug);
+        // Si el usuario tiene múltiples tenants, usar el primero
+        const firstTenant = tenantAccessList[0].tenants as TenantRow;
+        console.log("✅ Tenant seleccionado:", firstTenant.slug);
+        console.log(`📊 Total tenants disponibles: ${tenantAccessList.length}`);
         
-        setTenantId(tenant.id);
-        setTenantSlug(tenant.slug);
-        setTenantName(tenant.name || null);
+        setTenantId(firstTenant.id);
+        setTenantSlug(firstTenant.slug);
+        setTenantName(firstTenant.name || null);
         setHasAccess(true);
       } catch (err: any) {
         console.error("❌ Error en fetchTenantAccess:", err);
