@@ -17,7 +17,6 @@ import { TreasuryChart } from '@/components/charts/TreasuryChart';
 import { RevenueExpensesChart } from '@/components/charts/RevenueExpensesChart';
 import { IVAChart } from '@/components/charts/IVAChart';
 import { IRPFChart } from '@/components/charts/IRPFChart';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
