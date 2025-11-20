@@ -83,7 +83,7 @@ export default function Login() {
           .from('profiles')
           .select('tenant_id')
           .eq('user_id', data.user.id)
-          .single();
+          .maybeSingle();
 
         if (profileError || !profileData) {
           toast({
@@ -100,7 +100,7 @@ export default function Login() {
           .from('tenants')
           .select('slug')
           .eq('id', profileData.tenant_id)
-          .single();
+          .maybeSingle();
 
         if (tenantError || !tenantData) {
           toast({

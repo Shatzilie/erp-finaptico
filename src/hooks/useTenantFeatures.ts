@@ -54,7 +54,7 @@ export function useTenantFeatures() {
         .from("tenants")
         .select("id")
         .eq("slug", slug)
-        .single();
+        .maybeSingle();
 
       if (terr || !tenant) {
         console.error("Tenant not found", slug, terr);
@@ -67,7 +67,7 @@ export function useTenantFeatures() {
         .from("tenant_features")
         .select("*")
         .eq("tenant_id", tenant.id)
-        .single();
+        .maybeSingle();
 
       if (ferr) {
         console.error("tenant_features error", ferr);
