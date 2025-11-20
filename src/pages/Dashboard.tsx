@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, FileText } from "lucide-react";
 import KpiBoard from "@/components/dashboard/KpiBoard";
@@ -19,7 +18,6 @@ import { RevenueExpensesChart } from '@/components/charts/RevenueExpensesChart';
 import { IVAChart } from '@/components/charts/IVAChart';
 import { IRPFChart } from '@/components/charts/IRPFChart';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { logger } from '@/lib/logger';
 
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -31,12 +29,6 @@ const Dashboard = () => {
 
   // Datos de gráficas temporales
   const chartData = dashboardData?.chart_data;
-  
-  logger.debug('Dashboard render', {
-    component: 'Dashboard',
-    hasChartData: !!chartData,
-    isLoading: isLoadingCharts
-  });
 
   const handleGeneratePDF = async () => {
     if (!tenantSlug) {
@@ -49,20 +41,16 @@ const Dashboard = () => {
     }
 
     try {
-      logger.info('Generating PDF report', { component: 'Dashboard', tenantSlug });
       toast({
         title: "Capturando gráficas...",
         description: "Por favor espera mientras se prepara el informe"
       });
 
-      // Llamar al backend con las gráficas capturadas
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.access_token) {
         throw new Error('Sesión expirada');
       }
-
-      logger.debug('Calling PDF backend', { component: 'Dashboard' });
       
       const response = await fetch(
         `https://dtmrywilxpilpzokxxif.supabase.co/functions/v1/financial-report-pdf`,
@@ -94,8 +82,6 @@ const Dashboard = () => {
         newWindow.document.write(htmlContent);
         newWindow.document.close();
         
-        logger.info('PDF generated successfully', { component: 'Dashboard' });
-        
         toast({
           title: "Informe generado",
           description: "Se ha abierto el informe en una nueva pestaña"
@@ -109,7 +95,7 @@ const Dashboard = () => {
       }
 
     } catch (error: unknown) {
-      logger.error('PDF generation failed', error, { component: 'Dashboard' });
+      console.error('Error al generar PDF:', error);
       handleApiError(error, 'Generación de PDF');
     }
   };
@@ -124,15 +110,14 @@ const Dashboard = () => {
 
   return (
     <ProtectedRoute>
-      <ErrorBoundary fallbackMessage="Error cargando el dashboard">
-        <div className="flex min-h-screen bg-background">
-          <DashboardSidebar />
+      <div className="flex min-h-screen bg-background">
+        <DashboardSidebar />
+        
+        <div className="flex-1">
+          <DashboardHeader />
           
-          <div className="flex-1">
-            <DashboardHeader />
-            
-            <main className="p-6">
-              <div className="max-w-7xl mx-auto space-y-8">
+          <main className="p-6">
+            <div className="max-w-7xl mx-auto space-y-8">
               {/* Botones de acción */}
               <div className="flex justify-between items-center">
                 <FreshnessBadge cachedAt={dashboardData?.cached_at} />
@@ -206,11 +191,10 @@ const Dashboard = () => {
                   </div>
                 )}
               </section>
-              </div>
-            </main>
-          </div>
+            </div>
+          </main>
         </div>
-      </ErrorBoundary>
+      </div>
     </ProtectedRoute>
   );
 };

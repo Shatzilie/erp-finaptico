@@ -3,8 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { logger } from "@/lib/logger";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -16,8 +14,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
   const { tenant: tenantParam } = useParams<{ tenant: string }>();
 
-  logger.debug('ProtectedRoute check', {
-    component: 'ProtectedRoute',
+  console.log("🛡️ ProtectedRoute:", {
     authLoading,
     isAuthenticated,
     tenantLoading,
@@ -26,7 +23,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // 1️⃣ CRÍTICO: Esperar a que termine de cargar la sesión
   if (authLoading) {
-    logger.debug('Waiting for session load', { component: 'ProtectedRoute' });
+    console.log("⏳ Esperando carga de sesión...");
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -39,13 +36,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // 2️⃣ Solo DESPUÉS de cargar, validar autenticación
   if (!isAuthenticated) {
-    logger.info('User not authenticated, redirecting to login');
+    console.log("❌ No autenticado, redirigiendo a login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // 3️⃣ Esperar validación de tenant
   if (tenantLoading) {
-    logger.debug('Verifying tenant permissions', { component: 'ProtectedRoute' });
+    console.log("⏳ Verificando permisos de tenant...");
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -58,7 +55,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // 4️⃣ Validar acceso a tenant
   if (error || !hasAccess) {
-    logger.warn('Tenant access denied', { error, hasAccess });
+    console.log("❌ Sin acceso al tenant");
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Alert variant="destructive" className="max-w-md">
@@ -76,15 +73,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // 5️⃣ Validar que el tenant de la URL coincide con el tenant del usuario
   if (tenantParam && tenantSlug && tenantParam !== tenantSlug) {
-    logger.info('Tenant mismatch, redirecting', { tenantParam, tenantSlug });
+    console.log("⚠️ Tenant incorrecto en URL, redirigiendo a:", tenantSlug);
     return <Navigate to={`/${tenantSlug}/dashboard`} replace />;
   }
 
-  // 6️⃣ Todo OK - wrap con ErrorBoundary
-  logger.debug('Access granted', { tenantSlug });
-  return (
-    <ErrorBoundary fallbackMessage="Error en el contenido protegido">
-      {children}
-    </ErrorBoundary>
-  );
+  // 6️⃣ Todo OK
+  console.log("✅ Acceso concedido");
+  return <>{children}</>;
 };
